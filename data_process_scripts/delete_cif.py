@@ -1,0 +1,12 @@
+'''
+用于删除AlphaFold数据库下载的物种蛋白质数据中的CIF文件
+'''
+import os
+
+# 设置工作路径为项目文件夹
+os.chdir("..")
+
+data_path = os.path.join('raw_data','HUMAN','pdb')
+for file_path in os.listdir(data_path):
+    if file_path.endswith(".cif.gz") or file_path.endswith(".cif"):
+        os.remove(os.path.abspath(os.path.join(data_path,file_path)))
