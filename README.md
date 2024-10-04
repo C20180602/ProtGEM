@@ -8,7 +8,7 @@ python 3.11.7
 
 CUDA 12.1，torch 2.2.1+cu121，dgl 2.2.1
 
-建议使用Linux
+建议使用Linux环境
 
 其他python依赖库：
 
@@ -19,6 +19,8 @@ matplotlib 3.9.2
 pyyaml 6.0.2
 
 pydantic 2.8.2
+
+fair-esm 2.0.0
 
 配置流程：
 ```
@@ -32,7 +34,7 @@ pip install torch==2.2.1 torchvision==0.17.1 torchaudio==2.2.1 --index-url https
 
 pip install  dgl==2.2.1 -f https://data.dgl.ai/wheels/torch-2.2/cu121/repo.html
 
-pip install biopython==1.84 matplotlib==3.9.2 pyyaml==6.0.2 pydantic==2.8.2
+pip install biopython==1.84 matplotlib==3.9.2 pyyaml==6.0.2 pydantic==2.8.2 fair-esm==2.0.0
 ```
 
 # 运行流程

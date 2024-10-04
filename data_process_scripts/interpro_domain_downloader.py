@@ -9,8 +9,8 @@ from urllib.error import HTTPError
 from time import sleep
 
 # 设置工作路径为项目文件夹
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 os.chdir("..")
-
 
 def parse_items(items):
     if type(items)==list:
@@ -108,12 +108,12 @@ def download_to_file(url, file_path):
 
 # 先读取之前已经完成的进度
 exist_file_list = set()
-already_exist_file = os.listdir(os.path.join("raw_data","HUMAN","domain"))
+already_exist_file = os.listdir(os.path.join("raw_data","ECOLI","domain"))
 for file in already_exist_file:
     if file.endswith(".tsv"):
         exist_file_list.add(file.split(".")[0])
 
-with open(os.path.join("raw_data","HUMAN","export.tsv")) as f:
+with open(os.path.join("raw_data","ECOLI","export.tsv")) as f:
     # 丢弃第一行头文件
     line = f.readline()
     line = f.readline()
@@ -122,11 +122,11 @@ with open(os.path.join("raw_data","HUMAN","export.tsv")) as f:
         cnt += 1
         print(cnt)
         protein_id = line.split("\t")[0]
-                # 如果之前完成了，就跳过该条信息
+        # 如果之前完成了，就跳过该条信息
         if protein_id in exist_file_list:
             line = f.readline()
             continue
         protein_id = line.split("\t")[0]
         url = f"https://www.ebi.ac.uk:443/interpro/api/entry/InterPro/protein/reviewed/{protein_id}/?page_size=200"
-        download_to_file(url,os.path.join('domain', protein_id+'.tsv'))
+        download_to_file(url,os.path.join("raw_data","ECOLI","domain", protein_id+'.tsv'))
         line = f.readline()

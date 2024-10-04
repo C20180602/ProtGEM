@@ -8,6 +8,7 @@ import torch
 import dgl
 
 # 设置工作目录为项目文件夹
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 os.chdir("..")
 
 unique_keys = {'id', 'name', 'namespace', 'def'}

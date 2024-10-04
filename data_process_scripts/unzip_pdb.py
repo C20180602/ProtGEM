@@ -5,6 +5,7 @@
 import os
 
 # 设置工作路径为项目文件夹
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 os.chdir("..")
 
 # 切换路径，进入需要处理的文件夹

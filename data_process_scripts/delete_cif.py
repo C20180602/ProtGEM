@@ -4,6 +4,7 @@
 import os
 
 # 设置工作路径为项目文件夹
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 os.chdir("..")
 
 data_path = os.path.join('raw_data','HUMAN','pdb')
