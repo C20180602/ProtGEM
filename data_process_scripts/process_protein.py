@@ -24,17 +24,20 @@ with open(os.path.join("seq","seq.fasta"),'r') as f:
     while line:
         if line.startswith(">"):
             uniprot_id = line.split('|')[1]
-            protein_cnt += 1
-            id = protein_cnt
             seq = ""
             line = f.readline()
             while line:
                 if line.startswith(">"):
                     break
-                line.strip()
+                line = line.strip()
                 seq = seq + line
                 line = f.readline()
+            # 过滤过长的蛋白质
+            if len(seq)>10000:
+                continue
             # 读取完序列数据之后 初始化该蛋白质对应的dict
+            id = protein_cnt
+            protein_cnt += 1
             protein_info[uniprot_id] = {}
             protein_info[uniprot_id]["id"] = id
             protein_info[uniprot_id]["seq"] = seq
