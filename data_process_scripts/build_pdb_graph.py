@@ -1,15 +1,33 @@
+'''
+获取蛋白质结构图DGLGraph
+建议先运行pretrain/seq_esm.py后再使用此脚本
+'''
 import Bio.PDB.PDBParser
 import os
 import numpy
 import torch
 import dgl
- 
+import warnings
+from tqdm import tqdm
+
+# 忽略使用DGLGraph建立空图的警告
+warnings.filterwarnings("ignore")
+# 设置工作目录为项目文件夹
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+os.chdir("..")
+
 parser = Bio.PDB.PDBParser()
 # 连接Cα的肽键的边特征向量
-Peptide_bond_feature = torch.tensor([1.0,0.0])
+Peptide_bond_feature = torch.tensor([1.0,0.0,0.0])
 # 连接Cα的二硫键的边特征向量
-S_S_bond_feature = torch.tensor([0.0,1.0])
- 
+Disulfide_bond_feature = torch.tensor([0.0,1.0,0.0])
+# 因为相邻距离小于 10 AA （1AA = 0.1纳米） 而连接的Cα的边特征向量
+Close_bond_feature = torch.tensor([0.0,0.0,1.0])
+
+# 二硫键长度大约在2.0~2.2AA之间，在CYS之间产生
+thresh_ss = 2.5
+thresh_aa = 10.0
+
 three2one= {
     'VAL':'V', 'ILE':'I', 'LEU':'L', 'GLU':'E', 'GLN':'Q',
     'ASP':'D', 'ASN':'N', 'HIS':'H', 'TRP':'W', 'PHE':'F', 
@@ -42,38 +60,76 @@ AA_feature_blosum80 = {
     'Z' : torch.tensor([-2,  0, -1,  1, -7,  5,  6, -4,  0, -6, -5,  1, -3, -6, -2, -1, -2, -5, -4, -4,  0,  6, -1]),
     'X' : torch.tensor([-1, -2, -2, -3, -4, -2, -2, -3, -2, -2, -2, -2, -2, -3, -3, -1, -1, -5, -3, -2, -3, -1, -2]),
 }
- 
-def get_seq_graph_info(pdbfilepath):
+
+# 将蛋白质中的每个氨基酸的Cα原子作为
+def get_graph_info(pdbfilepath):
     struct = parser.get_structure(0,pdbfilepath)
+    # 只取第一个模型
     model = struct.get_models().__next__()
-    seq = []
     graph = dgl.DGLGraph()
- 
-    residue_num = 0
+    
+    # i,j表示当前氨基酸的序号
+    i = 0
     for chain in model.get_chains():
         residues = chain.get_residues()
         # print(chain)
         chain_start_flag = 1
         for residue in residues:
             res_name = three2one[residue.get_resname()]
-            seq.append(res_name)
             pos_feature = torch.from_numpy(residue['CA'].get_coord()).unsqueeze(0)
             residue_feature = AA_feature_blosum80[res_name].unsqueeze(0)
             graph.add_nodes(1, {'pos': pos_feature, 'res': residue_feature})
             if chain_start_flag == 0 :
-                graph.add_edges(torch.tensor([residue_num-1]), torch.tensor([residue_num]), {'feat': Peptide_bond_feature})
-                graph.add_edges(torch.tensor([residue_num]), torch.tensor([residue_num-1]), {'feat': Peptide_bond_feature})
-            residue_num += 1
+                graph.add_edges(torch.tensor([i-1,i]), torch.tensor([i,i-1]), {'feat': Peptide_bond_feature})
+            i += 1
             chain_start_flag = 0
-    return seq,graph
+    i = 0
+    for residue1 in model.get_residues():
+        j = 0
+        for residue2 in model.get_residues():
+            if j <= i:
+                continue
+            res_name1 = three2one[residue1.get_resname()]
+            res_name2 = three2one[residue2.get_resname()]
+
+            Cpos1 = torch.from_numpy(residue1['CA'].get_coord()).unsqueeze(0)
+            Cpos2 = torch.from_numpy(residue2['CA'].get_coord()).unsqueeze(0)
+            distance = float(torch.norm(Cpos1-Cpos2))
+            if distance <= thresh_aa:
+                graph.add_edges(torch.tensor([i,j]), torch.tensor([j,i]), {'feat': Close_bond_feature})
+            
+            # 当枚举的两个氨基酸均为半胱氨酸时，判断是否可能存在二硫键
+            if res_name1=='C' and res_name2=='C':
+                Spos1 = torch.from_numpy(residue1['SG'].get_coord()).unsqueeze(0)
+                Spos2 = torch.from_numpy(residue2['SG'].get_coord()).unsqueeze(0)
+                if float(torch.norm(Spos1-Spos2)) <= thresh_ss:
+                    graph.add_edges(torch.tensor([i,j]), torch.tensor([j,i]), {'feat': Disulfide_bond_feature})
+                
+            j += 1
+        i += 1
+    return graph
 
 # 这里物种以大肠杆菌ecoli为例
-pdb_data_dir = os.path.join('.','data','ecoli')
-file_list = [os.path.join(pdb_data_dir, file) for file in os.listdir(pdb_data_dir)]
-for file in file_list:
-    if file.endswith('.pdb'):
-        print("processing "+file)
-        seq,graph = get_seq_graph_info(file)
-        print(seq)
-        print(graph)
-        print("finished!")
+species_name = 'HUMAN'
+pdb_data_dir = os.path.join('raw_data',species_name,'pdb')
+save_dir = os.path.join('dataset',species_name)
+save_dir_list = os.listdir(save_dir)
+cnt=0
+for filename in tqdm(os.listdir(pdb_data_dir)):
+    if filename.endswith('.pdb'):
+        # 只使用AlphaFold预测的F1模型
+        if not (filename.split('-')[2] == 'F1'):
+            continue
+        
+        protein_name=filename.split('-')[1]
+        cnt+=1
+        # print(cnt,protein_name)
+        
+        # 为保证数据集完整性,暂时不考虑没有Uniprot序列记录的数据
+        if protein_name not in save_dir_list:
+            print("Warning: ",protein_name," dosen't exist directory to save file")
+            # os.mkdir(os.path.join(save_dir,protein_name))
+            continue
+        
+        graph = get_graph_info(os.path.join(pdb_data_dir, filename))
+        dgl.save_graphs(os.path.join(save_dir,protein_name,'struct.dgl'),graph)
