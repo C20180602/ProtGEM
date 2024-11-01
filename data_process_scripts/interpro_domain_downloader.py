@@ -1,6 +1,7 @@
 '''
 修改自InterPro官网上的代码
 用于读取InterPro上的查找结果 export.tsv 并根据结果下载所有蛋白质的结构域信息
+TODO: 改为InterProScan用于处理未知蛋白质
 '''
 # standard library modules
 import sys, errno, re, json, ssl, os

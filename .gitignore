@@ -1,6 +1,7 @@
 /raw_data
 /processed_data
 /dataset
+/tmp_scripts
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -4,6 +4,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+# TODO: 换为nn中的Transformer
 class MultiHeadAttention(nn.Module):
     # !!! hid_dim must be divisible by n_heads
     def __init__(self, q_dim, k_dim, v_dim, hid_dim, n_heads, dropout, bias=False):
