@@ -53,17 +53,26 @@ print("seq_data_cnt: ",seq_data_cnt)
 go_data_cnt = 0
 # 统计没有任何GO标签的蛋白质数量
 zero_go_protein_cnt = 0
-with open(os.path.join("go","go.gaf"),'r') as f:
+all_set = set()
+not_reviewed_set = set()
+with open(os.path.join("go","go_new.gaf"),'r') as f:
     line = f.readline()
     while line:
+        # 过滤掉GAF文件注释
         if line.startswith("!"):
+            line = f.readline()
+            continue
+        # 过滤掉其他基因产物的数据
+        if not line.startswith("UniProtKB"):
             line = f.readline()
             continue
         
         uniprot_id = line.split('\t')[1]
         # 若当前蛋白质在之前的统计中没有序列数据，则跳过
+        all_set.add(uniprot_id)
         if uniprot_id not in protein_info.keys():
             line = f.readline()
+            not_reviewed_set.add(uniprot_id)
             continue
         go = line.split('\t')[4]
         if go not in protein_info[uniprot_id]["go"]:
@@ -77,6 +86,8 @@ for p in protein_info.values():
         go_data_cnt += len(p["go"])
 print("go_data_cnt: ",go_data_cnt)
 print("zero_go_protein_cnt: ",zero_go_protein_cnt)
+print("(from GO database) all_protein_cnt:",len(all_set))
+print("(from GO database) not_reviewed_protein_cnt:",len(not_reviewed_set))
 
 ''' domain '''
 # 统计所有interpro标注数量

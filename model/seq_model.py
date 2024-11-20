@@ -4,6 +4,8 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import transformer as tf
+
+import pickle
     
 class SeqEmbedding(nn.Module):
     '''
@@ -21,7 +23,7 @@ class SeqEmbedding(nn.Module):
             self.layers.add_module("Layer"+str(i),tf.TransformerEncoderLayer(in_dim,n_heads,ffn_hid_dim,dropout))
         self.dense = nn.Linear(in_dim, out_dim)
     
-    def forward(self, x, mask):
+    def forward(self, x, mask=None):
         # x [batch_size, seq_len, in_dim]
         x = self.PE(self.LN(x)*self.scale)
         for layer in self.layers:
@@ -31,3 +33,17 @@ class SeqEmbedding(nn.Module):
         # x [batch_size, in_dim]
         return F.relu(self.dense(x))
         # x [batch_size, out_dim]
+
+# DEBUG
+if __name__ == "__main__":
+    import os
+    # 设置工作目录为项目文件夹
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir("..")
+    model = SeqEmbedding()
+    with open(os.path.join("dataset","ECOLI","P77302",'seq_emb.pkl'),"rb") as f:
+        se = torch.tensor(pickle.load(f))
+        se = se.unsqueeze(0)
+        print(se.shape)
+        x = model.forward(se)
+        print(x.shape)

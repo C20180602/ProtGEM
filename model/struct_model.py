@@ -9,7 +9,7 @@ def L2(x, axis=-1, keepdims=False, eps=1e-8, sqrt=True):
     # x: [...,vector_num, vector_dim]
     # 计算向量2-范数
     out = torch.clamp(torch.sum(torch.square(x), axis, keepdims), min=eps)
-    # out: [...,vector_num] || [vector_num, 1]
+    # out: [...,vector_num] || [vector_num, 1] 取决于keepdims参数False/True
     return torch.sqrt(out) if sqrt else out
 
 class VectorDropout(nn.Module):
@@ -50,6 +50,8 @@ class GVP(nn.Module):
     '''
     几何向量感知机
     
+    输入([n,in_s_dim],[n,in_v_dim,3]), 输出 ([n,out_s_dim],[n,out_v_dim,3]), n可变长
+    
     :in_dims, out_dims: (scalar_dim, vector_dim) (标量维度和向量特征的个数)
     
     :
@@ -58,7 +60,7 @@ class GVP(nn.Module):
     
     或
 
-    (s,v) -> (relu(wm@(s,L2(wh@v))), sigmoid(wm@(s,L2(wh@v)))*(wu@wh@v)) (交叉GLU)
+    (s,v) -> (relu(wm@(s,L2(wh@v))), sigmoid(wm@(s,L2(wh@v)))*(wu@wh@v)) (交叉GLU, cross_gate=True)
     
     @ 为矩阵乘法， * 为哈达玛乘积
     '''
@@ -130,9 +132,12 @@ class GVPConvLayer(nn.Module):
     :dropout: 标量特征和向量特征使用同样的Dropout率, 向量特征进行整体Dropout
     
     '''
-    def __init__(self, in_dims, out_dims, edge_dims, conv_gvp_layers=3, ffn_gvp_layers=2, dropout=0.5, h_dim=None, 
+    def __init__(self, in_dims, out_dims, edge_dims, conv_gvp_layers=3, ffn_gvp_layers=2, dropout=0.2, h_dim=None, 
                  activations=(F.relu, torch.sigmoid), cross_gate=False):
         super(GVPConvLayer, self).__init__()
+        
+        # 残差网络要求
+        assert in_dims == out_dims
         
         self.ins, self.inv = in_dims
         self.outs,self.outv= out_dims
@@ -151,19 +156,21 @@ class GVPConvLayer(nn.Module):
             
         self.dropout_s = nn.Dropout(dropout)
         self.dropout_v = VectorDropout(dropout)
-        self.layernorm_s = nn.LayerNorm(self.outs)
+        # nn.LayerNorm层禁用可学习参数
+        self.layernorm_s = nn.LayerNorm(self.outs,elementwise_affine=False)
         self.layernorm_v = VectorLayerNorm(self.outv)
         
-        
+    
     def edge_udf(self,edges):
-        # edges.src/dst: 'res': [batch_size(dgl), 23], 'pos': [batch_size(dgl), 1, 3]
-        
+        '''
+        根据GVP论文, 这里把三层GVP放到消息函数上运算
+        '''
+        # input: edges.src/dst: 'res': [batch_size(dgl), 23], 'pos': [batch_size(dgl), 1, 3]
+        # TODO : GVP论文原文只拼接了源节点特征和边特征输入GVP, 可以比较拼入目标节点特征之后性能差异
         s = torch.cat((edges.src["res"],edges.dst["res"],edges.data["feat"]),dim=1)
         # s: [batch_size, 23 * 2 + 3]
-        
         v = edges.dst["pos"]-edges.src["pos"]
         # v: [batch_size, 1, 3]
-        
         s,v = self.gvp_layers1((s,v))
         v = v.view(v.shape[0],-1)
         # v: [batch_size, 1*3]
@@ -173,11 +180,12 @@ class GVPConvLayer(nn.Module):
     # 完成残差拼接和
     def update_udf(self,g,s,v):
         g.ndata["res"] += s
+        # TODO 是否需要禁止氨基酸Cα点坐标改变?
         g.ndata["pos"] += v
         g.ndata["res"] = self.layernorm_s(g.ndata["res"])
         g.ndata["pos"] = self.layernorm_v(g.ndata["pos"])
     
-    def forward(self, g: dgl.DGLGraph):
+    def forward(self, g: dgl.DGLGraph, node_mask=None) -> dgl.DGLGraph:
         g.update_all(self.edge_udf,fn.mean("gvp_out","merge"))
         merge_sv = g.ndata["merge"].split(split_size = [self.outs, self.outv*3],dim=1)
         s = self.dropout_s(merge_sv[0])
@@ -193,20 +201,73 @@ class GVPConvLayer(nn.Module):
         self.update_udf(g,s,v)
         return g
 
-class StructEncoder(nn.Moduel):
-    def __init__(self, in_dims, out_dims, edge_dims, conv_gvp_layers=3, ffn_gvp_layers=2, dropout=0.5, h_dim=None, 
+class StructEncoder(nn.Module):
+    '''
+    输入图列表:graph_list( node(in_dims) edge(edge_dims) )
+    中间输出为batch( node(out_dims) )
+    最后输出全局特征(batch,global_dims), 局部特征list((n,part_dims))
+    '''
+    def __init__(self, global_dims, part_dims, in_dims, out_dims, edge_dims, global_refer_nodes=5, num_layers=3,
+                 conv_gvp_layers=3, ffn_gvp_layers=2, dropout=0.2, h_dim=None, 
                  activations=(F.relu, torch.sigmoid), cross_gate=False): 
-        super(GVPConvLayer, self).__init__()
-    
-    def forward(self, g):
-        pass
+        super(StructEncoder, self).__init__()
+        
+        # 参数 
+        self.glob_dim = global_dims
+        self.glob_topk = global_refer_nodes
+        self.part_dim = part_dims
+        self.ins, self.inv = in_dims
+        self.outs,self.outv= out_dims
+        self.edge_s,self.edge_v= edge_dims
+        
+        # 网络层
+        self.ln_s = nn.LayerNorm(self.ins, elementwise_affine=False)
+        self.ln_v = VectorLayerNorm(self.inv)
+        self.layers = nn.Sequential()
+        for _ in range(num_layers):
+            self.layers.append(
+                GVPConvLayer(in_dims, out_dims, edge_dims, conv_gvp_layers, ffn_gvp_layers,
+                             dropout, h_dim, activations, cross_gate)
+            )
+        self.part_emb_out = GVP(out_dims, (part_dims,0), h_dim, activations, cross_gate)
+        self.glob_emb_out = nn.Linear(self.glob_topk * self.outs, global_dims)
+
+    def forward(self, g_list):
+        for g in g_list:
+            assert isinstance(g,dgl.DGLGraph)
+            g.ndata["res"] = self.ln_s(g.ndata["res"])
+            g.ndata["pos"] = self.ln_v(g.ndata["pos"])
+            
+        bg = dgl.batch(g_list)
+        graph_size_list = bg.batch_num_nodes()
+        
+        bg = self.layers(bg)
+        tmp_emb, _ = dgl.topk_nodes(bg,"res",self.glob_topk)
+        # tmp_emb :[batch, topk, outs_dim]
+        tmp_emb = tmp_emb.reshape(tmp_emb.shape[0],-1)
+        # tmp_emb :[batch, topk*outs_dim]
+        glob_emb_out = self.glob_emb_out(tmp_emb)
+        # glob_emb_out :[batch, global_dims]
+        
+        out_s = self.part_emb_out((bg.ndata["res"],bg.ndata["pos"]))
+        # out_s :[Σn, part_dims]
+        # [debug] batch_num_nodes()函数取出来的是tensor
+        part_emb_out = list(torch.split(out_s, graph_size_list.tolist(), dim=0))
+        # part_emb_out :[batch, n_i, part_dims]
+        
+        return glob_emb_out, part_emb_out
 
 # DEBUG
-import os
-# 设置工作目录为项目文件夹
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-os.chdir("..")
-model = GVPConvLayer((23,1),(23,1),(3,0),cross_gate=True)
-g,_ = dgl.load_graphs(os.path.join("dataset","ECOLI","P77302",'struct.dgl'))
-g=g[0]
-model.forward(g)
+if __name__ == "__main__":
+    import os
+    # 设置工作目录为项目文件夹
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir("..")
+    model = StructEncoder(512,64,(23,1),(23,1),(3,0),cross_gate=True)
+    g1,_ = dgl.load_graphs(os.path.join("dataset","ECOLI","P77302",'struct.dgl'))
+    g2,_ = dgl.load_graphs(os.path.join("dataset","ECOLI","A5A605",'struct.dgl'))
+    # [debug] dgl只有存取多图的函数，所以必须取下标
+    g_list = [g1[0],g2[0]]
+    glob,part = model(g_list)
+    print(glob)
+    print(part)

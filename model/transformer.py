@@ -48,7 +48,7 @@ class MultiHeadAttention(nn.Module):
         x = torch.matmul(attention, V)
         # x [batch_size, n_heads, seq_length_query, each_head_dim]
         x = x.permute(0, 2, 1, 3)
-        x = x.view(batch_size, -1, self.hid_dim)
+        x = x.reshape(batch_size, -1, self.hid_dim)
         x = self.out(x)
         # x [batch_size, seq_length_query, hid_dim]
         return x

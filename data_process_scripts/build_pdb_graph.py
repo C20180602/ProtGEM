@@ -120,7 +120,7 @@ def get_graph_info(pdbfilepath):
         i += 1
     return graph
 
-species_name = 'ECOLI'
+species_name = 'HUMAN'
 pdb_data_dir = os.path.join('raw_data',species_name,'pdb')
 save_dir = os.path.join('dataset',species_name)
 save_dir_list = os.listdir(save_dir)
@@ -145,4 +145,3 @@ for filename in tqdm(os.listdir(pdb_data_dir)):
         print(filename)
         print(graph)
         dgl.save_graphs(os.path.join(save_dir,protein_name,'struct.dgl'),graph)
-        break
