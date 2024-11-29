@@ -207,7 +207,7 @@ class StructEncoder(nn.Module):
     中间输出为batch( node(out_dims) )
     最后输出全局特征(batch,global_dims), 局部特征list((n,part_dims))
     '''
-    def __init__(self, global_dims, part_dims, in_dims, out_dims, edge_dims, global_refer_nodes=5, num_layers=3,
+    def __init__(self, global_dims=512, part_dims=64, in_dims=(23,1), out_dims=(23,1), edge_dims=(3,0), global_refer_nodes=5, num_layers=3,
                  conv_gvp_layers=3, ffn_gvp_layers=2, dropout=0.2, h_dim=None, 
                  activations=(F.relu, torch.sigmoid), cross_gate=False): 
         super(StructEncoder, self).__init__()
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     # 设置工作目录为项目文件夹
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     os.chdir("..")
-    model = StructEncoder(512,64,(23,1),(23,1),(3,0),cross_gate=True)
+    model = StructEncoder(cross_gate=True)
     g1,_ = dgl.load_graphs(os.path.join("dataset","ECOLI","P77302",'struct.dgl'))
     g2,_ = dgl.load_graphs(os.path.join("dataset","ECOLI","A5A605",'struct.dgl'))
     # [debug] dgl只有存取多图的函数，所以必须取下标

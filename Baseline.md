@@ -1,0 +1,83 @@
+# 运行流程
+## 数据下载
+### 序列数据：
+
+[Uniprot](https://www.uniprot.org/)
+
+搜索物种，下载reviewed的蛋白质的fasta
+
+*在下载栏中找到TSV选项，开启之后可以添加各类数据，例如GO标签、PPI相互作用
+
+### 结构数据：
+
+[AlphaFoldDB](https://alphafold.com/download)
+
+下载整合好的物种蛋白质结构包
+
+### 结构域数据：
+
+[interpro](https://www.ebi.ac.uk/interpro/)
+
+使用data_process_scripts/interpro_domain_downloader.py下载Interpro数据库中的内容
+
+（TODO：改为使用InterProScan处理缺少结构域数据的蛋白质）
+
+### GO标签数据：
+
+[Gene Ontology](https://current.geneontology.org/products/pages/downloads.html)
+
+下载对应物种的GO标签的.gaf文件
+
+*当然，你也可以使用Uniprot汇总的GO标签数据，不过后续的数据处理需要"魔改"一下
+
+### PPI数据：
+
+[STRING](https://cn.string-db.org/cgi/download)
+
+选择物种，下载physical_link和link即可
+
+由于下载之后的蛋白质ID与uniprot不一致，所以需要在uniprot tsv下载界面的Protein-protein Interaction中添加STRING数据库的ID，用以获取对应关系
+
+*当然，你也可以使用Uniprot中已经汇总好的Interaction信息，以避免过于繁琐的数据处理。
+
+
+### 数据整理以及其他数据
+
+raw_data的文件夹结构：
+
+![图一](asset/image.png)
+
+图一中的export.tsv只用于interpro_domain_downloader.py中获取蛋白质列表的步骤，也可以通过读取其他文件来获取蛋白质列表
+        
+![图二](asset/image-1.png)
+
+图二中的go-basic.obo, interpro_entry.txt, interpro2go.txt需要下载
+
+[go-basic.obo](https://geneontology.org/docs/download-ontology/)
+
+[interpro_entry.txt](https://ftp.ebi.ac.uk/pub/databases/interpro/current_release/entry.list)
+
+[interpro2go.txt](https://ftp.ebi.ac.uk/pub/databases/interpro/current_release/interpro2go)
+
+其余文件均为调试文件，不用下载
+
+
+## 数据处理
+
+总数据流：raw_data -> processed_data -> dataset
+
+使用data_process_scripts中的代码
+
+1、解压结构数据压缩包
+
+2、使用delete_cif.py删除cif数据，我们只用PDB文件
+
+3、使用unzip_pdb.py批量解压PDB文件。
+
+4、运行process_protein.py, process_go_basic.py, process_interpro.py, 可以同时进行, 完成此步骤之后processed_data文件夹处理完毕
+
+5、build_pdb_graph.py, build_go_graph.py, pretrain/seq_esm.py, 可以同时进行, 完成此步骤之后dataset文件夹处理完毕
+
+
+
+## 模型训练

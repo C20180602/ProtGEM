@@ -8,6 +8,15 @@ import json
 unique_keys = {'id', 'name', 'namespace', 'def'}
 multi_keys = {'is_a', 'relationship'}
 
+# 查询替代节点对应的编号
+def find(terms_map, x):
+    if x not in terms_map:
+        return -1
+    if isinstance(terms_map[x],int):
+        return terms_map[x]
+    terms_map[x] = find(terms_map, terms_map[x])
+    return terms_map[x]
+
 def parse_obo(filepath, output_dir):
     terms = []
     terms_cnt = 0
@@ -57,14 +66,20 @@ def parse_obo(filepath, output_dir):
                 
             line = file.readline()
 
-    terms_path = os.path.join(output_dir,"go_terms.txt")
-    terms_map_path = os.path.join(output_dir,"go_map.txt")
+    terms_id = {}
+    for x in terms_map:
+        terms_map[x] = find(terms_map,x)
+        if terms_map[x] != -1:
+            terms_id[x] = terms_map[x]
+    
+    terms_path = os.path.join(output_dir,"go_terms.json")
+    terms_id_path = os.path.join(output_dir,"go_id.json")
     with open(terms_path,'w') as f:
         json.dump(terms,f,indent=4)
-    with open(terms_map_path,'w') as f:
-        json.dump(terms_map,f,indent=4)
+    with open(terms_id_path,'w') as f:
+        json.dump(terms_id,f,indent=4)
 
-go_basic_path = os.path.join('.','data','go-basic.obo')
+go_basic_path = os.path.join('.','raw_data','go-basic.obo')
 go_output_dir = os.path.join('.','processed_data')
 
 parse_obo(go_basic_path,go_output_dir)

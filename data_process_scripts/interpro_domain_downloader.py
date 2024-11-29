@@ -107,14 +107,16 @@ def download_to_file(url, file_path):
     # Don't overload the server, give it time before asking for more
     sleep(1)
 
+# 设置物种名称，大写
+species_name = "ECOLI"
 # 先读取之前已经完成的进度
 exist_file_list = set()
-already_exist_file = os.listdir(os.path.join("raw_data","ECOLI","domain"))
+already_exist_file = os.listdir(os.path.join("raw_data",species_name,"domain"))
 for file in already_exist_file:
     if file.endswith(".tsv"):
         exist_file_list.add(file.split(".")[0])
 
-with open(os.path.join("raw_data","ECOLI","export.tsv")) as f:
+with open(os.path.join("raw_data",species_name,"export.tsv")) as f:
     # 丢弃第一行头文件
     line = f.readline()
     line = f.readline()
