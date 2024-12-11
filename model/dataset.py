@@ -19,9 +19,7 @@ class MyDataset(Dataset):
             
         with open(os.path.join("processed_data","interpro_id.json"), 'r') as f:
             interpro_list = json.load(f)
-            self.vocab_interpro = {}
-            for i,interpro in enumerate(interpro_list):
-                self.vocab_interpro[interpro] = i
+            self.vocab_interpro = {interpro:i for i,interpro in enumerate(interpro_list)}
         
         species_path = os.path.join("dataset",species_name)
         protein_list = os.listdir(species_path)

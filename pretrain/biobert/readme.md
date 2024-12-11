@@ -25,3 +25,13 @@ python run_embedding.py \
 在dataset文件夹中建立GO文件夹
 
 运行load_embedding.py，将h5py格式的embedding转化为tensor使用pkl保存
+```shell
+export DATA_PATH=pretrain/biobert/go_def.txt
+export OUTPUT_PATH=pretrain/biobert/go_def.h5
+
+python load_embedding.py \
+    --inputtext_path ${DATA_PATH}\
+    --indexed_path ${OUTPUT_PATH}
+```
+
+这里使用的是large模型，输出的是1024维的embedding
