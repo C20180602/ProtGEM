@@ -7,6 +7,7 @@ import json
 import torch
 import dgl
 import warnings
+import networkx as nx
 
 # 设置工作目录为项目文件夹
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -38,16 +39,19 @@ relationship    edge
 u is_a v        v->u
 u part_of v     v->u
 u regulates v   u->v
+
+在networkx中单独建图主要为了方便后续传播标签的过程
 '''
 # 忽略使用DGLGraph建立空图的警告
 warnings.filterwarnings("ignore")
 go_graph = dgl.DGLGraph()
-
+go_graph_nx = nx.DiGraph()
 with open(go_terms_path,"r") as file:
     terms = json.load(file)
     for term in terms:
         term_id = term["id"]
-        # 为节点添加BioBERT特征
+        go_graph.add_nodes
+        # 为节点添加BioBERT特征（可选？还是锁定？）
     for term in terms:
         term_id1 = term["id"]
         for key in term.keys():
@@ -56,8 +60,9 @@ with open(go_terms_path,"r") as file:
                     u = go_id[term_id1]
                     v = go_id[term_id2]
                     if key == "is_a" or key == "part_of":
-                        graph.add_edges(torch.tensor([v]), torch.tensor([u]), {'feat': edge_feature[key]})
+                        go_graph.add_edges(torch.tensor([v]), torch.tensor([u]), {'feat': edge_feature[key]})
+                        go_graph_nx.add_edge(term_id1, term_id2)
                     else:
-                        graph.add_edges(torch.tensor([u]), torch.tensor([v]), {'feat': edge_feature[key]})
+                        go_graph.add_edges(torch.tensor([u]), torch.tensor([v]), {'feat': edge_feature[key]})
     print(go_graph)
-        
+    

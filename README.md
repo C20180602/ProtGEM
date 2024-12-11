@@ -24,6 +24,8 @@ pydantic 2.8.2
 
 fair-esm 2.0.0
 
+h5py 3.12.1
+
 配置流程：
 ```
 conda create -n ev1 python=3.11.7
