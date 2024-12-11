@@ -65,6 +65,7 @@ def main():
 
     with open(os.path.join("processed_data","go_terms.json"),"r") as f:
         go_terms = json.load(f)
+    go_embedding = torch.randn(len(go_terms),1024)
     
     parser = HfArgumentParser((DataArguments))
     data_args = parser.parse_args_into_dataclasses()[0]
@@ -81,10 +82,10 @@ def main():
                 # print("entity_name = {}".format(entity_name))
                 # print("embedding = {}".format(embedding))
                 assert entity_name == go_terms[i]["def"]
-                with open(os.path.join("dataset","GO",go_terms[i]["id"]+".pkl"),"wb") as fout:
-                    pickle.dump(torch.tensor(embedding),fout)
+                go_embedding[i] = torch.tensor(embedding)
                 # break
-
+    with open(os.path.join("dataset","go_embedding_biobert.pkl"),"wb") as f:
+        pickle.dump(go_embedding,f)
 def _mp_fn(index):
     # For xla_spawn (TPUs)
     main()

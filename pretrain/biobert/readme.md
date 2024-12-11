@@ -22,9 +22,11 @@ python run_embedding.py \
     --pooling mean
 ```
 
-在dataset文件夹中建立GO文件夹
-
 运行load_embedding.py，将h5py格式的embedding转化为tensor使用pkl保存
+
+保存位置默认为dataset/go_embedding_biobert.pkl
+
+tensor形状为（go_nums,1024）
 ```shell
 export DATA_PATH=pretrain/biobert/go_def.txt
 export OUTPUT_PATH=pretrain/biobert/go_def.h5

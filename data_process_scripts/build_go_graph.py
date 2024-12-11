@@ -56,15 +56,10 @@ with open(go_terms_path,"r") as file:
     terms = json.load(file)
     
 go_graph.add_nodes(len(terms))
-# 这里的1024来自于biobert-large的输出向量维数
-go_graph.ndata['feat'] = torch.randn(len(terms),1024)
 print("reading biobert embedding...")
 for term in tqdm(terms):
     term_id = term["id"]
     u = go_id[term_id]
-    # 为节点添加BioBERT特征（是否锁定？）（如果不使用biobert可以注释掉以下两行）
-    with open(os.path.join(go_biobert_emb_path,term_id+'.pkl'),'rb') as f_go:
-        go_graph.ndata["feat"][u] = pickle.load(f_go)
 
 print("building edges...")
 for term in tqdm(terms):
@@ -76,7 +71,7 @@ for term in tqdm(terms):
                 v = go_id[term_id2]
                 if key == "is_a" or key == "part_of":
                     go_graph.add_edges(torch.tensor([v]), torch.tensor([u]), {'feat': edge_feature[key]})
-                    go_graph_nx.add_edge(term_id1, term_id2)
+                    go_graph_nx.add_edge(u, v)
                 else:
                     go_graph.add_edges(torch.tensor([u]), torch.tensor([v]), {'feat': edge_feature[key]})
 
