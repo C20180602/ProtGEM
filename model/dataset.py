@@ -125,7 +125,7 @@ def my_collate_fn(batch):
     max_length = max([seq_emb.shape[0] for seq_emb in seq_embs])
     padded_seq_embs = []
     for seq_emb in seq_embs:
-        padding = torch.zeros(max_length - seq_emb.shape[0], 1280)
+        padding = torch.zeros(max_length - seq_emb.shape[0], seq_emb.shape[1])
         padded_seq_embs.append(torch.cat([seq_emb, padding],dim=0))
     
     padded_seq_embs = torch.stack(padded_seq_embs)

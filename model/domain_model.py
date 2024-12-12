@@ -55,7 +55,6 @@ if __name__ == "__main__":
     ds = MyDataset("HUMAN")
     dl = DataLoader(ds,batch_size=2,shuffle=False, collate_fn=my_collate_fn)
     for pid, _, _,domain_info,_  in dl:
-        glob_dm_id, glob_dm_offset, plens, domain_list = domain_info
-        glob,part = model(glob_dm_id, glob_dm_offset, plens, domain_list)
+        glob,part = model(*domain_info)
         print(glob.shape, len(part), part[0].shape, part[1].shape)
         break

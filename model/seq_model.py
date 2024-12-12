@@ -13,7 +13,7 @@ class SeqEncoder(nn.Module):
     in_dim: 从ESM2模型中输出的特征维数默认为 1280
     layer_num: 经过的Transformer层数
     '''
-    def __init__(self, in_dim=1280, n_heads=4, layer_cnt=3, ffn_hid_dim=1280, global_dim=512, part_dim=64, dropout=0.4):
+    def __init__(self, in_dim=1280, n_heads=4, layer_cnt=3, ffn_hid_dim=1280, global_dims=512, part_dims=64, dropout=0.4):
         super(SeqEncoder, self).__init__()
         self.scale =math.sqrt(in_dim) # 放缩系数sqrt(in_dim)
         self.LN = nn.LayerNorm(in_dim)
@@ -22,8 +22,8 @@ class SeqEncoder(nn.Module):
         for i in range(layer_cnt):
             self.layers.add_module("Layer"+str(i),tf.TransformerEncoderLayer(in_dim,n_heads,ffn_hid_dim,dropout))
         
-        self.part_readout = tf.TransformerEncoderLayer_NoRes(in_dim, n_heads, ffn_hid_dim, part_dim, dropout)
-        self.glob_readout = nn.Linear(in_dim, global_dim)
+        self.part_readout = tf.TransformerEncoderLayer_NoRes(in_dim, n_heads, ffn_hid_dim, part_dims, dropout)
+        self.glob_readout = nn.Linear(in_dim, global_dims)
     
     def forward(self, x, mask=None):
         # x [batch_size, seq_len, in_dim]
@@ -33,12 +33,12 @@ class SeqEncoder(nn.Module):
         # x [batch_size, seq_len, in_dim]
         
         part_emb_out = self.part_readout(x, mask)
-        # part_emb_out [batch_size, seq_len, out_dim]
+        # part_emb_out [batch_size, seq_len, part_dims]
         
         x = x[:,0,:]
         # x [batch_size, in_dim]
         glob_emb_out = F.relu(self.glob_readout(x))
-        # glob_emb_out [batch_size, out_dim]
+        # glob_emb_out [batch_size, global_dims]
         
         return glob_emb_out, part_emb_out
 
