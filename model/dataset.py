@@ -66,13 +66,14 @@ class MyDataset(Dataset):
                         go_id_list.append(self.vocab_go[go])
                 propagated_go_list = list(propagate(go_id_list,go_graph_nx))
                 
-                domain_id_list = []
+                # TODO?: domain mapping的过程可以提前到process_protein中
+                domain_list = []
                 for domain in self.protein_info["pname"]["domain"]:
-                    if domain in self.vocab_interpro:
-                        domain_id_list.append(self.vocab_interpro[domain])
+                    if domain[0] in self.vocab_interpro:
+                        domain_list.append([self.vocab_interpro[domain[0]],domain[1],domain[2]])
                 self.data_info.append((pname,
                                        os.path.abspath(seq_path), os.path.abspath(struct_path),
-                                       domain_id_list, propagated_go_list))
+                                       domain_list, propagated_go_list))
 
     def __len__(self):
         return len(self.data_info)
@@ -89,5 +90,3 @@ class MyDataset(Dataset):
         domain = info[3]
         label = info[4]
         return pname,seq_emb,struct_graph,domain, label
-
-    

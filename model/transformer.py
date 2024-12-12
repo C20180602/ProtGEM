@@ -80,6 +80,22 @@ class TransformerEncoderLayer(nn.Module):
         x = self.LN2(x + self.drop(self.FFN(x)))
         return x
 
+# 去除第二个残差网络的Encoderlayer，压缩特征维数
+class TransformerEncoderLayer_NoRes(nn.Module):
+    def __init__(self, in_dim, n_heads, ffn_hid_dim, out_dim, dropout):
+        super().__init__()
+        self.MHA = MultiHeadAttention(in_dim, in_dim, in_dim, in_dim, n_heads, dropout)
+        self.LN1 = nn.LayerNorm(in_dim)
+        self.FFN = PositionWiseFFN(in_dim, ffn_hid_dim, out_dim)
+        self.LN2 = nn.LayerNorm(out_dim)
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x, mask=None):
+        # x 形状输入输出保持不变 [batch_size, seq_len, in_dim] 
+        x = self.LN1(x + self.drop(self.MHA(x, x, x, mask)))
+        x = self.LN2(self.drop(self.FFN(x)))
+        return x
+
 class PositionalEncoding(nn.Module):
     def __init__(self, num_hiddens, dropout, max_len=10000): # 默认蛋白质序列长度在10000以内
         super(PositionalEncoding, self).__init__()

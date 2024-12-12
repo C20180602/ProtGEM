@@ -253,7 +253,7 @@ class StructEncoder(nn.Module):
         # out_s :[Σn, part_dims]
         # [debug] batch_num_nodes()函数取出来的是tensor
         part_emb_out = list(torch.split(out_s, graph_size_list.tolist(), dim=0))
-        # part_emb_out :[batch, n_i, part_dims]
+        # part_emb_out : list(len=batch)[n_i, part_dims]
         
         return glob_emb_out, part_emb_out
 
