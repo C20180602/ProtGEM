@@ -94,12 +94,14 @@ if __name__ == "__main__":
     import json
     from torch.utils.data import DataLoader
     from dataset import MyDataset, my_collate_fn
+    from torchinfo import summary
     
     # 设置工作目录为项目文件夹
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     os.chdir("..")
     
     model = ProteinEncoder()
+    summary(model)
     ds = MyDataset("HUMAN")
     dl = DataLoader(ds,batch_size=6,shuffle=False, collate_fn=my_collate_fn)
     for pid, seq_embs, graph_list, domain_info, _  in dl:

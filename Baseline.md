@@ -53,7 +53,7 @@ raw_data的文件夹结构：
 
 图二中的go-basic.obo, interpro_entry.txt, interpro2go.txt需要下载
 
-[go-basic.obo](https://geneontology.org/docs/download-ontology/)
+[go-basic.obo](https://geneontology.org/docs/download-ontology/)（版本为2024-06-17）
 
 [interpro_entry.txt](https://ftp.ebi.ac.uk/pub/databases/interpro/current_release/entry.list)
 
