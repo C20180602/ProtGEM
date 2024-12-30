@@ -74,7 +74,7 @@ class MyDataset(Dataset):
                         go_id_list.append(self.vocab_go[go])
                 propagated_go_list = list(propagate(go_id_list,go_graph_nx))
                 
-                # TODO?: domain mapping的过程可以提前到process_protein中
+                # TODO?: domain mapping的过程可以提前到process_protein中，不过耗时很短，似乎并不必要
                 domain_list = []
                 for domain in self.protein_info[pname]["domain"]:
                     if domain[0] in self.vocab_interpro:

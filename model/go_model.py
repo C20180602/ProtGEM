@@ -26,7 +26,7 @@ class GoEncoder(nn.Module):
         if manual_init :
             assert init_tensor.shape[0] == in_dim
             assert init_tensor.shape[1] == hid_dim
-            self.emb = nn.Parameter(go_embedding_biobert,requires_grad = True)
+            self.emb = nn.Parameter(init_tensor,requires_grad = True)
         # 否则使用随机参数
         else:
             self.emb = nn.Parameter(torch.randn(in_dim, hid_dim),requires_grad = True)
