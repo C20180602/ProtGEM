@@ -26,14 +26,13 @@ edge_feature = {
 }
 terms = []
 go_id = {}
-graph = dgl.DGLGraph()
 
 go_id_path = os.path.join('processed_data','go_id.json')
 go_terms_path = os.path.join('processed_data','go_terms.json')
-go_biobert_emb_path = os.path.join("dataset","GO")
 
 go_graph_out_path = os.path.join("dataset","go_graph_dgl.pkl")
 go_graph_nx_out_path = os.path.join("dataset","go_graph_nx.pkl")
+go_term_dis_path = os.path.join("dataset","go_term_dis.json")
 
 # 读取go_map信息，获取每个GO标签对应的节点编号
 with open(go_id_path,"r") as f:
@@ -41,12 +40,16 @@ with open(go_id_path,"r") as f:
 
 # 读取go_terms，建图
 '''
+go_graph building method
 relationship    edge
 u is_a v        v->u
 u part_of v     v->u
 u regulates v   u->v
 
 在networkx中单独建图主要为了方便后续传播标签的过程
+go_graph_nx building method
+u is_a v        u->v
+u part_of v     u->v
 '''
 # 忽略使用DGLGraph建立空图的警告
 warnings.filterwarnings("ignore")
@@ -54,13 +57,7 @@ go_graph = dgl.DGLGraph()
 go_graph_nx = nx.DiGraph()
 with open(go_terms_path,"r") as file:
     terms = json.load(file)
-    
 go_graph.add_nodes(len(terms))
-print("reading biobert embedding...")
-for term in tqdm(terms):
-    term_id = term["id"]
-    u = go_id[term_id]
-
 print("building edges...")
 for term in tqdm(terms):
     term_id1 = term["id"]
@@ -81,4 +78,24 @@ with open(go_graph_out_path,"wb") as f:
     pickle.dump(go_graph,f)
 with open(go_graph_nx_out_path,"wb") as f:
     pickle.dump(go_graph_nx,f)
-    
+
+# DP求最长路作为GO标签的距离值，越大表示标签描述的功能越具体
+# 这里会比较confused，因为go_graph_nx的边是从具体标签指向抽象标签的，所以DP采用的是反向DP，三个根节点bp、cc、mf的dis值为1
+def dfs(u,go_graph,dis):
+    dis[u]=1
+    for edge in go_graph.out_edges(u):
+        v = edge[1]
+        if v not in dis:
+            dfs(v,go_graph,dis)
+        dis[u]=max(dis[u],dis[v]+1)
+
+def DAG_DP(go_graph:nx.DiGraph):
+    dis={}
+    for i in go_graph.nodes():
+        if i not in dis:
+            dfs(i,go_graph,dis)
+    return dis
+
+dis = DAG_DP(go_graph_nx)
+with open(go_term_dis_path,"w") as f:
+    json.dump(dis,f,indent=4)
