@@ -1,0 +1,3 @@
+关于struct_model的cuda device设置需要固定为cuda:0
+
+由于长时间调试未果，只能使用cuda:0，但可以通过CUDA_VISIBLE_DEVICES=2 python protein_model.py运行程序使其在不同卡上运行。

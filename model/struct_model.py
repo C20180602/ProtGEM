@@ -19,13 +19,14 @@ class VectorDropout(nn.Module):
     def __init__(self, p):
         super(VectorDropout, self).__init__()
         self.p = p
+        self.tmp_param = nn.Parameter(torch.zeros([1]))
 
     def forward(self, x):
         # x: [..., vector_num, vector_dim]
         if not self.training:
             return x
         
-        mask = ((torch.rand(x.shape[-2])) > self.p).float().unsqueeze(-1)
+        mask = ((torch.rand(x.shape[-2], device=self.tmp_param.device)) > self.p).float().unsqueeze(-1)
         x = mask*x/(1-self.p)
         return x
     
@@ -167,9 +168,9 @@ class GVPConvLayer(nn.Module):
         '''
         # input: edges.src/dst: 'res': [batch_size(dgl), 23], 'pos': [batch_size(dgl), 1, 3]
         # TODO : GVP论文原文只拼接了源节点特征和边特征输入GVP, 可以比较拼入目标节点特征之后性能差异
-        s = torch.cat((edges.src["res"],edges.dst["res"],edges.data["feat"]),dim=1)
+        s = torch.cat((edges.src["res"], edges.dst["res"], edges.data["feat"]), dim=1)
         # s: [batch_size, 23 * 2 + 3]
-        v = edges.dst["pos"]-edges.src["pos"]
+        v = edges.dst["pos"] - edges.src["pos"]
         # v: [batch_size, 1, 3]
         s,v = self.gvp_layers1((s,v))
         v = v.view(v.shape[0],-1)
@@ -179,13 +180,11 @@ class GVPConvLayer(nn.Module):
     
     # 完成残差拼接和
     def update_udf(self,g,s,v):
-        g.ndata["res"] += s
         # TODO 是否需要禁止氨基酸Cα点坐标改变?
-        g.ndata["pos"] += v
-        g.ndata["res"] = self.layernorm_s(g.ndata["res"])
-        g.ndata["pos"] = self.layernorm_v(g.ndata["pos"])
+        g.ndata["res"] = self.layernorm_s(g.ndata["res"] + s)
+        g.ndata["pos"] = self.layernorm_v(g.ndata["pos"] + v)
     
-    def forward(self, g: dgl.DGLGraph, node_mask=None) -> dgl.DGLGraph:
+    def forward(self, g: dgl.DGLGraph, node_mask=None):
         g.update_all(self.edge_udf,fn.mean("gvp_out","merge"))
         merge_sv = g.ndata["merge"].split(split_size = [self.outs, self.outv*3],dim=1)
         s = self.dropout_s(merge_sv[0])
@@ -232,13 +231,9 @@ class StructEncoder(nn.Module):
         self.part_emb_out = GVP(out_dims, (part_dims,0), h_dim, activations, cross_gate)
         self.glob_emb_out = nn.Linear(self.glob_topk * self.outs, global_dims)
 
-    def forward(self, g_list):
-        for g in g_list:
-            assert isinstance(g,dgl.DGLGraph)
-            g.ndata["res"] = self.ln_s(g.ndata["res"])
-            g.ndata["pos"] = self.ln_v(g.ndata["pos"])
-            
-        bg = dgl.batch(g_list)
+    def forward(self, bg: dgl.DGLGraph):
+        bg.ndata["res"] = self.ln_s(bg.ndata["res"])
+        bg.ndata["pos"] = self.ln_v(bg.ndata["pos"])
         graph_size_list = bg.batch_num_nodes()
         
         bg = self.layers(bg)
@@ -260,14 +255,27 @@ class StructEncoder(nn.Module):
 # DEBUG
 if __name__ == "__main__":
     import os
+    from dataset import MyDataset, my_collate_fn
+    from dgl.dataloading import GraphDataLoader
     # 设置工作目录为项目文件夹
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     os.chdir("..")
+    
+    # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+    
+    device = torch.device("cuda:0")
     model = StructEncoder(cross_gate=True)
-    g1,_ = dgl.load_graphs(os.path.join("dataset","ECOLI","P77302",'struct.dgl'))
-    g2,_ = dgl.load_graphs(os.path.join("dataset","ECOLI","A5A605",'struct.dgl'))
+    # model.cuda()
+    model = model.to(device)
+    model.train()
+    
+    ds = MyDataset("HUMAN")
+    dl = GraphDataLoader(ds, batch_size=2, shuffle=True, collate_fn=my_collate_fn)
     # [debug] dgl只有存取多图的函数，所以必须取下标
-    g_list = [g1[0],g2[0]]
-    glob,part = model(g_list)
+    for pid, _, batched_graph, _, _  in dl:
+        batched_graph = batched_graph.to(device)
+        glob,part = model(batched_graph)
+        break
+    print("-----------------")
     print(glob)
     print(part)

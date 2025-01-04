@@ -130,7 +130,9 @@ def my_collate_fn(batch):
     
     padded_seq_embs = torch.stack(padded_seq_embs)
     
-    # 结构图可以直接作为list传入，不需要处理
+    # 结构图处理为batch_graph
+    batched_graph = dgl.batch(struct_graphs)
+    
     # domain处理
     glob_dm_id = []
     glob_dm_offset = []
@@ -141,4 +143,4 @@ def my_collate_fn(batch):
     glob_dm_id = torch.tensor(glob_dm_id)
     glob_dm_offset = torch.tensor(glob_dm_offset)
 
-    return pnames, padded_seq_embs, struct_graphs, (glob_dm_id,glob_dm_offset,plens,domain_list), labels
+    return pnames, padded_seq_embs, batched_graph, [glob_dm_id,glob_dm_offset,plens,domain_list], labels

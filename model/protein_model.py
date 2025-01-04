@@ -58,13 +58,13 @@ class ProteinEncoder(nn.Module):
         
         padded_struct_part = []
         for struct_emb in struct_part:
-            padding = torch.zeros(max_len - struct_emb.shape[0], struct_emb.shape[1])
+            padding = torch.zeros(max_len - struct_emb.shape[0], struct_emb.shape[1], device=struct_emb.device)
             padded_struct_part.append(torch.cat([struct_emb, padding],dim=0))
         padded_struct_part = torch.stack(padded_struct_part)
         
         padded_domain_part = []
         for domain_emb in domain_part:
-            padding = torch.zeros(max_len - domain_emb.shape[0], domain_emb.shape[1])
+            padding = torch.zeros(max_len - domain_emb.shape[0], domain_emb.shape[1], device=domain_emb.device)
             padded_domain_part.append(torch.cat([domain_emb, padding],dim=0))
         padded_domain_part = torch.stack(padded_domain_part)
         
@@ -92,7 +92,7 @@ class ProteinEncoder(nn.Module):
 if __name__ == "__main__":
     import os
     import json
-    from torch.utils.data import DataLoader
+    from dgl.dataloading import GraphDataLoader
     from dataset import MyDataset, my_collate_fn
     from torchinfo import summary
     
@@ -100,12 +100,18 @@ if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     os.chdir("..")
     
+    device = torch.device("cuda:0")
     model = ProteinEncoder()
+    model.to(device)
     summary(model)
     ds = MyDataset("HUMAN")
-    dl = DataLoader(ds,batch_size=6,shuffle=False, collate_fn=my_collate_fn)
-    for pid, seq_embs, graph_list, domain_info, _  in dl:
-        emb = model(seq_embs, graph_list, domain_info)
+    dl = GraphDataLoader(ds,batch_size=6,shuffle=False, collate_fn=my_collate_fn)
+    for pid, seq_embs, batched_graph, domain_info, _  in dl:
+        seq_embs = seq_embs.to(device)
+        batched_graph = batched_graph.to(device)
+        domain_info[0] = domain_info[0].to(device)
+        domain_info[1] = domain_info[1].to(device)
+        emb = model(seq_embs, batched_graph, domain_info)
         print(emb)
         print(emb.shape)
         break

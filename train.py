@@ -2,6 +2,7 @@ import os
 import json
 import pickle
 import torch
+import torch.utils.data
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from transformers import get_cosine_schedule_with_warmup
@@ -64,12 +65,21 @@ else:
         model_go = GoEncoder(manual_init=True,init_tensor=go_embedding_biobert)
     else:
         model_go = GoEncoder()
+model_protein.to(device)
+model_go.to(device)
 
 # 初始化数据集并进行划分
 ds = MyDataset("HUMAN")
-dl = DataLoader(ds,batch_size=batch_size,shuffle=False, collate_fn=my_collate_fn)
+train_size = int(0.7*len(MyDataset))
+valid_size = int(0.2*len(MyDataset))
+test_size = len(MyDataset) - train_size - valid_size
+train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(ds, [train_size, valid_size, test_size])
 
-# 设置优化器与学习率规划器
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=my_collate_fn)
+val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_fn)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_fn)
+
+# 设置优化器、学习率规划器以及损失函数
 optimizer_protein = torch.optim.Adam(model_protein.parameters(), lr=init_lr)
 lr_scheduler_protein = get_cosine_schedule_with_warmup(optimizer_protein, num_warmup_steps=100, num_training_steps=epoch_num*len(dl))
 optimizer_go = torch.optim.Adam(model_go.parameters(), lr=init_lr)
@@ -78,7 +88,10 @@ lr_scheduler_go = get_cosine_schedule_with_warmup(optimizer_go, num_warmup_steps
 loss = nn.CrossEntropyLoss()
 
 for epoch in range(epoch_num):
-    for pids, seq_embs, graph_list, domain_info, labels in dl:
+    for pids, seq_embs, graph_list, domain_info, labels in train_loader:
+        seq_embs.to(device)
+        domain_info[0] = domain_info[0].to(device)
+        domain_info[1] = domain_info[1].to(device)
         protein_emb = model_protein(seq_embs, graph_list, domain_info)
         # protein_emb: [batch_size, hid_dim]
         go_emb = model_go(go_graph)
