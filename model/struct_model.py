@@ -185,8 +185,8 @@ class GVPConvLayer(nn.Module):
         g.ndata["pos"] = self.layernorm_v(g.ndata["pos"] + v)
     
     def forward(self, g: dgl.DGLGraph, node_mask=None):
-        g.update_all(self.edge_udf,fn.mean("gvp_out","merge"))
-        merge_sv = g.ndata["merge"].split(split_size = [self.outs, self.outv*3],dim=1)
+        g.update_all(self.edge_udf, fn.mean("gvp_out","merge"))
+        merge_sv = g.ndata["merge"].split(split_size = [self.outs, self.outv*3], dim=1)
         s = self.dropout_s(merge_sv[0])
         v = merge_sv[1]
         # v: [num_nodes, 3]

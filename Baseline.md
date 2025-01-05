@@ -78,7 +78,7 @@ raw_data的文件夹结构：
 
 5、build_pdb_graph.py, pretrain/seq_esm.py, 可以同时进行, 完成此步骤之后dataset文件夹处理完毕
 
-5.5、按照pretrain/biobert/readme.md的指示，完成运行biobert获取go标签的初始嵌入（不运行也可以，会直接使用随机向量初始化）
+5.5、按照pretrain/biobert/readme.md的指示，完成运行biobert获取go标签的初始嵌入（不运行也可以，使用随机向量初始化）
 
 6、运行build_go_graph.py，建立GO图
 

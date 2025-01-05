@@ -26,6 +26,16 @@ def propagate(go_list, go_graph:nx.DiGraph):
                 q.put(v)
     return vis.keys()
 
+def go_list_to_tensor(go_list, go_graph:nx.DiGraph):
+    n = go_graph.number_of_nodes()
+    multihot = torch.ones([n]) * -1.0
+    for go in go_list:
+        multihot[go] = 1.0
+        for edge in go_graph.in_edges(go):
+            go_v = edge[1]
+            multihot[go_v] = 0.0
+    return multihot
+
 class MyDataset(Dataset):
     def __init__(self, species_name, use_cache = True):
         # GO数据与interpro数据, 较小直接读入
@@ -37,12 +47,6 @@ class MyDataset(Dataset):
         
         self.species_name = species_name
         
-        # 是否使用缓存
-        if self.has_cache() and use_cache:
-           print("Using Cached Dataset!")
-           self.load_dataset()
-           return
-           
         # 读取各类文件
         print("loading all kinds of files...")
         with open(os.path.join("processed_data",species_name+"_protein_info.json"), 'r') as f:
@@ -54,7 +58,13 @@ class MyDataset(Dataset):
             self.vocab_interpro = {interpro:i for i,interpro in enumerate(interpro_list)}
             
         with open(os.path.join("dataset","go_graph_nx.pkl"),"rb") as f:
-            go_graph_nx = pickle.load(f)
+            self.go_graph_nx = pickle.load(f)
+        
+        # 是否使用缓存
+        if self.has_cache() and use_cache:
+           print("Using Cached Dataset!")
+           self.load_dataset()
+           return
         
         print("processing dataset...")
         species_path = os.path.join("dataset",species_name)
@@ -65,14 +75,14 @@ class MyDataset(Dataset):
             struct_path = os.path.join(species_path,pname,"struct.dgl")
             
             # 当一个数据在序列, 结构, GO标签都存在时, 将其加入数据集
-            if os.path.exists(seq_path) and os.path.exists(struct_path) and self.protein_info[pname]["go"] != []:
+            if os.path.exists(seq_path) and os.path.exists(struct_path) and pname in self.protein_info and self.protein_info[pname]["go"] != []:
                 plen = len(self.protein_info[pname]["seq"])
                 # 保存数据为: (蛋白质名, 序列嵌入路径, 结构图路径, interpro标签, GO标签)
                 go_id_list = []
                 for go in self.protein_info[pname]["go"]:
                     if go in self.vocab_go:
                         go_id_list.append(self.vocab_go[go])
-                propagated_go_list = list(propagate(go_id_list,go_graph_nx))
+                propagated_go_list = list(propagate(go_id_list,self.go_graph_nx))
                 
                 # TODO?: domain mapping的过程可以提前到process_protein中，不过耗时很短，似乎并不必要
                 domain_list = []
@@ -97,9 +107,13 @@ class MyDataset(Dataset):
             seq_emb = torch.tensor(pickle.load(f))
         struct_graph,_ = dgl.load_graphs(info[3])
         struct_graph = struct_graph[0]
-        
+        print(pname)
+        print(plen)
+        print(seq_emb.shape)
+        print(struct_graph)
+        assert len(struct_graph.nodes()) == plen
         domain = info[4]
-        label = info[5]
+        label = go_list_to_tensor(info[5],self.go_graph_nx)
         return pname,plen,seq_emb,struct_graph,domain, label
 
     def save_dataset(self):
@@ -119,7 +133,7 @@ class MyDataset(Dataset):
         return False
     
 def my_collate_fn(batch):
-    pnames, plens, seq_embs, struct_graphs, domain_list, labels= zip(*batch)
+    pnames, plens, seq_embs, struct_graphs, domain_list, labels = zip(*batch)
     
     # 处理seq_emb，使用padding
     max_length = max([seq_emb.shape[0] for seq_emb in seq_embs])
@@ -142,5 +156,8 @@ def my_collate_fn(batch):
             glob_dm_id.append(domain[0])
     glob_dm_id = torch.tensor(glob_dm_id)
     glob_dm_offset = torch.tensor(glob_dm_offset)
+    
+    # label处理
+    labels = torch.stack(labels)
 
     return pnames, padded_seq_embs, batched_graph, [glob_dm_id,glob_dm_offset,plens,domain_list], labels

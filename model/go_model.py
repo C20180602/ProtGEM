@@ -1,11 +1,8 @@
-import math
 import os
 import torch
 import dgl
 from dgl.nn.pytorch.conv import GATv2Conv
 from torch import nn
-import torch.nn.functional as F
-import transformer as tf
 
 import pickle
     
@@ -51,11 +48,15 @@ if __name__ == "__main__":
     # 设置工作目录为项目文件夹
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     os.chdir("..")
+    
+    device = torch.device("cuda:0")
     with open(os.path.join("dataset","go_graph_dgl.pkl"),"rb") as f:
         go_graph = pickle.load(f)
     with open(os.path.join("dataset","go_embedding_biobert.pkl"),"rb") as f:
         go_embedding_biobert = pickle.load(f)
     model = GoEncoder(manual_init=True,init_tensor=go_embedding_biobert)
+    model.to(device)
     summary(model)
+    go_graph = go_graph.to(device)
     x = model(go_graph)
     print(x.shape)

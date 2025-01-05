@@ -124,16 +124,16 @@ species_name = 'HUMAN'
 pdb_data_dir = os.path.join('raw_data',species_name,'pdb')
 save_dir = os.path.join('dataset',species_name)
 save_dir_list = os.listdir(save_dir)
-cnt=0
+model_fnum_log = {}
 for filename in tqdm(os.listdir(pdb_data_dir)):
     if filename.endswith('.pdb'):
-        # 只使用AlphaFold预测的F1模型
-        if not (filename.split('-')[2] == 'F1'):
+        protein_name=filename.split('-')[1]
+        fnum = int(filename.split('-')[2][1:])
+        # 需要使用AlphaFold预测的F最大的模型
+        if protein_name in model_fnum_log and model_fnum_log[protein_name] > fnum:
             continue
         
-        protein_name=filename.split('-')[1]
-        cnt+=1
-        # print(cnt,protein_name)
+        model_fnum_log[protein_name] = fnum
         
         # 为保证数据集完整性,暂时不考虑没有Uniprot序列记录的数据
         if protein_name not in save_dir_list:
@@ -145,3 +145,5 @@ for filename in tqdm(os.listdir(pdb_data_dir)):
         print(filename)
         print(graph)
         dgl.save_graphs(os.path.join(save_dir,protein_name,'struct.dgl'),graph)
+
+print(len(model_fnum_log))

@@ -1,18 +1,17 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-import dgl
-from seq_model import SeqEncoder
-from struct_model import StructEncoder
-from domain_model import DomainEncoder
-import transformer as tf
+from model.seq_model import SeqEncoder
+from model.struct_model import StructEncoder
+from model.domain_model import DomainEncoder
+import model.transformer as tf
 
 class ProteinEncoder(nn.Module):
     '''
     蛋白质进行编码
     每个蛋白质最终对应一个1024维的向量
     '''
-    def __init__(self, final_out_dim=1024, fusion_layers=6, fusion_att_heads=4, fusion_hid_dim=256, fusion_dropout=0.5, model_args = None):
+    def __init__(self, final_out_dim=1024, fusion_layers=2, fusion_att_heads=2, fusion_hid_dim=256, fusion_dropout=0.5, model_args = None):
         super(ProteinEncoder, self).__init__()
         # 没有给定参数文件则使用默认参数
         if model_args is None:
@@ -45,9 +44,9 @@ class ProteinEncoder(nn.Module):
         self.LN = nn.LayerNorm(final_out_dim)
         
     # TODO mask目前只对seq有效
-    def forward(self, seq_embs, graph_list, domain_info, mask=None):
+    def forward(self, seq_embs, batched_graph, domain_info, mask=None):
         seq_glob, seq_part = self.seq_enc(seq_embs,mask)
-        struct_glob, struct_part = self.struct_enc(graph_list)
+        struct_glob, struct_part = self.struct_enc(batched_graph)
         domain_glob, domain_part = self.domain_enc(*domain_info)
         # xxx_glob: [batch_size, global_dims]
         # seq_part: [batch_size, max_len, part_dims]

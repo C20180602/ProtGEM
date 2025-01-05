@@ -3,7 +3,7 @@ import math
 import torch
 from torch import nn
 import torch.nn.functional as F
-import transformer as tf
+import model.transformer as tf
 
 import pickle
     
@@ -13,7 +13,7 @@ class SeqEncoder(nn.Module):
     in_dim: 从ESM2模型中输出的特征维数默认为 1280
     layer_num: 经过的Transformer层数
     '''
-    def __init__(self, in_dim=1280, n_heads=4, layer_cnt=3, ffn_hid_dim=1280, global_dims=512, part_dims=64, dropout=0.4):
+    def __init__(self, in_dim=1280, n_heads=2, layer_cnt=2, ffn_hid_dim=1280, global_dims=512, part_dims=64, dropout=0.4):
         super(SeqEncoder, self).__init__()
         self.scale =math.sqrt(in_dim) # 放缩系数sqrt(in_dim)
         self.LN = nn.LayerNorm(in_dim)

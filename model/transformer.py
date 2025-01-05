@@ -97,13 +97,13 @@ class TransformerEncoderLayer_NoRes(nn.Module):
         return x
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, num_hiddens, dropout, max_len=10000): # 默认蛋白质序列长度在10000以内
+    def __init__(self, num_hiddens, dropout, max_len=5000): # 默认蛋白质序列长度在5000以内
         super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(dropout)
         self.P = torch.zeros((1, max_len, num_hiddens))
         X = torch.arange(max_len, dtype=torch.float32).reshape(-1, 1) / \
-        torch.pow(10000, torch.arange(0, num_hiddens, 2, dtype=torch.float32) / num_hiddens)
-        # i为序列坐标，j为embedding坐标 (i/10000^(2j/hid_dim))
+        torch.pow(5000, torch.arange(0, num_hiddens, 2, dtype=torch.float32) / num_hiddens)
+        # i为序列坐标，j为embedding坐标 (i/5000^(2j/hid_dim))
         self.P[:, :, 0::2] = torch.sin(X)
         self.P[:, :, 1::2] = torch.cos(X)
 
