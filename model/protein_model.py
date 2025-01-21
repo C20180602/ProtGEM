@@ -41,7 +41,6 @@ class ProteinEncoder(nn.Module):
         
         # TODO 这里直接拼接+线性层有点草率，想想更好的方法
         self.final_out = nn.Linear(self.glob_dims + self.part_dims, final_out_dim)
-        self.LN = nn.LayerNorm(final_out_dim)
         
     # TODO mask目前只对seq有效
     def forward(self, seq_embs, batched_graph, domain_info, mask=None):
@@ -81,10 +80,9 @@ class ProteinEncoder(nn.Module):
         # part_emb: [batch_size, domain_part_dims]
         
         # 最终融合，得到最终的embedding
-        emb = self.final_out(torch.cat([glob_emb,part_emb],dim=1))
-        # swish激活，TODO 改为GLU激活
-        emb = emb * F.sigmoid(emb)
-        emb = self.LN(emb)
+        emb = torch.cat([glob_emb,part_emb],dim=1)
+        emb = self.final_out(emb)
+        emb = emb / emb.norm(p=2, dim=1, keepdim=True)
         return emb
 
 # DEBUG

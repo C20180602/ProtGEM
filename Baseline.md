@@ -30,6 +30,10 @@
 
 *当然，你也可以使用Uniprot汇总的GO标签数据，不过后续的数据处理需要"魔改"一下
 
+在GO预训练过程中，使用了Uniprot的swissprot数据，标签排序方式为：
+
+Entry	Length	Gene Ontology IDs
+
 ### PPI数据：
 
 [STRING](https://cn.string-db.org/cgi/download)

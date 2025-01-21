@@ -129,8 +129,8 @@ for filename in tqdm(os.listdir(pdb_data_dir)):
     if filename.endswith('.pdb'):
         protein_name=filename.split('-')[1]
         fnum = int(filename.split('-')[2][1:])
-        # 需要使用AlphaFold预测的F最大的模型
-        if protein_name in model_fnum_log and model_fnum_log[protein_name] > fnum:
+        # 需要合并多个模型
+        if protein_name not in model_fnum_log:
             continue
         
         model_fnum_log[protein_name] = fnum

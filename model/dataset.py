@@ -28,12 +28,10 @@ def propagate(go_list, go_graph:nx.DiGraph):
 
 def go_list_to_tensor(go_list, go_graph:nx.DiGraph):
     n = go_graph.number_of_nodes()
-    multihot = torch.ones([n]) * -1.0
+    multihot = torch.zeros([n])
+    # TODO 训练集裁剪掉最边缘的，验证集中不裁剪
     for go in go_list:
         multihot[go] = 1.0
-        for edge in go_graph.in_edges(go):
-            go_v = edge[1]
-            multihot[go_v] = 0.0
     return multihot
 
 class MyDataset(Dataset):
@@ -62,9 +60,9 @@ class MyDataset(Dataset):
         
         # 是否使用缓存
         if self.has_cache() and use_cache:
-           print("Using Cached Dataset!")
-           self.load_dataset()
-           return
+            print("Using Cached Dataset!")
+            self.load_dataset()
+            return
         
         print("processing dataset...")
         species_path = os.path.join("dataset",species_name)
@@ -76,22 +74,26 @@ class MyDataset(Dataset):
             
             # 当一个数据在序列, 结构, GO标签都存在时, 将其加入数据集
             if os.path.exists(seq_path) and os.path.exists(struct_path) and pname in self.protein_info and self.protein_info[pname]["go"] != []:
+                struct_graph,_ = dgl.load_graphs(struct_path)
+                struct_graph = struct_graph[0]
                 plen = len(self.protein_info[pname]["seq"])
-                # 保存数据为: (蛋白质名, 序列嵌入路径, 结构图路径, interpro标签, GO标签)
-                go_id_list = []
-                for go in self.protein_info[pname]["go"]:
-                    if go in self.vocab_go:
-                        go_id_list.append(self.vocab_go[go])
-                propagated_go_list = list(propagate(go_id_list,self.go_graph_nx))
-                
-                # TODO?: domain mapping的过程可以提前到process_protein中，不过耗时很短，似乎并不必要
-                domain_list = []
-                for domain in self.protein_info[pname]["domain"]:
-                    if domain[0] in self.vocab_interpro:
-                        domain_list.append([self.vocab_interpro[domain[0]],domain[1],domain[2]])
-                self.data_info.append((pname,plen,
-                                       os.path.abspath(seq_path), os.path.abspath(struct_path),
-                                       domain_list, propagated_go_list))
+                # 只选择pdb文件与序列长度相等的进入数据集
+                if len(struct_graph.nodes()) == plen:
+                    # 保存数据为: (蛋白质名, 序列嵌入路径, 结构图路径, interpro标签, GO标签)
+                    go_id_list = []
+                    for go in self.protein_info[pname]["go"]:
+                        if go in self.vocab_go:
+                            go_id_list.append(self.vocab_go[go])
+                    propagated_go_list = list(propagate(go_id_list,self.go_graph_nx))
+                    
+                    # TODO?: domain mapping的过程可以提前到process_protein中，不过耗时很短，似乎并不必要
+                    domain_list = []
+                    for domain in self.protein_info[pname]["domain"]:
+                        if domain[0] in self.vocab_interpro:
+                            domain_list.append([self.vocab_interpro[domain[0]],domain[1],domain[2]])
+                    self.data_info.append((pname,plen,
+                                        os.path.abspath(seq_path), struct_graph,
+                                        domain_list, propagated_go_list))
         
         self.save_dataset()
         
@@ -105,12 +107,8 @@ class MyDataset(Dataset):
         # 数据集在访问时才读取大型文件
         with open(info[2],"rb") as f:
             seq_emb = torch.tensor(pickle.load(f))
-        struct_graph,_ = dgl.load_graphs(info[3])
-        struct_graph = struct_graph[0]
-        print(pname)
-        print(plen)
-        print(seq_emb.shape)
-        print(struct_graph)
+        seq_emb = seq_emb[1:-1]
+        struct_graph = info[3]
         assert len(struct_graph.nodes()) == plen
         domain = info[4]
         label = go_list_to_tensor(info[5],self.go_graph_nx)

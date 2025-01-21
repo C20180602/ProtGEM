@@ -3,6 +3,8 @@ import json
 import pickle
 import torch
 import torch.utils.data
+import numpy as np
+import torch.functional as F
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from transformers import get_cosine_schedule_with_warmup
@@ -10,6 +12,9 @@ from tqdm import tqdm
 from model.dataset import MyDataset, my_collate_fn
 from model.go_model import GoEncoder
 from model.protein_model import ProteinEncoder
+
+from sklearn import metrics
+from sklearn.metrics import roc_auc_score, roc_curve, auc, precision_score, recall_score, f1_score, average_precision_score    
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -76,7 +81,7 @@ valid_size = int(0.2*len(ds))
 test_size = len(ds) - train_size - valid_size
 train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(ds, [train_size, valid_size, test_size])
 
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_fn)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=my_collate_fn)
 val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_fn)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_fn)
 
@@ -86,8 +91,10 @@ lr_scheduler_protein = get_cosine_schedule_with_warmup(optimizer_protein, num_wa
 optimizer_go = torch.optim.Adam(model_go.parameters(), lr=init_lr)
 lr_scheduler_go = get_cosine_schedule_with_warmup(optimizer_go, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
 
-criterion = nn.CrossEntropyLoss()
+criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1000.0],device=device))
+mean_loss = 0.0
 
+print("Start Training!")
 for epoch in range(epoch_num):
     for i, (pids, seq_embs, batched_graph, domain_info, labels) in enumerate(train_loader):
         seq_embs = seq_embs.to(device)
@@ -104,40 +111,61 @@ for epoch in range(epoch_num):
         go_emb = model_go(go_graph)
         # go_emb: [go_nums, hid_dim]
         predict_matrix = protein_emb @ go_emb.T
-        
+        predict_matrix = (predict_matrix + 1)/2
+        # print(predict_matrix)
+        # print(labels)
         loss = criterion(predict_matrix, labels)
         loss.backward()
         optimizer_protein.step()
-        optimizer_go.step()
+        # optimizer_go.step()
         lr_scheduler_protein.step()
-        lr_scheduler_go.step()
-        
+        # lr_scheduler_go.step()
+        mean_loss += loss.item()
         if i % 50 == 49:
-            print(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {loss.item()}')
-            model_protein.eval()
-            model_go.eval()
-            total = 0
-            correct = 0
-            with torch.no_grad():
-                for pids, seq_embs, batched_graph, domain_info, labels in val_loader:
-                    seq_embs = seq_embs.to(device)
-                    batched_graph = batched_graph.to(device)
-                    domain_info[0] = domain_info[0].to(device)
-                    domain_info[1] = domain_info[1].to(device)
-                    labels = labels.to(device)
-                    
-                    protein_emb = model_protein(seq_embs, batched_graph, domain_info)
-                    # protein_emb: [batch_size, hid_dim]
-                    go_emb = model_go(go_graph)
-                    # go_emb: [go_nums, hid_dim]
-                    predict_matrix = protein_emb @ go_emb.T
-                    predict_matrix = torch.sign(predict_matrix)
-                    
-                    total += labels.size(0)
-                    correct += (predict_matrix == labels).sum().item()
-
-            acc = correct / total
-            print(f'Val Acc: {acc}')
-            model_protein.train()
-            model_go.train()
+            print(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/50}')
+            mean_loss = 0.0
+    model_protein.eval()
+    model_go.eval()
+    total = 0
+    correct = 0
+    actual = []
+    pred = []
+    with torch.no_grad():
+        for pids, seq_embs, batched_graph, domain_info, labels in tqdm(val_loader):
+            seq_embs = seq_embs.to(device)
+            batched_graph = batched_graph.to(device)
+            domain_info[0] = domain_info[0].to(device)
+            domain_info[1] = domain_info[1].to(device)
+            labels = labels.to(device)
+            
+            protein_emb = model_protein(seq_embs, batched_graph, domain_info)
+            # protein_emb: [batch_size, hid_dim]
+            go_emb = model_go(go_graph)
+            # go_emb: [go_nums, hid_dim]
+            predict_matrix = protein_emb @ go_emb.T
+            predict_matrix = (predict_matrix + 1)/2
+            pred += predict_matrix.tolist()
+            actual += labels.tolist()
+    actual = np.array(actual).flatten()
+    pred = np.array(pred).flatten()
+    fpr, tpr, th = roc_curve(actual, pred, pos_label=1)
+    auc_score = auc(fpr, tpr)
+    pc, rc, thpr = metrics.precision_recall_curve(actual, pred)
+    aupr = metrics.auc(rc, pc)
+    print("AUC: ",auc_score)
+    print("AUPR: ",aupr)
+    
+    # thresholds = np.arange(0.0, 1.0, 0.01)
+    # f1_scores = []
+    # for threshold in tqdm(thresholds):
+    #     y_pred = (pred >= threshold).astype(int)
+    #     f1 = f1_score(actual, y_pred)
+    #     f1_scores.append(f1)
+    # # 找到最大 F1 Score
+    # max_f1 = max(f1_scores)
+    # best_threshold = thresholds[np.argmax(f1_scores)]
+    # print("Fmax: ",max_f1)
+    # print("thresh: ",best_threshold)
+    model_protein.train()
+    model_go.train()
         
