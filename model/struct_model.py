@@ -212,9 +212,9 @@ class StructEncoder(nn.Module):
         super(StructEncoder, self).__init__()
         
         # 参数 
-        self.glob_dim = global_dims
+        self.glob_dims = global_dims
         self.glob_topk = global_refer_nodes
-        self.part_dim = part_dims
+        self.part_dims = part_dims
         self.ins, self.inv = in_dims
         self.outs,self.outv= out_dims
         self.edge_s,self.edge_v= edge_dims

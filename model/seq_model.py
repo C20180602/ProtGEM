@@ -15,6 +15,8 @@ class SeqEncoder(nn.Module):
     '''
     def __init__(self, in_dim=1280, n_heads=2, layer_cnt=2, ffn_hid_dim=1280, global_dims=512, part_dims=64, dropout=0.4):
         super(SeqEncoder, self).__init__()
+        self.glob_dims = global_dims
+        self.part_dims = part_dims
         self.scale =math.sqrt(in_dim) # 放缩系数sqrt(in_dim)
         self.LN = nn.LayerNorm(in_dim)
         self.PE = tf.PositionalEncoding(in_dim,dropout)

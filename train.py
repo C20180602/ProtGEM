@@ -1,6 +1,8 @@
 import os
+import logging
 import json
 import pickle
+
 import torch
 import torch.utils.data
 import numpy as np
@@ -17,6 +19,22 @@ from sklearn import metrics
 from sklearn.metrics import roc_auc_score, roc_curve, auc, precision_score, recall_score, f1_score, average_precision_score    
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+def init_logger(log_path = os.path.join('logs','train_protein.log')):
+    logger = logging.getLogger("global")
+    handler1 = logging.StreamHandler()
+    handler2 = logging.FileHandler(filename=log_path)
+    logger.setLevel(logging.INFO)
+    handler1.setLevel(logging.INFO)
+    handler2.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
+    handler1.setFormatter(formatter)
+    handler2.setFormatter(formatter)
+    logger.addHandler(handler1)
+    logger.addHandler(handler2)
+    return logger
+
+logger = init_logger(os.path.join('logs','train_protein.log'))
 
 # 设置设备编号(需要使用CUDA_VISIBLE_DEVICES设置)
 device = torch.device("cuda:0")
@@ -53,26 +71,17 @@ go_graph = go_graph.to(device)
 # 初始化模型
 print("Use model param in config directory? ([y]/n)")
 config_flag = input()
-print("Use biobert embeddings to initialize GO model? ([y]/n)")
-go_init_flag = input()
-if go_init_flag != 'n':
-    # 读取GO模型的预设embedding
-    with open(os.path.join("dataset","go_embedding_biobert.pkl"),"rb") as f:
-        go_embedding_biobert = pickle.load(f)
 if config_flag != 'n':
     model_protein = ProteinEncoder(**pm_param)
-    if go_init_flag != 'n':
-        model_go = GoEncoder(**gm_param,manual_init=True,init_tensor=go_embedding_biobert)
-    else:
-        model_go = GoEncoder(**gm_param)
+    model_go = GoEncoder(**gm_param)
 else:
     model_protein = ProteinEncoder()
-    if go_init_flag != 'n':
-        model_go = GoEncoder(manual_init=True,init_tensor=go_embedding_biobert)
-    else:
-        model_go = GoEncoder()
+    model_go = GoEncoder()
 model_protein.to(device)
+model_go.load_model("model_params/go_model_1.pth")
+model_go.requires_grad_ = False
 model_go.to(device)
+model_go.eval()
 
 # 初始化数据集并进行划分
 ds = MyDataset("HUMAN")
@@ -88,14 +97,19 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, col
 # 设置优化器、学习率规划器以及损失函数
 optimizer_protein = torch.optim.Adam(model_protein.parameters(), lr=init_lr)
 lr_scheduler_protein = get_cosine_schedule_with_warmup(optimizer_protein, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
-optimizer_go = torch.optim.Adam(model_go.parameters(), lr=init_lr)
-lr_scheduler_go = get_cosine_schedule_with_warmup(optimizer_go, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
+# optimizer_go = torch.optim.Adam(model_go.parameters(), lr=init_lr)
+# lr_scheduler_go = get_cosine_schedule_with_warmup(optimizer_go, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
 
 criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1000.0],device=device))
-mean_loss = 0.0
 
-print("Start Training!")
+logger.info("Parameters INFO:")
+logger.info(train_param)
+logger.info(pm_param)
+logger.info(gm_param)
+logger.info("Start Training!")
+go_idx = torch.arange(gm_param["vocab_dim"]).to(device)
 for epoch in range(epoch_num):
+    mean_loss = 0.0
     for i, (pids, seq_embs, batched_graph, domain_info, labels) in enumerate(train_loader):
         seq_embs = seq_embs.to(device)
         batched_graph = batched_graph.to(device)
@@ -104,11 +118,11 @@ for epoch in range(epoch_num):
         labels = labels.to(device)
         
         optimizer_protein.zero_grad()
-        optimizer_go.zero_grad()
+        # optimizer_go.zero_grad()
         
         protein_emb = model_protein(seq_embs, batched_graph, domain_info)
         # protein_emb: [batch_size, hid_dim]
-        go_emb = model_go(go_graph)
+        go_emb = model_go(go_idx, go_graph)
         # go_emb: [go_nums, hid_dim]
         predict_matrix = protein_emb @ go_emb.T
         predict_matrix = (predict_matrix + 1)/2
@@ -121,8 +135,8 @@ for epoch in range(epoch_num):
         lr_scheduler_protein.step()
         # lr_scheduler_go.step()
         mean_loss += loss.item()
-        if i % 50 == 49:
-            print(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/50}')
+        if i % 400 == 399:
+            logger.info(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/400}')
             mean_loss = 0.0
     model_protein.eval()
     model_go.eval()
@@ -140,7 +154,7 @@ for epoch in range(epoch_num):
             
             protein_emb = model_protein(seq_embs, batched_graph, domain_info)
             # protein_emb: [batch_size, hid_dim]
-            go_emb = model_go(go_graph)
+            go_emb = model_go(go_idx, go_graph)
             # go_emb: [go_nums, hid_dim]
             predict_matrix = protein_emb @ go_emb.T
             predict_matrix = (predict_matrix + 1)/2
@@ -152,8 +166,8 @@ for epoch in range(epoch_num):
     auc_score = auc(fpr, tpr)
     pc, rc, thpr = metrics.precision_recall_curve(actual, pred)
     aupr = metrics.auc(rc, pc)
-    print("AUC: ",auc_score)
-    print("AUPR: ",aupr)
+    logger.info("AUC: ",auc_score)
+    logger.info("AUPR: ",aupr)
     
     # thresholds = np.arange(0.0, 1.0, 0.01)
     # f1_scores = []
@@ -166,6 +180,7 @@ for epoch in range(epoch_num):
     # best_threshold = thresholds[np.argmax(f1_scores)]
     # print("Fmax: ",max_f1)
     # print("thresh: ",best_threshold)
+    model_protein.save_model("model_params/protein_model.pth")
     model_protein.train()
-    model_go.train()
+    # model_go.train()
         

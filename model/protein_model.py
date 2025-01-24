@@ -23,17 +23,12 @@ class ProteinEncoder(nn.Module):
             self.struct_args = model_args['StructEncoder']
             self.domain_args = model_args['DomainEncoder']
             
-            # 检验参数是否符合融合条件
-            assert self.seq_args['global_dims'] + self.struct_args['global_dims'] == self.domain_args['global_dims']
-            assert self.seq_args['part_dims'] + self.struct_args['part_dims'] == self.domain_args['part_dims']
-            
             self.seq_enc = SeqEncoder(**self.seq_args)
             self.struct_enc = StructEncoder(**self.struct_args)
             self.domain_enc = DomainEncoder(**self.domain_args)
         
-        # 根据现在的特征融合方式，需要暂时和domain的输出保持一致
-        self.glob_dims = self.domain_enc.glob_dims
-        self.part_dims = self.domain_enc.part_dims
+        self.glob_dims = self.seq_enc.glob_dims + self.struct_enc.glob_dims + self.domain_enc.glob_dims
+        self.part_dims = self.seq_enc.part_dims + self.struct_enc.part_dims + self.domain_enc.part_dims
         
         self.fusion_layers = nn.Sequential()
         for i in range(fusion_layers):
@@ -69,10 +64,10 @@ class ProteinEncoder(nn.Module):
         # padded_(domain/struct)_part: [batch_size, max_len, (domain/struct)_part_dims]
         
         # 融合全局特征
-        glob_emb = torch.cat([seq_glob,struct_glob],dim=1) + domain_glob
+        glob_emb = torch.cat([seq_glob,struct_glob,domain_glob],dim=1)
         # glob_emb: [batch_size, domain_glob_dims]
         # 融合局部特征：
-        part_emb = torch.cat([seq_part,padded_struct_part],dim=2) + padded_domain_part
+        part_emb = torch.cat([seq_part,padded_struct_part,padded_domain_part],dim=2)
         for layer in self.fusion_layers:
             part_emb = layer(part_emb, mask)
         # part_emb: [batch_size, max_len, domain_part_dims]
@@ -84,6 +79,12 @@ class ProteinEncoder(nn.Module):
         emb = self.final_out(emb)
         emb = emb / emb.norm(p=2, dim=1, keepdim=True)
         return emb
+    
+    def save_model(self, path):
+        torch.save(self.state_dict(), path)
+    
+    def load_model(self, path):
+        self.load_state_dict(torch.load(path))
 
 # DEBUG
 if __name__ == "__main__":

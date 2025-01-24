@@ -5,6 +5,8 @@
 dmis-lab/
 *.h5
 *.txt
+*.pth
+*.log
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

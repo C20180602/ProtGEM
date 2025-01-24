@@ -69,23 +69,25 @@ optimizer_go = torch.optim.Adam(model_go.parameters(), lr=init_lr)
 lr_scheduler_go = get_cosine_schedule_with_warmup(optimizer_go, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
 
 criterion = PretrainLoss(pos_k, neg_k)
-mean_loss = 0.0
 
 print("Start Training!")
+save_path = os.path.join("model_params","go_model.pth")
 for epoch in range(epoch_num):
+    mean_loss = 0.0
     for i, (idx, pos, neg) in enumerate(train_loader):
-        idx = idx.to(device)
-        pos = pos.to(device)
-        neg = neg.to(device)
         x = torch.cat([idx,pos,neg],dim=1)
+        x = x.to(device)
         
         x = model_go(x, go_graph)
         loss = criterion(x)
         
         optimizer_go.zero_grad()
+        loss.backward()
+        optimizer_go.step()
         lr_scheduler_go.step()
         mean_loss += loss.item()
-        if i % 50 == 49:
-            print(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/50}')
+        if i % 80 == 79:
+            print(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/80}')
             mean_loss = 0.0
-        
+    
+    model_go.save_model(save_path)
