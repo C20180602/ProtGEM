@@ -6,6 +6,23 @@ from model.struct_model import StructEncoder
 from model.domain_model import DomainEncoder
 import model.transformer as tf
 
+class ContrastLoss(nn.Module):
+    '''
+    对比学习的损失函数
+    '''
+    def __init__(self):
+        super(ContrastLoss, self).__init__()
+    
+    def forward(self, pred, labels, t = 0.05):
+        # pred: [batch_size, go_nums]
+        # labels: [batch_size, go_nums]
+        pred = torch.exp(pred/t)
+        pos = torch.sum(pred * labels, dim=-1)
+        nag = torch.sum(pred * (1-labels), dim=-1)
+        frac = pos / (pos + nag)
+        return torch.mean(-torch.log(frac))
+        
+
 class ProteinEncoder(nn.Module):
     '''
     蛋白质进行编码

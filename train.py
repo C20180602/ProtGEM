@@ -13,7 +13,7 @@ from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
 from model.dataset import MyDataset, my_collate_fn
 from model.go_model import GoEncoder
-from model.protein_model import ProteinEncoder
+from model.protein_model import ProteinEncoder, ContrastLoss
 
 from sklearn import metrics
 from sklearn.metrics import roc_auc_score, roc_curve, auc, precision_score, recall_score, f1_score, average_precision_score    
@@ -51,17 +51,10 @@ with open(go_model_conf_path,"r") as f:
 train_conf_path = os.path.join("config","train.conf")
 with open(train_conf_path,"r") as f:
     train_param = json.load(f)
-
-print("Use train param in config directory? ([y]/n)")
-train_conf_flag = input()
-if train_conf_flag != 'n':
-    epoch_num = train_param["epoch_num"]
-    batch_size = train_param["batch_size"]
-    init_lr = train_param["init_lr"]
-else:
-    epoch_num = 20
-    batch_size = 8
-    init_lr = 1e-3
+epoch_num = train_param["epoch_num"]
+batch_size = train_param["batch_size"]
+init_lr = train_param["init_lr"]
+contrast_temp = train_param["contrast_temp"]
 
 # 读取必要的数据
 with open(os.path.join("dataset","go_graph_dgl.pkl"),"rb") as f:
@@ -79,7 +72,7 @@ else:
     model_go = GoEncoder()
 model_protein.to(device)
 model_go.load_model("model_params/go_model_1.pth")
-model_go.requires_grad_ = False
+# model_go.requires_grad_ = False
 model_go.to(device)
 model_go.eval()
 
@@ -97,10 +90,12 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, col
 # 设置优化器、学习率规划器以及损失函数
 optimizer_protein = torch.optim.Adam(model_protein.parameters(), lr=init_lr)
 lr_scheduler_protein = get_cosine_schedule_with_warmup(optimizer_protein, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
-# optimizer_go = torch.optim.Adam(model_go.parameters(), lr=init_lr)
-# lr_scheduler_go = get_cosine_schedule_with_warmup(optimizer_go, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
+optimizer_go = torch.optim.Adam(model_go.parameters(), lr=init_lr)
+lr_scheduler_go = get_cosine_schedule_with_warmup(optimizer_go, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
 
-criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1000.0],device=device))
+# criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1000.0],device=device))
+criterion1 = ContrastLoss()
+criterion2 = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1000.0],device=device))
 
 logger.info("Parameters INFO:")
 logger.info(train_param)
@@ -118,22 +113,25 @@ for epoch in range(epoch_num):
         labels = labels.to(device)
         
         optimizer_protein.zero_grad()
-        # optimizer_go.zero_grad()
+        optimizer_go.zero_grad()
         
         protein_emb = model_protein(seq_embs, batched_graph, domain_info)
         # protein_emb: [batch_size, hid_dim]
         go_emb = model_go(go_idx, go_graph)
         # go_emb: [go_nums, hid_dim]
         predict_matrix = protein_emb @ go_emb.T
-        predict_matrix = (predict_matrix + 1)/2
+        predict_matrix = torch.sigmoid(predict_matrix/0.2)
+        # predict_matrix = (predict_matrix + 1)/2
         # print(predict_matrix)
         # print(labels)
-        loss = criterion(predict_matrix, labels)
+        loss1 = criterion1(predict_matrix, labels, contrast_temp)
+        loss2 = criterion2(predict_matrix, labels)
+        loss = loss1 + loss2
         loss.backward()
         optimizer_protein.step()
-        # optimizer_go.step()
+        optimizer_go.step()
         lr_scheduler_protein.step()
-        # lr_scheduler_go.step()
+        lr_scheduler_go.step()
         mean_loss += loss.item()
         if i % 400 == 399:
             logger.info(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/400}')
@@ -164,22 +162,16 @@ for epoch in range(epoch_num):
     pred = np.array(pred).flatten()
     fpr, tpr, th = roc_curve(actual, pred, pos_label=1)
     auc_score = auc(fpr, tpr)
-    pc, rc, thpr = metrics.precision_recall_curve(actual, pred)
-    aupr = metrics.auc(rc, pc)
-    logger.info("AUC: ",auc_score)
-    logger.info("AUPR: ",aupr)
-    
-    # thresholds = np.arange(0.0, 1.0, 0.01)
-    # f1_scores = []
-    # for threshold in tqdm(thresholds):
-    #     y_pred = (pred >= threshold).astype(int)
-    #     f1 = f1_score(actual, y_pred)
-    #     f1_scores.append(f1)
-    # # 找到最大 F1 Score
-    # max_f1 = max(f1_scores)
-    # best_threshold = thresholds[np.argmax(f1_scores)]
-    # print("Fmax: ",max_f1)
-    # print("thresh: ",best_threshold)
+    precision, recall, pr_thresh = metrics.precision_recall_curve(actual, pred)
+    aupr_score = metrics.auc(recall, precision)
+    logger.info("AUC: "+str(auc_score))
+    logger.info("AUPR: "+str(aupr_score))
+    f1 = 2*precision*recall/(precision+recall+1e-8)
+    thresh = pr_thresh[np.argmax(f1)]
+    fmax = np.max(f1)
+    logger.info("Fmax: "+str(fmax))
+    logger.info("thresh: "+str(thresh))
+        
     model_protein.save_model("model_params/protein_model.pth")
     model_protein.train()
     # model_go.train()
