@@ -55,16 +55,32 @@ class ProteinEncoder(nn.Module):
         self.final_out = nn.Linear(self.glob_dims + self.part_dims, final_out_dim)
         
     # TODO mask目前只对seq有效
-    def forward(self, seq_embs, batched_graph, domain_info, mask=None):
-        seq_glob, seq_part = self.seq_enc(seq_embs,mask)
-        struct_glob, struct_part = self.struct_enc(batched_graph)
-        domain_glob, domain_part = self.domain_enc(*domain_info)
+    def forward(self, seq_embs, batched_graph, domain_info, mask=None, ablation_feat = []):
+        batch_size = seq_embs.shape[0]
+        max_len = seq_embs.shape[1]
+        
+        if "seq" not in ablation_feat:
+            seq_glob, seq_part = self.seq_enc(seq_embs,mask)
+        else:
+            seq_glob = torch.zeros(batch_size, self.seq_enc.glob_dims, device=seq_embs.device)
+            seq_part = torch.zeros(batch_size, max_len, self.seq_enc.part_dims, device=seq_embs.device)
+        
+        if "struct" not in ablation_feat:
+            struct_glob, struct_part = self.struct_enc(batched_graph)
+        else:
+            struct_glob = torch.zeros(batch_size, self.struct_enc.glob_dims, device=batched_graph.device)
+            struct_part = [torch.zeros(max_len, self.struct_enc.part_dims, device=batched_graph.device) for _ in range(batch_size)]
+        
+        if "domain" not in ablation_feat:
+            domain_glob, domain_part = self.domain_enc(*domain_info)
+        else:
+            domain_glob = torch.zeros(batch_size, self.domain_enc.glob_dims, device=domain_info[0].device)
+            domain_part = [torch.zeros(max_len, self.domain_enc.part_dims, device=domain_info[0].device) for _ in range(batch_size)]
         # xxx_glob: [batch_size, global_dims]
         # seq_part: [batch_size, max_len, part_dims]
         # (struct/domain)_part: list(len=batch_size)[len_i, part_dims]
         
         # 对struct_part和domain_part进行padding
-        max_len = seq_part.shape[1]
         
         padded_struct_part = []
         for struct_emb in struct_part:

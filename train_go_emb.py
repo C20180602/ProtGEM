@@ -71,7 +71,7 @@ lr_scheduler_go = get_cosine_schedule_with_warmup(optimizer_go, num_warmup_steps
 criterion = PretrainLoss(pos_k, neg_k)
 
 print("Start Training!")
-save_path = os.path.join("model_params","go_model.pth")
+save_path = os.path.join("model_params","go_pretrain_model.pth")
 for epoch in range(epoch_num):
     mean_loss = 0.0
     for i, (idx, pos, neg) in enumerate(train_loader):

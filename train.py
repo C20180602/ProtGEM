@@ -71,10 +71,8 @@ else:
     model_protein = ProteinEncoder()
     model_go = GoEncoder()
 model_protein.to(device)
-model_go.load_model("model_params/go_model_1.pth")
-# model_go.requires_grad_ = False
+model_go.load_model("model_params/go_pretrain_model.pth")
 model_go.to(device)
-model_go.eval()
 
 # 初始化数据集并进行划分
 ds = MyDataset("HUMAN")
@@ -82,6 +80,7 @@ train_size = int(0.7*len(ds))
 valid_size = int(0.2*len(ds))
 test_size = len(ds) - train_size - valid_size
 train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(ds, [train_size, valid_size, test_size])
+np.save(os.path.join("dataset","test_indices.npy"), test_dataset.indices)
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=my_collate_fn)
 val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_fn)
@@ -155,7 +154,8 @@ for epoch in range(epoch_num):
             go_emb = model_go(go_idx, go_graph)
             # go_emb: [go_nums, hid_dim]
             predict_matrix = protein_emb @ go_emb.T
-            predict_matrix = (predict_matrix + 1)/2
+            predict_matrix = torch.sigmoid(predict_matrix/0.2)
+            # predict_matrix = (predict_matrix + 1)/2
             pred += predict_matrix.tolist()
             actual += labels.tolist()
     actual = np.array(actual).flatten()
@@ -173,6 +173,7 @@ for epoch in range(epoch_num):
     logger.info("thresh: "+str(thresh))
         
     model_protein.save_model("model_params/protein_model.pth")
+    model_go.save_model("model_params/go_model.pth")
     model_protein.train()
-    # model_go.train()
+    model_go.train()
         

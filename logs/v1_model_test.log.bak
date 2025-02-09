@@ -1,0 +1,101 @@
+2025-02-06 16:26:51,441 global INFO Parameters INFO:
+2025-02-06 16:26:51,444 global INFO {'batch_size': 8}
+2025-02-06 16:26:51,444 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 512, 'part_dims': 128, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 512, 'part_dims': 128, 'in_dims': [23, 1], 'out_dims': [23, 1], 'edge_dims': [3, 0], 'global_refer_nodes': 5, 'num_layers': 1, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-06 16:26:51,447 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-06 16:26:51,448 global INFO Start Testing!
+2025-02-06 16:28:21,213 global INFO AUC: 0.758076814116153
+2025-02-06 16:28:21,214 global INFO AUPR: 0.0101560675038645
+2025-02-06 16:28:21,356 global INFO Fmax: 0.03214962009770833
+2025-02-06 16:28:21,356 global INFO thresh: 0.9185128808021545
+2025-02-06 16:29:26,567 global INFO Parameters INFO:
+2025-02-06 16:29:26,570 global INFO {'batch_size': 8}
+2025-02-06 16:29:26,570 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 512, 'part_dims': 128, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 512, 'part_dims': 128, 'in_dims': [23, 1], 'out_dims': [23, 1], 'edge_dims': [3, 0], 'global_refer_nodes': 5, 'num_layers': 1, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-06 16:29:26,573 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-06 16:29:26,573 global INFO Start Testing!
+2025-02-06 16:30:52,296 global INFO AUC: 0.758076814116153
+2025-02-06 16:30:52,297 global INFO AUPR: 0.0101560675038645
+2025-02-06 16:30:52,443 global INFO Fmax: 0.03214962009770833
+2025-02-06 16:30:52,443 global INFO thresh: 0.9185128808021545
+2025-02-06 20:28:59,808 global INFO Parameters INFO:
+2025-02-06 20:28:59,810 global INFO {'batch_size': 8}
+2025-02-06 20:28:59,811 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 512, 'part_dims': 128, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 512, 'part_dims': 128, 'in_dims': [23, 1], 'out_dims': [23, 1], 'edge_dims': [3, 0], 'global_refer_nodes': 5, 'num_layers': 1, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-06 20:28:59,812 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-06 20:28:59,813 global INFO Start Testing!
+2025-02-06 20:30:22,364 global INFO AUC: 0.9607577922211238
+2025-02-06 20:30:22,364 global INFO AUPR: 0.4376429552527261
+2025-02-06 20:30:22,456 global INFO Fmax: 0.46079207037562825
+2025-02-06 20:30:22,457 global INFO thresh: 0.5484021306037903
+2025-02-06 23:32:22,641 global INFO Parameters INFO:
+2025-02-06 23:32:22,644 global INFO {'batch_size': 8}
+2025-02-06 23:32:22,644 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 512, 'part_dims': 128, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 512, 'part_dims': 128, 'in_dims': [23, 1], 'out_dims': [23, 1], 'edge_dims': [3, 0], 'global_refer_nodes': 5, 'num_layers': 1, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-06 23:32:22,647 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-06 23:32:22,647 global INFO Start Testing!
+2025-02-06 23:33:42,856 global INFO AUC: 0.9607577922132332
+2025-02-06 23:33:42,856 global INFO AUPR: 0.4376429572380665
+2025-02-06 23:33:42,961 global INFO Fmax: 0.46079207037562825
+2025-02-06 23:33:42,961 global INFO thresh: 0.6186970472335815
+2025-02-07 13:34:30,295 global INFO Parameters INFO:
+2025-02-07 13:34:30,298 global INFO {'batch_size': 8}
+2025-02-07 13:34:30,299 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 512, 'part_dims': 128, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 512, 'part_dims': 128, 'in_dims': [23, 1], 'out_dims': [23, 1], 'edge_dims': [3, 0], 'global_refer_nodes': 5, 'num_layers': 1, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-07 13:34:30,301 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-07 13:34:30,302 global INFO Start Testing!
+2025-02-07 13:34:30,328 global INFO ablation_feature: []
+2025-02-07 13:35:50,225 global INFO AUC: 0.9607577922132332
+2025-02-07 13:35:50,225 global INFO AUPR: 0.4376429572380665
+2025-02-07 13:35:50,330 global INFO Fmax: 0.46079207037562825
+2025-02-07 13:35:50,330 global INFO thresh: 0.6186970472335815
+2025-02-07 13:35:50,330 global INFO ablation_feature: ['seq']
+2025-02-07 13:37:01,678 global INFO AUC: 0.9610744786164651
+2025-02-07 13:37:01,679 global INFO AUPR: 0.43895288154978906
+2025-02-07 13:37:01,782 global INFO Fmax: 0.4619310314844919
+2025-02-07 13:37:01,782 global INFO thresh: 0.6146574020385742
+2025-02-07 13:37:01,782 global INFO ablation_feature: ['struct']
+2025-02-07 13:38:21,859 global INFO AUC: 0.9637316974929028
+2025-02-07 13:38:21,860 global INFO AUPR: 0.45945123234699725
+2025-02-07 13:38:21,967 global INFO Fmax: 0.47892230541823144
+2025-02-07 13:38:21,967 global INFO thresh: 0.6156153678894043
+2025-02-07 13:38:21,967 global INFO ablation_feature: ['domain']
+2025-02-07 13:39:40,792 global INFO AUC: 0.9272604230137041
+2025-02-07 13:39:40,793 global INFO AUPR: 0.19449611087115812
+2025-02-07 13:39:40,840 global INFO Fmax: 0.24945501956415084
+2025-02-07 13:39:40,840 global INFO thresh: 0.23597228527069092
+2025-02-07 13:41:43,157 global INFO Parameters INFO:
+2025-02-07 13:41:43,157 global INFO {'batch_size': 8}
+2025-02-07 13:41:43,158 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 512, 'part_dims': 128, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 512, 'part_dims': 128, 'in_dims': [23, 1], 'out_dims': [23, 1], 'edge_dims': [3, 0], 'global_refer_nodes': 5, 'num_layers': 1, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-07 13:41:43,159 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-07 13:41:43,160 global INFO Start Testing!
+2025-02-07 13:41:43,189 global INFO ablation_feature: []
+2025-02-07 13:43:00,623 global INFO AUC: 0.9607577922132332
+2025-02-07 13:43:00,623 global INFO AUPR: 0.4376429572380665
+2025-02-07 13:43:00,721 global INFO Fmax: 0.46079207037562825
+2025-02-07 13:43:00,721 global INFO thresh: 0.6186970472335815
+2025-02-07 13:43:00,721 global INFO ablation_feature: ['seq']
+2025-02-07 13:44:09,038 global INFO AUC: 0.9610744786164651
+2025-02-07 13:44:09,038 global INFO AUPR: 0.43895288154978906
+2025-02-07 13:44:09,135 global INFO Fmax: 0.4619310314844919
+2025-02-07 13:44:09,135 global INFO thresh: 0.6146574020385742
+2025-02-07 13:44:09,135 global INFO ablation_feature: ['struct']
+2025-02-07 13:45:25,298 global INFO AUC: 0.9637316974929028
+2025-02-07 13:45:25,298 global INFO AUPR: 0.45945123234699725
+2025-02-07 13:45:25,400 global INFO Fmax: 0.47892230541823144
+2025-02-07 13:45:25,400 global INFO thresh: 0.6156153678894043
+2025-02-07 13:45:25,400 global INFO ablation_feature: ['domain']
+2025-02-07 13:46:41,167 global INFO AUC: 0.9272604230137041
+2025-02-07 13:46:41,168 global INFO AUPR: 0.19449611087115812
+2025-02-07 13:46:41,217 global INFO Fmax: 0.24945501956415084
+2025-02-07 13:46:41,217 global INFO thresh: 0.23597228527069092
+2025-02-07 13:46:41,217 global INFO ablation_feature: ['seq', 'struct']
+2025-02-07 13:47:48,848 global INFO AUC: 0.9639817687165716
+2025-02-07 13:47:48,848 global INFO AUPR: 0.4603122151752287
+2025-02-07 13:47:48,944 global INFO Fmax: 0.479557005884764
+2025-02-07 13:47:48,944 global INFO thresh: 0.6079074144363403
+2025-02-07 13:47:48,944 global INFO ablation_feature: ['seq', 'domain']
+2025-02-07 13:48:57,923 global INFO AUC: 0.9298433541029529
+2025-02-07 13:48:57,923 global INFO AUPR: 0.19998109495987287
+2025-02-07 13:48:57,968 global INFO Fmax: 0.2516179383467985
+2025-02-07 13:48:57,968 global INFO thresh: 0.26050251722335815
+2025-02-07 13:48:57,968 global INFO ablation_feature: ['struct', 'domain']
+2025-02-07 13:50:12,128 global INFO AUC: 0.9529624376770932
+2025-02-07 13:50:12,128 global INFO AUPR: 0.27371681921182917
+2025-02-07 13:50:12,156 global INFO Fmax: 0.3219628467019878
+2025-02-07 13:50:12,156 global INFO thresh: 0.2935912013053894
