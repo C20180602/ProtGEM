@@ -147,7 +147,7 @@ class GVPConvLayer(nn.Module):
         
         self.num_layers = conv_gvp_layers
         tmp_gvp = functools.partial(GVP, activations=activations, cross_gate=cross_gate)
-        self.gvp_layers1 = nn.Sequential(tmp_gvp(( 2*self.ins + self.edge_s, self.inv + self.edge_v ), out_dims, h_dim))
+        self.gvp_layers1 = nn.Sequential(tmp_gvp(( 2*self.ins + self.edge_s, 2*self.inv + self.edge_v ), out_dims, h_dim))
         for _ in range(conv_gvp_layers-1):
             self.gvp_layers1.append(tmp_gvp(out_dims,out_dims,h_dim))
         
@@ -166,14 +166,15 @@ class GVPConvLayer(nn.Module):
         '''
         根据GVP论文, 这里把三层GVP放到消息函数上运算
         '''
-        # input: edges.src/dst: 'res': [batch_size(dgl), 23], 'pos': [batch_size(dgl), 1, 3]
+        # input: edges.src/dst: 'res': [batch_size(dgl), 46], 'pos': [batch_size(dgl), 6, 3]
         # TODO : GVP论文原文只拼接了源节点特征和边特征输入GVP, 可以比较拼入目标节点特征之后性能差异
         s = torch.cat((edges.src["res"], edges.dst["res"], edges.data["feat"]), dim=1)
-        # s: [batch_size, 23 * 2 + 3]
-        v = edges.dst["pos"] - edges.src["pos"]
-        # v: [batch_size, 1, 3]
+        # s: [batch_size, 46 * 2 + 6]
+        v = torch.cat((edges.src["pos"], edges.dst["pos"]), dim=1)
+        # v: [batch_size, 6*2, 3]
         s,v = self.gvp_layers1((s,v))
-        v = v.view(v.shape[0],-1)
+        # s:[batch_size, 46] v: [batch_size, 6, 3]
+        v = v.reshape(v.shape[0],-1)
         # v: [batch_size, 1*3]
         # 这里把s和v拼接到一起，方便后续使用DGL内置函数进行处理
         return {"gvp_out" : torch.cat((s,v),dim=1)}

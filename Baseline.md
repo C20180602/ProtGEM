@@ -86,6 +86,12 @@ raw_data的文件夹结构：
 
 6、运行build_go_graph.py，建立GO图
 
-
-
 ## 模型训练
+
+模型文件均保存在model_params文件夹中
+
+1、运行train_go_emb.py，预训练go的初始嵌入，得到go_pretrain_model模型
+
+2、运行train.py，训练protein_model模型和go_model模型
+
+3、运行test.py，得到测试集结果与消融实验结果。

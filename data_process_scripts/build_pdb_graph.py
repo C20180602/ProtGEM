@@ -10,7 +10,7 @@ TODO: 尝试使用GVP中的建图模式
 '''
 import Bio.PDB.PDBParser
 import os
-import numpy
+import numpy as np
 import torch
 import dgl
 import warnings
@@ -24,11 +24,11 @@ os.chdir("..")
 
 parser = Bio.PDB.PDBParser()
 # 连接Cα的肽键的边特征向量
-Peptide_bond_feature = torch.tensor([[1.0,0.0,0.0]])
+Peptide_bond_feature = torch.tensor([1.0,0.0,0.0])
 # 连接Cα的二硫键的边特征向量
-Disulfide_bond_feature = torch.tensor([[0.0,1.0,0.0]])
+Disulfide_bond_feature = torch.tensor([0.0,1.0,0.0])
 # 因为相邻距离小于 10 AA （1AA = 0.1纳米） 而连接的Cα的边特征向量
-Close_bond_feature = torch.tensor([[0.0,0.0,1.0]])
+Close_bond_feature = torch.tensor([0.0,0.0,1.0])
 
 # 二硫键长度大约在2.0~2.2AA之间，在CYS之间产生
 thresh_ss = 2.5
@@ -105,18 +105,35 @@ def get_graph_info(pdbfilepath):
         residues = chain.get_residues()
         # print(chain)
         chain_start_flag = 1
+        las_C = 0
+        las_O = 0
         for residue in residues:
             res_name = three2one[residue.get_resname()]
-            # pos: [node_nums,1,3]
-            pos_feature = torch.from_numpy(residue['CA'].get_coord()).unsqueeze(0)
-            # res: [node_nums,23]
+            # pos: [node_nums,6,3]
+            pos_feature = []
+            pos_feature.append(torch.from_numpy(residue['N'].get_coord()))
+            pos_feature.append(torch.from_numpy(residue['CA'].get_coord()))
+            pos_feature.append(torch.from_numpy(residue['C'].get_coord()))
+            pos_feature.append(torch.from_numpy(residue['O'].get_coord()))
+            N = residue['N'].get_coord()
+            CA = residue['CA'].get_coord()
+            C = residue['C'].get_coord()
+            O = residue['O'].get_coord()
+            pos_feature.append(torch.from_numpy(np.cross(N-CA,C-CA)))
+            pos_feature.append(torch.from_numpy(np.cross(CA-C,O-C)))
+            pos_feature = torch.stack(pos_feature,dim=0)
+            # res: [node_nums,23+23]
             residue_feature = torch.cat([AA_feature_blosum80[res_name],AA_feature_onehot[res_name]],dim=0)
             graph.add_nodes(1, {'pos': pos_feature.unsqueeze(0), 'res': residue_feature.unsqueeze(0)})
             if chain_start_flag == 0 :
-                graph.add_edges(torch.tensor([i-1]), torch.tensor([i]), {'feat': Peptide_bond_feature})
-                graph.add_edges(torch.tensor([i]), torch.tensor([i-1]), {'feat': Peptide_bond_feature})
+                peptide_plane = torch.from_numpy(np.cross(las_O-las_C,N-las_C))
+                bond_feature = torch.cat([Peptide_bond_feature,peptide_plane],dim=0)
+                graph.add_edges(torch.tensor([i-1]), torch.tensor([i]), {'feat': bond_feature.unsqueeze(0)})
+                graph.add_edges(torch.tensor([i]), torch.tensor([i-1]), {'feat': bond_feature.unsqueeze(0)})
             i += 1
             chain_start_flag = 0
+            las_C = C
+            las_O = O
     i = 0
     for residue1 in model.get_residues():
         j = 0
@@ -126,20 +143,24 @@ def get_graph_info(pdbfilepath):
             res_name1 = three2one[residue1.get_resname()]
             res_name2 = three2one[residue2.get_resname()]
 
-            Cpos1 = torch.from_numpy(residue1['CA'].get_coord()).unsqueeze(0)
-            Cpos2 = torch.from_numpy(residue2['CA'].get_coord()).unsqueeze(0)
+            Cpos1 = torch.from_numpy(residue1['CA'].get_coord())
+            Cpos2 = torch.from_numpy(residue2['CA'].get_coord())
             distance = float(torch.norm(Cpos1-Cpos2))
             if distance <= thresh_aa:
-                graph.add_edges(torch.tensor([i]), torch.tensor([j]), {'feat': Close_bond_feature})
-                graph.add_edges(torch.tensor([j]), torch.tensor([i]), {'feat': Close_bond_feature})
+                bond_feature = torch.cat([Close_bond_feature,Cpos2-Cpos1],dim=0)
+                graph.add_edges(torch.tensor([i]), torch.tensor([j]), {'feat': bond_feature.unsqueeze(0)})
+                bond_feature = torch.cat([Close_bond_feature,Cpos1-Cpos2],dim=0)
+                graph.add_edges(torch.tensor([j]), torch.tensor([i]), {'feat': bond_feature.unsqueeze(0)})
             
             # 当枚举的两个氨基酸均为半胱氨酸时，判断是否可能存在二硫键
             if res_name1=='C' and res_name2=='C':
-                Spos1 = torch.from_numpy(residue1['SG'].get_coord()).unsqueeze(0)
-                Spos2 = torch.from_numpy(residue2['SG'].get_coord()).unsqueeze(0)
+                Spos1 = torch.from_numpy(residue1['SG'].get_coord())
+                Spos2 = torch.from_numpy(residue2['SG'].get_coord())
                 if float(torch.norm(Spos1-Spos2)) <= thresh_ss:
-                    graph.add_edges(torch.tensor([i]), torch.tensor([j]), {'feat': Disulfide_bond_feature})
-                    graph.add_edges(torch.tensor([j]), torch.tensor([i]), {'feat': Disulfide_bond_feature})
+                    bond_feature = torch.cat([Disulfide_bond_feature,Spos2-Spos1],dim=0)
+                    graph.add_edges(torch.tensor([i]), torch.tensor([j]), {'feat': bond_feature.unsqueeze(0)})
+                    bond_feature = torch.cat([Disulfide_bond_feature,Spos1-Spos2],dim=0)
+                    graph.add_edges(torch.tensor([j]), torch.tensor([i]), {'feat': bond_feature.unsqueeze(0)})
                 
             j += 1
         i += 1
@@ -155,7 +176,7 @@ for filename in tqdm(os.listdir(pdb_data_dir)):
         protein_name=filename.split('-')[1]
         fnum = int(filename.split('-')[2][1:])
         # 需要合并多个模型
-        if protein_name not in model_fnum_log:
+        if fnum != 1:
             continue
         
         model_fnum_log[protein_name] = fnum

@@ -41,6 +41,7 @@ class MultiHeadAttention(nn.Module):
         
         # mask=0时，将该位置的数换为-inf
         if mask is not None:
+            mask = mask.unsqueeze(1).unsqueeze(2)
             mul = mul.masked_fill(mask == 0, -1e10)
         attention = self.drop(F.softmax(mul, dim=-1))
         # attention [batch_size, n_heads, seq_length_query, seq_length_key]

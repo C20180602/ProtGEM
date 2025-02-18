@@ -86,7 +86,7 @@ logger.info("Start Testing!")
 go_idx = torch.arange(gm_param["vocab_dim"]).to(device)
 model_protein.eval()
 model_go.eval()
-ablation_list = [[],["seq"],["struct"],["domain"],["seq","struct"],["seq","domain"],["struct","domain"]]
+ablation_list = [[],["seq"],["struct"],["domain"],["seq","struct"],["seq","domain"],["struct","domain"],["glob"],["part"]]
 for ablation_feature in ablation_list:
     logger.info("ablation_feature: "+str(ablation_feature))
     total = 0

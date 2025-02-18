@@ -163,3 +163,219 @@
 2025-02-06 20:07:19,876 global INFO AUPR: 0.4381063303081598
 2025-02-06 20:07:20,001 global INFO Fmax: 0.461063505079431
 2025-02-06 20:07:20,001 global INFO thresh: 0.6199776530265808
+2025-02-12 18:18:52,531 global INFO Parameters INFO:
+2025-02-12 18:18:52,531 global INFO {'epoch_num': 20, 'batch_size': 8, 'init_lr': 0.01, 'contrast_temp': 0.07, 'mask_rate': 0.15}
+2025-02-12 18:18:52,531 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 2, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-12 18:18:52,531 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-12 18:18:52,531 global INFO Start Training!
+2025-02-12 18:19:32,225 global INFO Parameters INFO:
+2025-02-12 18:19:32,225 global INFO {'epoch_num': 20, 'batch_size': 8, 'init_lr': 0.01, 'contrast_temp': 0.07, 'mask_rate': 0.15}
+2025-02-12 18:19:32,225 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 2, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-12 18:19:32,225 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-12 18:19:32,225 global INFO Start Training!
+2025-02-12 18:20:32,254 global INFO Parameters INFO:
+2025-02-12 18:20:32,254 global INFO {'epoch_num': 20, 'batch_size': 8, 'init_lr': 0.01, 'contrast_temp': 0.07, 'mask_rate': 0.15}
+2025-02-12 18:20:32,254 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 2, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-12 18:20:32,254 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-12 18:20:32,254 global INFO Start Training!
+2025-02-12 18:31:50,374 global INFO Parameters INFO:
+2025-02-12 18:31:50,374 global INFO {'epoch_num': 20, 'batch_size': 8, 'init_lr': 0.01, 'contrast_temp': 0.07, 'mask_rate': 0.15}
+2025-02-12 18:31:50,374 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 2, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-12 18:31:50,374 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-12 18:31:50,374 global INFO Start Training!
+2025-02-12 18:32:23,343 global INFO Parameters INFO:
+2025-02-12 18:32:23,343 global INFO {'epoch_num': 20, 'batch_size': 8, 'init_lr': 0.01, 'contrast_temp': 0.07, 'mask_rate': 0.15}
+2025-02-12 18:32:23,343 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 2, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-12 18:32:23,343 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-12 18:32:23,343 global INFO Start Training!
+2025-02-12 18:33:30,293 global INFO Parameters INFO:
+2025-02-12 18:33:30,293 global INFO {'epoch_num': 20, 'batch_size': 8, 'init_lr': 0.01, 'contrast_temp': 0.07, 'mask_rate': 0.15}
+2025-02-12 18:33:30,293 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 2, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-12 18:33:30,293 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-12 18:33:30,293 global INFO Start Training!
+2025-02-12 18:36:17,729 global INFO Parameters INFO:
+2025-02-12 18:36:17,729 global INFO {'epoch_num': 20, 'batch_size': 8, 'init_lr': 0.01, 'contrast_temp': 0.07, 'mask_rate': 0.15}
+2025-02-12 18:36:17,729 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 2, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-12 18:36:17,729 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-12 18:36:17,729 global INFO Start Training!
+2025-02-12 18:38:16,041 global INFO Parameters INFO:
+2025-02-12 18:38:16,041 global INFO {'epoch_num': 20, 'batch_size': 8, 'init_lr': 0.01, 'contrast_temp': 0.07, 'mask_rate': 0.15}
+2025-02-12 18:38:16,041 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 2, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-12 18:38:16,041 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-12 18:38:16,041 global INFO Start Training!
+2025-02-12 18:41:33,247 global INFO Parameters INFO:
+2025-02-12 18:41:33,247 global INFO {'epoch_num': 20, 'batch_size': 8, 'init_lr': 0.01, 'contrast_temp': 0.07, 'mask_rate': 0.15}
+2025-02-12 18:41:33,248 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 2, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-12 18:41:33,248 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-12 18:41:33,248 global INFO Start Training!
+2025-02-12 18:42:54,444 global INFO Parameters INFO:
+2025-02-12 18:42:54,444 global INFO {'epoch_num': 20, 'batch_size': 8, 'init_lr': 0.01, 'contrast_temp': 0.07, 'mask_rate': 0.15}
+2025-02-12 18:42:54,444 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 2, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-12 18:42:54,445 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-12 18:42:54,445 global INFO Start Training!
+2025-02-12 18:44:39,459 global INFO Epoch: 0 / 20, Step: 399 / 1668, Loss: 2.97930203974247
+2025-02-12 18:46:36,627 global INFO Parameters INFO:
+2025-02-12 18:46:36,627 global INFO {'epoch_num': 20, 'batch_size': 8, 'init_lr': 0.01, 'contrast_temp': 0.07, 'mask_rate': 0.15}
+2025-02-12 18:46:36,627 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 2, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-12 18:46:36,627 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-12 18:46:36,627 global INFO Start Training!
+2025-02-12 18:49:22,187 global INFO Epoch: 0 / 20, Step: 399 / 1668, Loss: 2.973986083269119
+2025-02-12 18:53:34,631 global INFO Epoch: 0 / 20, Step: 799 / 1668, Loss: 2.001735469996929
+2025-02-12 18:58:46,796 global INFO Epoch: 0 / 20, Step: 1199 / 1668, Loss: 1.974490038752556
+2025-02-12 19:03:57,595 global INFO Epoch: 0 / 20, Step: 1599 / 1668, Loss: 1.9710021674633027
+2025-02-12 19:09:54,332 global INFO AUC: 0.9498859937829882
+2025-02-12 19:09:54,332 global INFO AUPR: 0.32146435464828466
+2025-02-12 19:09:54,445 global INFO Fmax: 0.3631864287317429
+2025-02-12 19:09:54,445 global INFO thresh: 0.445380300283432
+2025-02-12 19:14:55,854 global INFO Epoch: 1 / 20, Step: 399 / 1668, Loss: 1.9284740194678307
+2025-02-12 19:19:42,616 global INFO Epoch: 1 / 20, Step: 799 / 1668, Loss: 1.9574968379735946
+2025-02-12 19:24:59,331 global INFO Epoch: 1 / 20, Step: 1199 / 1668, Loss: 1.9416911256313325
+2025-02-12 19:30:06,120 global INFO Epoch: 1 / 20, Step: 1599 / 1668, Loss: 1.9041046446561813
+2025-02-12 19:35:55,016 global INFO AUC: 0.9590655743790993
+2025-02-12 19:35:55,017 global INFO AUPR: 0.3614279804917631
+2025-02-12 19:35:55,146 global INFO Fmax: 0.38855694600293333
+2025-02-12 19:35:55,147 global INFO thresh: 0.4981204867362976
+2025-02-12 19:41:01,794 global INFO Epoch: 2 / 20, Step: 399 / 1668, Loss: 1.8968125596642493
+2025-02-12 19:46:03,047 global INFO Epoch: 2 / 20, Step: 799 / 1668, Loss: 1.9146385923027993
+2025-02-12 19:50:35,661 global INFO Epoch: 2 / 20, Step: 1199 / 1668, Loss: 1.881530744433403
+2025-02-12 19:54:53,108 global INFO Epoch: 2 / 20, Step: 1599 / 1668, Loss: 1.8740348875522614
+2025-02-12 20:00:24,786 global INFO AUC: 0.9629281301355493
+2025-02-12 20:00:24,786 global INFO AUPR: 0.40322551866859824
+2025-02-12 20:00:24,917 global INFO Fmax: 0.4231107398558587
+2025-02-12 20:00:24,917 global INFO thresh: 0.5369994044303894
+2025-02-12 20:05:00,915 global INFO Epoch: 3 / 20, Step: 399 / 1668, Loss: 1.8337683218717575
+2025-02-12 20:10:02,975 global INFO Epoch: 3 / 20, Step: 799 / 1668, Loss: 1.8516179093718528
+2025-02-12 20:15:06,601 global INFO Epoch: 3 / 20, Step: 1199 / 1668, Loss: 1.8712979727983474
+2025-02-12 20:19:46,931 global INFO Epoch: 3 / 20, Step: 1599 / 1668, Loss: 1.8641849049925805
+2025-02-12 20:25:34,560 global INFO AUC: 0.9631443409363226
+2025-02-12 20:25:34,560 global INFO AUPR: 0.40920792797134303
+2025-02-12 20:25:34,697 global INFO Fmax: 0.4270936713191617
+2025-02-12 20:25:34,697 global INFO thresh: 0.5398569107055664
+2025-02-12 20:30:27,049 global INFO Epoch: 4 / 20, Step: 399 / 1668, Loss: 1.8297432518005372
+2025-02-12 20:35:04,251 global INFO Epoch: 4 / 20, Step: 799 / 1668, Loss: 1.8070669272542
+2025-02-12 20:40:02,914 global INFO Epoch: 4 / 20, Step: 1199 / 1668, Loss: 1.824638401567936
+2025-02-12 20:45:08,463 global INFO Epoch: 4 / 20, Step: 1599 / 1668, Loss: 1.85136759608984
+2025-02-12 20:50:28,215 global INFO AUC: 0.9626879427881515
+2025-02-12 20:50:28,215 global INFO AUPR: 0.39548258679349163
+2025-02-12 20:50:28,343 global INFO Fmax: 0.4148124583345763
+2025-02-12 20:50:28,343 global INFO thresh: 0.5485026240348816
+2025-02-12 20:55:33,807 global INFO Epoch: 5 / 20, Step: 399 / 1668, Loss: 1.8018018558621407
+2025-02-12 20:59:31,983 global INFO Epoch: 5 / 20, Step: 799 / 1668, Loss: 1.8081016597151756
+2025-02-12 21:04:08,784 global INFO Epoch: 5 / 20, Step: 1199 / 1668, Loss: 1.8088439372181893
+2025-02-12 21:09:02,911 global INFO Epoch: 5 / 20, Step: 1599 / 1668, Loss: 1.8049961051344872
+2025-02-12 21:14:49,499 global INFO AUC: 0.9643324508810702
+2025-02-12 21:14:49,500 global INFO AUPR: 0.4192555397542411
+2025-02-12 21:14:49,631 global INFO Fmax: 0.43614248609791995
+2025-02-12 21:14:49,631 global INFO thresh: 0.5649461150169373
+2025-02-12 21:19:29,950 global INFO Epoch: 6 / 20, Step: 399 / 1668, Loss: 1.7775810888409616
+2025-02-12 21:24:27,502 global INFO Epoch: 6 / 20, Step: 799 / 1668, Loss: 1.7838439950346947
+2025-02-12 21:29:34,415 global INFO Epoch: 6 / 20, Step: 1199 / 1668, Loss: 1.8076488435268403
+2025-02-12 21:34:14,181 global INFO Epoch: 6 / 20, Step: 1599 / 1668, Loss: 1.8010199293494225
+2025-02-12 21:40:03,081 global INFO AUC: 0.9673449374516313
+2025-02-12 21:40:03,081 global INFO AUPR: 0.43822406001145786
+2025-02-12 21:40:03,218 global INFO Fmax: 0.4522268672903651
+2025-02-12 21:40:03,218 global INFO thresh: 0.6055725812911987
+2025-02-12 21:45:05,061 global INFO Epoch: 7 / 20, Step: 399 / 1668, Loss: 1.7777187237143517
+2025-02-12 21:49:43,931 global INFO Epoch: 7 / 20, Step: 799 / 1668, Loss: 1.7946687498688698
+2025-02-12 21:54:46,806 global INFO Epoch: 7 / 20, Step: 1199 / 1668, Loss: 1.801365500986576
+2025-02-12 21:59:51,860 global INFO Epoch: 7 / 20, Step: 1599 / 1668, Loss: 1.7455823254585265
+2025-02-12 22:04:22,072 global INFO AUC: 0.9674694190872553
+2025-02-12 22:04:22,072 global INFO AUPR: 0.43990985325693227
+2025-02-12 22:04:22,208 global INFO Fmax: 0.45648372294375567
+2025-02-12 22:04:22,208 global INFO thresh: 0.5875360369682312
+2025-02-12 22:09:31,295 global INFO Epoch: 8 / 20, Step: 399 / 1668, Loss: 1.7652977204322815
+2025-02-12 22:14:32,474 global INFO Epoch: 8 / 20, Step: 799 / 1668, Loss: 1.7768669483065604
+2025-02-12 22:19:31,398 global INFO Epoch: 8 / 20, Step: 1199 / 1668, Loss: 1.7870171281695366
+2025-02-12 22:24:37,364 global INFO Epoch: 8 / 20, Step: 1599 / 1668, Loss: 1.7625314077734948
+2025-02-12 22:30:19,612 global INFO AUC: 0.9676155254511546
+2025-02-12 22:30:19,612 global INFO AUPR: 0.44051114124296487
+2025-02-12 22:30:19,725 global INFO Fmax: 0.4552502721987217
+2025-02-12 22:30:19,725 global INFO thresh: 0.55534827709198
+2025-02-12 22:35:03,276 global INFO Epoch: 9 / 20, Step: 399 / 1668, Loss: 1.7642086827754975
+2025-02-12 22:40:17,248 global INFO Epoch: 9 / 20, Step: 799 / 1668, Loss: 1.7767044386267663
+2025-02-12 22:45:18,063 global INFO Epoch: 9 / 20, Step: 1199 / 1668, Loss: 1.776499480009079
+2025-02-12 22:50:22,857 global INFO Epoch: 9 / 20, Step: 1599 / 1668, Loss: 1.7491674157977104
+2025-02-12 22:56:17,389 global INFO AUC: 0.9674969373631368
+2025-02-12 22:56:17,390 global INFO AUPR: 0.42902839630743655
+2025-02-12 22:56:17,518 global INFO Fmax: 0.44509476034683865
+2025-02-12 22:56:17,518 global INFO thresh: 0.5929962992668152
+2025-02-12 23:01:16,106 global INFO Epoch: 10 / 20, Step: 399 / 1668, Loss: 1.7721540969610214
+2025-02-12 23:06:09,831 global INFO Epoch: 10 / 20, Step: 799 / 1668, Loss: 1.7480573937296868
+2025-02-12 23:10:17,329 global INFO Epoch: 10 / 20, Step: 1199 / 1668, Loss: 1.756877743601799
+2025-02-12 23:15:00,274 global INFO Epoch: 10 / 20, Step: 1599 / 1668, Loss: 1.766162089407444
+2025-02-12 23:21:03,954 global INFO AUC: 0.9679110353371334
+2025-02-12 23:21:03,954 global INFO AUPR: 0.44184328009099066
+2025-02-12 23:21:04,080 global INFO Fmax: 0.45807914084761914
+2025-02-12 23:21:04,080 global INFO thresh: 0.5882449150085449
+2025-02-12 23:26:19,908 global INFO Epoch: 11 / 20, Step: 399 / 1668, Loss: 1.7777174785733223
+2025-02-12 23:31:08,070 global INFO Epoch: 11 / 20, Step: 799 / 1668, Loss: 1.7518911424279213
+2025-02-12 23:36:23,474 global INFO Epoch: 11 / 20, Step: 1199 / 1668, Loss: 1.738973730802536
+2025-02-12 23:41:37,431 global INFO Epoch: 11 / 20, Step: 1599 / 1668, Loss: 1.7433203934133052
+2025-02-12 23:47:22,000 global INFO AUC: 0.9676279144040594
+2025-02-12 23:47:22,000 global INFO AUPR: 0.4367613178305422
+2025-02-12 23:47:22,136 global INFO Fmax: 0.4539873473065189
+2025-02-12 23:47:22,136 global INFO thresh: 0.6098978519439697
+2025-02-12 23:52:43,397 global INFO Epoch: 12 / 20, Step: 399 / 1668, Loss: 1.7615629756450653
+2025-02-12 23:57:46,667 global INFO Epoch: 12 / 20, Step: 799 / 1668, Loss: 1.738382674753666
+2025-02-13 00:02:47,391 global INFO Epoch: 12 / 20, Step: 1199 / 1668, Loss: 1.7419102349877358
+2025-02-13 00:07:59,038 global INFO Epoch: 12 / 20, Step: 1599 / 1668, Loss: 1.7563840740919112
+2025-02-13 00:13:05,882 global INFO AUC: 0.9671301979471337
+2025-02-13 00:13:05,883 global INFO AUPR: 0.43862657166226887
+2025-02-13 00:13:06,003 global INFO Fmax: 0.4563010180161839
+2025-02-13 00:13:06,003 global INFO thresh: 0.5951757431030273
+2025-02-13 00:18:32,528 global INFO Epoch: 13 / 20, Step: 399 / 1668, Loss: 1.7326762622594833
+2025-02-13 00:23:44,134 global INFO Epoch: 13 / 20, Step: 799 / 1668, Loss: 1.7471483200788498
+2025-02-13 00:28:36,389 global INFO Epoch: 13 / 20, Step: 1199 / 1668, Loss: 1.7601811918616295
+2025-02-13 00:34:06,049 global INFO Epoch: 13 / 20, Step: 1599 / 1668, Loss: 1.7514065209031104
+2025-02-13 00:40:10,649 global INFO AUC: 0.9689380332985459
+2025-02-13 00:40:10,650 global INFO AUPR: 0.45011074038952
+2025-02-13 00:40:10,782 global INFO Fmax: 0.4660023226837946
+2025-02-13 00:40:10,782 global INFO thresh: 0.6037402153015137
+2025-02-13 00:45:30,143 global INFO Epoch: 14 / 20, Step: 399 / 1668, Loss: 1.7641808000206947
+2025-02-13 00:50:36,482 global INFO Epoch: 14 / 20, Step: 799 / 1668, Loss: 1.7259545135498047
+2025-02-13 00:55:31,912 global INFO Epoch: 14 / 20, Step: 1199 / 1668, Loss: 1.7415281173586845
+2025-02-13 01:00:36,309 global INFO Epoch: 14 / 20, Step: 1599 / 1668, Loss: 1.751139034628868
+2025-02-13 01:06:23,085 global INFO AUC: 0.9688372413906462
+2025-02-13 01:06:23,085 global INFO AUPR: 0.45329815485433333
+2025-02-13 01:06:23,215 global INFO Fmax: 0.47114509079879385
+2025-02-13 01:06:23,215 global INFO thresh: 0.6063799262046814
+2025-02-13 01:11:12,579 global INFO Epoch: 15 / 20, Step: 399 / 1668, Loss: 1.7472373273968698
+2025-02-13 01:15:58,353 global INFO Epoch: 15 / 20, Step: 799 / 1668, Loss: 1.770077318251133
+2025-02-13 01:20:22,115 global INFO Epoch: 15 / 20, Step: 1199 / 1668, Loss: 1.753255282640457
+2025-02-13 01:25:10,559 global INFO Epoch: 15 / 20, Step: 1599 / 1668, Loss: 1.7122314658761024
+2025-02-13 01:30:58,970 global INFO AUC: 0.9669327718086617
+2025-02-13 01:30:58,970 global INFO AUPR: 0.4394230582848775
+2025-02-13 01:30:59,107 global INFO Fmax: 0.4566970776602718
+2025-02-13 01:30:59,107 global INFO thresh: 0.6003231406211853
+2025-02-13 01:35:54,501 global INFO Epoch: 16 / 20, Step: 399 / 1668, Loss: 1.7204295793175697
+2025-02-13 01:40:36,812 global INFO Epoch: 16 / 20, Step: 799 / 1668, Loss: 1.7470210933685302
+2025-02-13 01:45:40,052 global INFO Epoch: 16 / 20, Step: 1199 / 1668, Loss: 1.7359947264194489
+2025-02-13 01:50:47,216 global INFO Epoch: 16 / 20, Step: 1599 / 1668, Loss: 1.7602032533288001
+2025-02-13 01:56:12,035 global INFO AUC: 0.9664294029978244
+2025-02-13 01:56:12,035 global INFO AUPR: 0.43536800047849034
+2025-02-13 01:56:12,170 global INFO Fmax: 0.45353500424114906
+2025-02-13 01:56:12,170 global INFO thresh: 0.5989425778388977
+2025-02-13 02:01:19,823 global INFO Epoch: 17 / 20, Step: 399 / 1668, Loss: 1.739681537747383
+2025-02-13 02:06:15,337 global INFO Epoch: 17 / 20, Step: 799 / 1668, Loss: 1.7065937346220017
+2025-02-13 02:10:47,504 global INFO Epoch: 17 / 20, Step: 1199 / 1668, Loss: 1.7376979631185532
+2025-02-13 02:15:37,576 global INFO Epoch: 17 / 20, Step: 1599 / 1668, Loss: 1.7593901467323303
+2025-02-13 02:21:51,560 global INFO AUC: 0.9672210539509647
+2025-02-13 02:21:51,560 global INFO AUPR: 0.44100673346991176
+2025-02-13 02:21:51,701 global INFO Fmax: 0.45870727939970407
+2025-02-13 02:21:51,701 global INFO thresh: 0.6136180758476257
+2025-02-13 02:27:00,607 global INFO Epoch: 18 / 20, Step: 399 / 1668, Loss: 1.7403372764587401
+2025-02-13 02:32:02,439 global INFO Epoch: 18 / 20, Step: 799 / 1668, Loss: 1.7373720651865006
+2025-02-13 02:37:05,691 global INFO Epoch: 18 / 20, Step: 1199 / 1668, Loss: 1.742993691265583
+2025-02-13 02:41:43,026 global INFO Epoch: 18 / 20, Step: 1599 / 1668, Loss: 1.7263482686877252
+2025-02-13 02:47:30,053 global INFO AUC: 0.9670303481450798
+2025-02-13 02:47:30,054 global INFO AUPR: 0.439802555890886
+2025-02-13 02:47:30,191 global INFO Fmax: 0.45749479562512957
+2025-02-13 02:47:30,191 global INFO thresh: 0.6141838431358337
+2025-02-13 02:52:19,749 global INFO Epoch: 19 / 20, Step: 399 / 1668, Loss: 1.7665775507688521
+2025-02-13 02:57:20,449 global INFO Epoch: 19 / 20, Step: 799 / 1668, Loss: 1.720611652135849
+2025-02-13 03:02:24,751 global INFO Epoch: 19 / 20, Step: 1199 / 1668, Loss: 1.7397648894786835
+2025-02-13 03:07:33,592 global INFO Epoch: 19 / 20, Step: 1599 / 1668, Loss: 1.7322932484745979
+2025-02-13 03:13:12,565 global INFO AUC: 0.9670691539447099
+2025-02-13 03:13:12,565 global INFO AUPR: 0.44035293331075787
+2025-02-13 03:13:12,693 global INFO Fmax: 0.458082005413988
+2025-02-13 03:13:12,693 global INFO thresh: 0.6126992106437683

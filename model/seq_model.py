@@ -29,6 +29,7 @@ class SeqEncoder(nn.Module):
     
     def forward(self, x, mask=None):
         # x [batch_size, seq_len, in_dim]
+        # mask [batch_size, seq_len]
         x = self.PE(self.LN(x)*self.scale)
         for layer in self.layers:
             x = layer(x, mask)

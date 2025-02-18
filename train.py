@@ -34,6 +34,10 @@ def init_logger(log_path = os.path.join('logs','train_protein.log')):
     logger.addHandler(handler2)
     return logger
 
+def generate_mask(batch_size, seq_len, rate):
+    mask = ((torch.rand([batch_size,seq_len])) > rate).float()
+    return mask
+
 logger = init_logger(os.path.join('logs','train_protein.log'))
 
 # 设置设备编号(需要使用CUDA_VISIBLE_DEVICES设置)
@@ -55,6 +59,7 @@ epoch_num = train_param["epoch_num"]
 batch_size = train_param["batch_size"]
 init_lr = train_param["init_lr"]
 contrast_temp = train_param["contrast_temp"]
+mask_rate = train_param["mask_rate"]
 
 # 读取必要的数据
 with open(os.path.join("dataset","go_graph_dgl.pkl"),"rb") as f:
@@ -71,7 +76,7 @@ else:
     model_protein = ProteinEncoder()
     model_go = GoEncoder()
 model_protein.to(device)
-model_go.load_model("model_params/go_pretrain_model.pth")
+model_go.load_model("model_params/v1/go_pretrain_model.pth")
 model_go.to(device)
 
 # 初始化数据集并进行划分
@@ -114,7 +119,9 @@ for epoch in range(epoch_num):
         optimizer_protein.zero_grad()
         optimizer_go.zero_grad()
         
-        protein_emb = model_protein(seq_embs, batched_graph, domain_info)
+        mask = generate_mask(seq_embs.shape[0], seq_embs.shape[1], mask_rate)
+        mask = mask.to(device)
+        protein_emb = model_protein(seq_embs, batched_graph, domain_info, mask=mask)
         # protein_emb: [batch_size, hid_dim]
         go_emb = model_go(go_idx, go_graph)
         # go_emb: [go_nums, hid_dim]
