@@ -164,3 +164,29 @@
 2025-02-13 13:57:58,150 global INFO AUPR: 0.33640590067761356
 2025-02-13 13:57:58,340 global INFO Fmax: 0.37557067833252844
 2025-02-13 13:57:58,340 global INFO thresh: 0.791239857673645
+2025-02-22 00:57:10,306 global INFO Parameters INFO:
+2025-02-22 00:57:10,320 global INFO {'batch_size': 8}
+2025-02-22 00:57:10,324 global INFO {'final_out_dim': 1024, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 2, 'conv_gvp_layers': 3, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-02-22 00:57:10,335 global INFO {'vocab_dim': 42093, 'emb_dim': 1024, 'hid_dim': 1024, 'out_dim': 1024, 'layer_num': 1, 'n_heads': 1}
+2025-02-22 00:57:10,347 global INFO Start Testing!
+2025-02-22 00:57:10,472 global INFO ablation_feature: []
+2025-02-22 00:59:39,361 global INFO AUC: 0.9673588129598389
+2025-02-22 00:59:39,362 global INFO AUPR: 0.4434496780009934
+2025-02-22 00:59:39,459 global INFO Fmax: 0.46153414301348383
+2025-02-22 00:59:39,459 global INFO thresh: 0.6002313494682312
+2025-02-22 00:59:39,463 global INFO Namespace: bp
+2025-02-22 01:00:11,616 global INFO AUC: 0.9616149688348022
+2025-02-22 01:00:11,616 global INFO AUPR: 0.3449578640675068
+2025-02-22 01:00:11,705 global INFO Fmax: 0.3805204621674709
+2025-02-22 01:00:11,705 global INFO thresh: 0.5951493978500366
+2025-02-22 01:00:11,708 global INFO Namespace: cc
+2025-02-22 01:00:15,871 global INFO AUC: 0.9782939711932572
+2025-02-22 01:00:15,871 global INFO AUPR: 0.5908552295449501
+2025-02-22 01:00:15,909 global INFO Fmax: 0.5693076279874739
+2025-02-22 01:00:15,909 global INFO thresh: 0.5897133946418762
+2025-02-22 01:00:15,910 global INFO Namespace: mf
+2025-02-22 01:00:28,161 global INFO AUC: 0.967111873735907
+2025-02-22 01:00:28,162 global INFO AUPR: 0.6196613665836872
+2025-02-22 01:00:28,217 global INFO Fmax: 0.6229155647754028
+2025-02-22 01:00:28,217 global INFO thresh: 0.6316741108894348
+2025-02-22 01:00:28,219 global INFO ablation_feature: ['seq']

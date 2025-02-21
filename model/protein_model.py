@@ -18,8 +18,8 @@ class ContrastLoss(nn.Module):
         # labels: [batch_size, go_nums]
         pred = torch.exp(pred/t)
         pos = torch.sum(pred * labels, dim=-1)
-        nag = torch.sum(pred * (1-labels), dim=-1)
-        frac = pos / (pos + nag)
+        neg = torch.sum(pred * (1-labels), dim=-1)
+        frac = pos / (pos + neg)
         return torch.mean(-torch.log(frac))
         
 

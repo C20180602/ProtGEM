@@ -34,6 +34,21 @@ def init_logger(log_path = os.path.join('logs','test_protein.log')):
     logger.addHandler(handler2)
     return logger
 
+def cal_metrics(pred, actual):
+    actual = np.array(actual).flatten()
+    pred = np.array(pred).flatten()
+    fpr, tpr, th = roc_curve(actual, pred, pos_label=1)
+    auc_score = auc(fpr, tpr)
+    precision, recall, pr_thresh = metrics.precision_recall_curve(actual, pred)
+    aupr_score = metrics.auc(recall, precision)
+    logger.info("AUC: "+str(auc_score))
+    logger.info("AUPR: "+str(aupr_score))
+    f1 = 2*precision*recall/(precision+recall+1e-8)
+    thresh = pr_thresh[np.argmax(f1)]
+    fmax = np.max(f1)
+    logger.info("Fmax: "+str(fmax))
+    logger.info("thresh: "+str(thresh))
+
 logger = init_logger(os.path.join('logs','test_protein.log'))
 
 # 设置设备编号(需要使用CUDA_VISIBLE_DEVICES设置)
@@ -54,6 +69,14 @@ with open(test_conf_path,"r") as f:
 batch_size = test_param["batch_size"]
 
 # 读取必要的数据
+with open(os.path.join("processed_data","go_terms.json"),"r") as f:
+    go_terms = json.load(f)
+ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_function":"mf"}
+ns_ids = {"bp":[],"cc":[],"mf":[]}
+for i,go in enumerate(go_terms):
+    ns_ids[ns_map[go["namespace"]]].append(i)
+actual_ns = {"bp":[],"cc":[],"mf":[]}
+pred_ns = {"bp":[],"cc":[],"mf":[]}
 with open(os.path.join("dataset","go_graph_dgl.pkl"),"rb") as f:
     go_graph = pickle.load(f)
 go_graph = go_graph.to(device)
@@ -107,18 +130,16 @@ for ablation_feature in ablation_list:
             # go_emb: [go_nums, hid_dim]
             predict_matrix = protein_emb @ go_emb.T
             predict_matrix = torch.sigmoid(predict_matrix/0.2)
+            # predict_matrix: [batch_size, go_nums]
             pred += predict_matrix.tolist()
             actual += labels.tolist()
-    actual = np.array(actual).flatten()
-    pred = np.array(pred).flatten()
-    fpr, tpr, th = roc_curve(actual, pred, pos_label=1)
-    auc_score = auc(fpr, tpr)
-    precision, recall, pr_thresh = metrics.precision_recall_curve(actual, pred)
-    aupr_score = metrics.auc(recall, precision)
-    logger.info("AUC: "+str(auc_score))
-    logger.info("AUPR: "+str(aupr_score))
-    f1 = 2*precision*recall/(precision+recall+1e-8)
-    thresh = pr_thresh[np.argmax(f1)]
-    fmax = np.max(f1)
-    logger.info("Fmax: "+str(fmax))
-    logger.info("thresh: "+str(thresh))
+            if ablation_feature == []:
+                for ns in ns_ids:
+                    ids = ns_ids[ns]
+                    pred_ns[ns] += predict_matrix[:,ids].tolist()
+                    actual_ns[ns] += labels[:,ids].tolist()
+    cal_metrics(pred, actual)
+    if ablation_feature == []:
+        for ns in ns_ids:
+            logger.info("Namespace: "+ns)
+            cal_metrics(pred_ns[ns], actual_ns[ns])

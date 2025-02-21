@@ -38,6 +38,7 @@ pos_max = train_param["pos_max"]
 neg_k = train_param["neg_k"]
 neg_max = train_param["neg_max"]
 pos_rate = train_param["pos_rate"]
+contrast_temp = train_param["contrast_temp"]
 
 # 读取必要的数据
 with open(os.path.join("dataset","go_graph_dgl.pkl"),"rb") as f:
@@ -79,7 +80,7 @@ for epoch in range(epoch_num):
         x = x.to(device)
         
         x = model_go(x, go_graph)
-        loss = criterion(x)
+        loss = criterion(x, contrast_temp)
         
         optimizer_go.zero_grad()
         loss.backward()

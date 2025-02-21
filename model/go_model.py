@@ -16,7 +16,7 @@ class PretrainLoss(nn.Module):
         self.pos_k = pos_k
         self.neg_k = neg_k
     
-    def forward(self, x):
+    def forward(self, x, t = 0.07):
         # x: [batch_size, ( 1 + pos_k + neg_k ), hid_dim]
         idx = x[:,:1,:]
         # idx: [batch_size, 1, hid_dim]
@@ -36,8 +36,8 @@ class PretrainLoss(nn.Module):
         # print(torch.mean(pos.max(dim=-1)[0]).item(),torch.mean(neg.max(dim=-1)[0]).item())
         # print(torch.mean(pos.min(dim=-1)[0]).item(),torch.mean(neg.min(dim=-1)[0]).item())
         # print(torch.mean(torch.mean(pos,dim=-1)).item(),torch.mean(torch.mean(neg,dim=-1)).item())
-        pos = torch.exp(pos/0.07)
-        neg = torch.exp(neg/0.07)
+        pos = torch.exp(pos/t)
+        neg = torch.exp(neg/t)
         
         # return torch.mean(torch.sum(neg, dim=-1)) / torch.mean(torch.sum(pos, dim=-1))
         frac = torch.sum(pos, dim=-1) / (torch.sum(pos, dim=-1) + torch.sum(neg, dim=-1))
