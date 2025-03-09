@@ -41,8 +41,11 @@ def parse_obo(filepath, output_dir):
                     if key == 'is_obsolete' and value == 'true':
                         is_obsolete = True
                     if key == 'alt_id':
-                        # 把可能使用GO id映射到当前的id位置上，保持统一（也许会用到）
+                        # 把可能使用GO id映射到当前的id位置上，保持统一
                         terms_map[value] = info['id']
+                    if key == 'replaced_by':
+                        # 把当前的id映射到替换的GO id位置上
+                        terms_map[info['id']] = value
                     if key in unique_keys:
                         if key == 'def':
                             value = value.split('"')[1]

@@ -8,12 +8,14 @@ import torch.utils.data
 import numpy as np
 import torch.functional as F
 from torch import nn
+from torchinfo import summary
 from torch.utils.data import Dataset, DataLoader, Subset
 from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
-from model.dataset import MyDataset, my_collate_fn
+from model.dataset import MyDataset, my_collate_fn, probablity_propagate
 from model.go_model import GoEncoder
 from model.protein_model import ProteinEncoder, ContrastLoss
+import networkx as nx
 
 from sklearn import metrics
 from sklearn.metrics import roc_auc_score, roc_curve, auc, precision_score, recall_score, f1_score, average_precision_score    
@@ -75,10 +77,15 @@ ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_functio
 ns_ids = {"bp":[],"cc":[],"mf":[]}
 for i,go in enumerate(go_terms):
     ns_ids[ns_map[go["namespace"]]].append(i)
+for ns in ns_ids:
+    print(ns," cnt:",len(ns_ids[ns]))
 actual_ns = {"bp":[],"cc":[],"mf":[]}
 pred_ns = {"bp":[],"cc":[],"mf":[]}
 with open(os.path.join("dataset","go_graph_dgl.pkl"),"rb") as f:
     go_graph = pickle.load(f)
+with open(os.path.join("dataset","go_graph_nx.pkl"),"rb") as f:
+    go_graph_nx = pickle.load(f)
+topo_order = list(nx.topological_sort(go_graph_nx))
 go_graph = go_graph.to(device)
 
 # 初始化模型
@@ -100,6 +107,10 @@ ds = MyDataset("HUMAN")
 test_indices = np.load(os.path.join("dataset","test_indices.npy")).tolist()
 test_dataset = Subset(ds, test_indices)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_fn)
+
+ds.show_dataset_info()
+summary(model_protein)
+summary(model_go)
 
 logger.info("Parameters INFO:")
 logger.info(test_param)
@@ -131,6 +142,9 @@ for ablation_feature in ablation_list:
             predict_matrix = protein_emb @ go_emb.T
             predict_matrix = torch.sigmoid(predict_matrix/0.2)
             # predict_matrix: [batch_size, go_nums]
+            predict_matrix = predict_matrix.transpose(1,0)
+            predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order)
+            predict_matrix = predict_matrix.transpose(1,0)
             pred += predict_matrix.tolist()
             actual += labels.tolist()
             if ablation_feature == []:

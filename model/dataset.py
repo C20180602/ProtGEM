@@ -34,6 +34,13 @@ def go_list_to_tensor(go_list, go_graph:nx.DiGraph):
         multihot[go] = 1.0
     return multihot
 
+def probablity_propagate(prob_vector, go_graph:nx.DiGraph, topo_order):
+    # DP
+    for u in topo_order:
+        for v in go_graph.predecessors(u):
+            prob_vector[u] = torch.max(prob_vector[u],prob_vector[v])
+    return prob_vector
+
 class MyDataset(Dataset):
     def __init__(self, species_name, use_cache = True):
         # GO数据与interpro数据, 较小直接读入
@@ -129,6 +136,32 @@ class MyDataset(Dataset):
         if os.path.exists(cache_path):
             return True
         return False
+    
+    def show_dataset_info(self):
+        len_max = 0
+        len_min = 100000
+        len_sum = 0
+        domain_max = 0
+        domain_min = 100000
+        domain_sum = 0
+        go_max = 0
+        go_min = 100000
+        go_sum = 0
+        for info in self.data_info:
+            len_max = max(len_max, info[1])
+            len_min = min(len_min, info[1])
+            len_sum += info[1]
+            domain_max = max(domain_max, len(info[4]))
+            domain_min = min(domain_min, len(info[4]))
+            domain_sum += len(info[4])
+            go_max = max(go_max, len(info[5]))
+            go_min = min(go_min, len(info[5]))
+            go_sum += len(info[5])
+        print("Dataset Info:")
+        print("Protein Num: %d"%(len(self.data_info)))
+        print("Protein Length: Max: %d, Min: %d, Avg: %.2f"%(len_max, len_min, len_sum/len(self.data_info)))
+        print("Domain Num: Max: %d, Min: %d, Avg: %.2f"%(domain_max, domain_min, domain_sum/len(self.data_info)))
+        print("GO Terms: Max: %d, Min: %d, Avg: %.2f"%(go_max, go_min, go_sum/len(self.data_info)))
     
 def my_collate_fn(batch):
     pnames, plens, seq_embs, struct_graphs, domain_list, labels = zip(*batch)
