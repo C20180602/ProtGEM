@@ -1,5 +1,4 @@
 import os
-import logging
 import json
 import pickle
 
@@ -14,25 +13,10 @@ from tqdm import tqdm
 from model.dataset import MyDataset, my_collate_fn
 from model.go_model import GoEncoder
 from model.protein_model import ProteinEncoder, ContrastLoss
-
-from sklearn import metrics
-from sklearn.metrics import roc_auc_score, roc_curve, auc, precision_score, recall_score, f1_score, average_precision_score    
+from utils import init_logger, cal_metrics 
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-def init_logger(log_path = os.path.join('logs','train_protein.log')):
-    logger = logging.getLogger("global")
-    handler1 = logging.StreamHandler()
-    handler2 = logging.FileHandler(filename=log_path)
-    logger.setLevel(logging.INFO)
-    handler1.setLevel(logging.INFO)
-    handler2.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
-    handler1.setFormatter(formatter)
-    handler2.setFormatter(formatter)
-    logger.addHandler(handler1)
-    logger.addHandler(handler2)
-    return logger
 
 def generate_mask(batch_size, seq_len, rate):
     mask = ((torch.rand([batch_size,seq_len])) > rate).float()
@@ -55,7 +39,17 @@ with open(go_model_conf_path,"r") as f:
 train_conf_path = os.path.join("config","train.conf")
 with open(train_conf_path,"r") as f:
     train_param = json.load(f)
-epoch_num = train_param["epoch_num"]
+seq_epoch_num = train_param["seq_epoch_num"]
+struct_epoch_num = train_param["struct_epoch_num"]
+domain_epoch_num = train_param["domain_epoch_num"]
+fusion_epoch_num = train_param["fusion_epoch_num"]
+
+dropout_feat_list = [["struct","domain"]]*seq_epoch_num + \
+                    [["seq","domain"]]*struct_epoch_num + \
+                    [["seq","struct"]]*domain_epoch_num + \
+                    [[]]*fusion_epoch_num
+epoch_num = seq_epoch_num + struct_epoch_num + domain_epoch_num + fusion_epoch_num
+
 batch_size = train_param["batch_size"]
 init_lr = train_param["init_lr"]
 contrast_temp = train_param["contrast_temp"]
@@ -66,21 +60,15 @@ with open(os.path.join("dataset","go_graph_dgl.pkl"),"rb") as f:
     go_graph = pickle.load(f)
 go_graph = go_graph.to(device)
 
-# 初始化模型
-print("Use model param in config directory? ([y]/n)")
-config_flag = input()
-if config_flag != 'n':
-    model_protein = ProteinEncoder(**pm_param)
-    model_go = GoEncoder(**gm_param)
-else:
-    model_protein = ProteinEncoder()
-    model_go = GoEncoder()
+# 初始化模型 （所有模型都默认使用参数初始化）
+model_protein = ProteinEncoder(**pm_param)
+model_go = GoEncoder(**gm_param)
 model_protein.to(device)
 model_go.load_model("model_params/v1/go_pretrain_model.pth")
 model_go.to(device)
 
 # 初始化数据集并进行划分
-ds = MyDataset("HUMAN")
+ds = MyDataset("HUMAN", target_device = device)
 train_size = int(0.7*len(ds))
 valid_size = int(0.2*len(ds))
 test_size = len(ds) - train_size - valid_size
@@ -108,28 +96,25 @@ logger.info(gm_param)
 logger.info("Start Training!")
 go_idx = torch.arange(gm_param["vocab_dim"]).to(device)
 for epoch in range(epoch_num):
+    # train
+    if epoch==0 or dropout_feat_list[epoch] != dropout_feat_list[epoch-1]:
+        logger.info(f"Dropout_feat: {dropout_feat_list[epoch]}")
+    
     mean_loss = 0.0
     for i, (pids, seq_embs, batched_graph, domain_info, labels) in enumerate(train_loader):
-        seq_embs = seq_embs.to(device)
-        batched_graph = batched_graph.to(device)
-        domain_info[0] = domain_info[0].to(device)
-        domain_info[1] = domain_info[1].to(device)
-        labels = labels.to(device)
-        
         optimizer_protein.zero_grad()
         optimizer_go.zero_grad()
         
         mask = generate_mask(seq_embs.shape[0], seq_embs.shape[1], mask_rate)
         mask = mask.to(device)
-        protein_emb = model_protein(seq_embs, batched_graph, domain_info, mask=mask)
+        protein_emb = model_protein(seq_embs, batched_graph, domain_info, mask=mask, ablation_feat=dropout_feat_list[epoch])
         # protein_emb: [batch_size, hid_dim]
         go_emb = model_go(go_idx, go_graph)
         # go_emb: [go_nums, hid_dim]
         predict_matrix = protein_emb @ go_emb.T
         predict_matrix = torch.sigmoid(predict_matrix/0.2)
         # predict_matrix = (predict_matrix + 1)/2
-        # print(predict_matrix)
-        # print(labels)
+        
         loss1 = criterion1(predict_matrix, labels, contrast_temp)
         loss2 = criterion2(predict_matrix, labels)
         loss = loss1 + loss2
@@ -142,6 +127,8 @@ for epoch in range(epoch_num):
         if i % 400 == 399:
             logger.info(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/400}')
             mean_loss = 0.0
+            
+    # validate
     model_protein.eval()
     model_go.eval()
     total = 0
@@ -150,12 +137,6 @@ for epoch in range(epoch_num):
     pred = []
     with torch.no_grad():
         for pids, seq_embs, batched_graph, domain_info, labels in tqdm(val_loader):
-            seq_embs = seq_embs.to(device)
-            batched_graph = batched_graph.to(device)
-            domain_info[0] = domain_info[0].to(device)
-            domain_info[1] = domain_info[1].to(device)
-            labels = labels.to(device)
-            
             protein_emb = model_protein(seq_embs, batched_graph, domain_info)
             # protein_emb: [batch_size, hid_dim]
             go_emb = model_go(go_idx, go_graph)
@@ -165,20 +146,9 @@ for epoch in range(epoch_num):
             # predict_matrix = (predict_matrix + 1)/2
             pred += predict_matrix.tolist()
             actual += labels.tolist()
-    actual = np.array(actual).flatten()
-    pred = np.array(pred).flatten()
-    fpr, tpr, th = roc_curve(actual, pred, pos_label=1)
-    auc_score = auc(fpr, tpr)
-    precision, recall, pr_thresh = metrics.precision_recall_curve(actual, pred)
-    aupr_score = metrics.auc(recall, precision)
-    logger.info("AUC: "+str(auc_score))
-    logger.info("AUPR: "+str(aupr_score))
-    f1 = 2*precision*recall/(precision+recall+1e-8)
-    thresh = pr_thresh[np.argmax(f1)]
-    fmax = np.max(f1)
-    logger.info("Fmax: "+str(fmax))
-    logger.info("thresh: "+str(thresh))
-        
+            
+    cal_metrics(pred, actual, logger)
+    
     model_protein.save_model("model_params/protein_model.pth")
     model_go.save_model("model_params/go_model.pth")
     model_protein.train()

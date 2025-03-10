@@ -3,7 +3,7 @@
 建议先运行pretrain/seq_esm.py后再使用此脚本
 
 图特征：
-node: "pos": 3, "res": 23
+node: "pos": 6, "res": 46
 edge: "feat": 3
 
 TODO: 尝试使用GVP中的建图模式

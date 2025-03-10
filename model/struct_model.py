@@ -203,7 +203,7 @@ class GVPConvLayer(nn.Module):
 
 class StructEncoder(nn.Module):
     '''
-    输入图列表:graph_list( node(in_dims) edge(edge_dims) )
+    输入图列表:batched_graph( node(sigma{in_dims}) edge(sigma{edge_dims}) )
     中间输出为batch( node(out_dims) )
     最后输出全局特征(batch,global_dims), 局部特征list((n,part_dims))
     '''
@@ -252,6 +252,29 @@ class StructEncoder(nn.Module):
         # part_emb_out : list(len=batch)[n_i, part_dims]
         
         return glob_emb_out, part_emb_out
+    
+class StructEncoderv2(nn.Module):
+    '''
+    输入图列表:batched_graph( node(sigma{in_dims}) edge(sigma{edge_dims}) )
+    中间输出为batch( node(out_dims) )
+    最后输出全局特征(batch,global_dims), 局部特征list((n,part_dims))
+    '''
+    def __init__(self, ): 
+        super(StructEncoder, self).__init__()
+        
+        
+
+    def forward(self, bg: dgl.DGLGraph):
+        bg.ndata["res"] = self.ln_s(bg.ndata["res"])
+        bg.ndata["pos"] = self.ln_v(bg.ndata["pos"])
+        graph_size_list = bg.batch_num_nodes()
+        
+        pass
+        
+        # glob_emb_out :[batch, global_dims]
+        # part_emb_out : list(len=batch)[n_i, part_dims]
+        
+        # return glob_emb_out, part_emb_out
 
 # DEBUG
 if __name__ == "__main__":

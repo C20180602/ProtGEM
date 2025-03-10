@@ -1,5 +1,4 @@
 import os
-import logging
 import json
 import pickle
 
@@ -7,49 +6,19 @@ import torch
 import torch.utils.data
 import numpy as np
 import torch.functional as F
+import networkx as nx
+
 from torch import nn
 from torchinfo import summary
 from torch.utils.data import Dataset, DataLoader, Subset
-from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
 from model.dataset import MyDataset, my_collate_fn, probablity_propagate
 from model.go_model import GoEncoder
 from model.protein_model import ProteinEncoder, ContrastLoss
-import networkx as nx
 
-from sklearn import metrics
-from sklearn.metrics import roc_auc_score, roc_curve, auc, precision_score, recall_score, f1_score, average_precision_score    
+from utils import init_logger, cal_metrics 
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-def init_logger(log_path = os.path.join('logs','test_protein.log')):
-    logger = logging.getLogger("global")
-    handler1 = logging.StreamHandler()
-    handler2 = logging.FileHandler(filename=log_path)
-    logger.setLevel(logging.INFO)
-    handler1.setLevel(logging.INFO)
-    handler2.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
-    handler1.setFormatter(formatter)
-    handler2.setFormatter(formatter)
-    logger.addHandler(handler1)
-    logger.addHandler(handler2)
-    return logger
-
-def cal_metrics(pred, actual):
-    actual = np.array(actual).flatten()
-    pred = np.array(pred).flatten()
-    fpr, tpr, th = roc_curve(actual, pred, pos_label=1)
-    auc_score = auc(fpr, tpr)
-    precision, recall, pr_thresh = metrics.precision_recall_curve(actual, pred)
-    aupr_score = metrics.auc(recall, precision)
-    logger.info("AUC: "+str(auc_score))
-    logger.info("AUPR: "+str(aupr_score))
-    f1 = 2*precision*recall/(precision+recall+1e-8)
-    thresh = pr_thresh[np.argmax(f1)]
-    fmax = np.max(f1)
-    logger.info("Fmax: "+str(fmax))
-    logger.info("thresh: "+str(thresh))
 
 logger = init_logger(os.path.join('logs','test_protein.log'))
 
@@ -129,11 +98,6 @@ for ablation_feature in ablation_list:
     pred = []
     with torch.no_grad():
         for pids, seq_embs, batched_graph, domain_info, labels in tqdm(test_loader):
-            seq_embs = seq_embs.to(device)
-            batched_graph = batched_graph.to(device)
-            domain_info[0] = domain_info[0].to(device)
-            domain_info[1] = domain_info[1].to(device)
-            labels = labels.to(device)
             
             protein_emb = model_protein(seq_embs, batched_graph, domain_info, ablation_feat=ablation_feature)
             # protein_emb: [batch_size, hid_dim]

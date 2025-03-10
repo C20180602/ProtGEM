@@ -5,6 +5,7 @@ import pickle
 import networkx as nx
 import torch
 import dgl
+import numpy as np
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
@@ -34,6 +35,27 @@ def go_list_to_tensor(go_list, go_graph:nx.DiGraph):
         multihot[go] = 1.0
     return multihot
 
+def random_rotation_matrix():
+    # 随机生成四元数
+    u1 = np.random.rand()
+    u2 = np.random.rand()
+    u3 = np.random.rand()
+
+    # 根据四元数公式计算旋转矩阵
+    q1 = np.sqrt(1 - u1) * np.sin(2 * np.pi * u2)
+    q2 = np.sqrt(1 - u1) * np.cos(2 * np.pi * u2)
+    q3 = np.sqrt(u1) * np.sin(2 * np.pi * u3)
+    q4 = np.sqrt(u1) * np.cos(2 * np.pi * u3)
+
+    # 旋转矩阵
+    rotation_matrix = np.array([
+        [q1*q1 + q4*q4 - q2*q2 - q3*q3, 2*(q2*q1 + q3*q4), 2*(q3*q1 - q2*q4)],
+        [2*(q2*q1 - q3*q4), q2*q2 + q4*q4 - q1*q1 - q3*q3, 2*(q3*q2 + q1*q4)],
+        [2*(q3*q1 + q2*q4), 2*(q3*q2 - q1*q4), q3*q3 + q4*q4 - q1*q1 - q2*q2]
+    ])
+
+    return rotation_matrix
+
 def probablity_propagate(prob_vector, go_graph:nx.DiGraph, topo_order):
     # DP
     for u in topo_order:
@@ -42,7 +64,7 @@ def probablity_propagate(prob_vector, go_graph:nx.DiGraph, topo_order):
     return prob_vector
 
 class MyDataset(Dataset):
-    def __init__(self, species_name, use_cache = True):
+    def __init__(self, species_name, target_device, use_cache = True):
         # GO数据与interpro数据, 较小直接读入
         # seq_emb, struct较大，采用懒加载
         
@@ -51,6 +73,7 @@ class MyDataset(Dataset):
         os.chdir("..")
         
         self.species_name = species_name
+        self.device = target_device
         
         # 读取各类文件
         print("loading all kinds of files...")
@@ -64,6 +87,12 @@ class MyDataset(Dataset):
             
         with open(os.path.join("dataset","go_graph_nx.pkl"),"rb") as f:
             self.go_graph_nx = pickle.load(f)
+        
+        # 初始化随机旋转矩阵
+        print("initializing random rotation matrix...")
+        self.mat_R_list = []
+        for i in range(1000):
+            self.mat_R_list.append(torch.tensor(random_rotation_matrix(), dtype=torch.float, device=self.device))
         
         # 是否使用缓存
         if self.has_cache() and use_cache:
@@ -93,7 +122,6 @@ class MyDataset(Dataset):
                             go_id_list.append(self.vocab_go[go])
                     propagated_go_list = list(propagate(go_id_list,self.go_graph_nx))
                     
-                    # TODO?: domain mapping的过程可以提前到process_protein中，不过耗时很短，似乎并不必要
                     domain_list = []
                     for domain in self.protein_info[pname]["domain"]:
                         if domain[0] in self.vocab_interpro:
@@ -106,20 +134,40 @@ class MyDataset(Dataset):
         
     def __len__(self):
         return len(self.data_info)
+    
+    def structure_data_enhance(self, g: dgl.DGLGraph):
+        # spin
+        mat_R = self.mat_R_list[np.random.randint(0, 1000)]
+        g.ndata['pos'] = g.ndata['pos'] @ mat_R
+        return g
 
     def __getitem__(self, idx):
         info = self.data_info[idx]
         pname = info[0]
         plen = info[1]
+        
         # 数据集在访问时才读取大型文件
+        # sequence
         with open(info[2],"rb") as f:
             seq_emb = torch.tensor(pickle.load(f))
         seq_emb = seq_emb[1:-1]
+        seq_emb = seq_emb.to(self.device)
+        
+        # structure
         struct_graph = info[3]
         assert len(struct_graph.nodes()) == plen
-        domain = info[4]
+        struct_graph = struct_graph.to(self.device)
+        struct_graph = self.structure_data_enhance(struct_graph)
+        
+        # domain
+        domain_list = info[4]
+        domain_id_list = torch.tensor([domain[0] for domain in domain_list], device=self.device)
+        
+        # GO terms
         label = go_list_to_tensor(info[5],self.go_graph_nx)
-        return pname,plen,seq_emb,struct_graph,domain, label
+        label = label.to(self.device)
+        
+        return pname,plen, seq_emb,struct_graph, domain_list, domain_id_list, label
 
     def save_dataset(self):
         save_path = os.path.join("dataset",self.species_name+"_cache.pkl")
@@ -164,13 +212,13 @@ class MyDataset(Dataset):
         print("GO Terms: Max: %d, Min: %d, Avg: %.2f"%(go_max, go_min, go_sum/len(self.data_info)))
     
 def my_collate_fn(batch):
-    pnames, plens, seq_embs, struct_graphs, domain_list, labels = zip(*batch)
+    pnames, plens, seq_embs, struct_graphs, domain_lists, domain_id_lists, labels = zip(*batch)
     
     # 处理seq_emb，使用padding
     max_length = max([seq_emb.shape[0] for seq_emb in seq_embs])
     padded_seq_embs = []
     for seq_emb in seq_embs:
-        padding = torch.zeros(max_length - seq_emb.shape[0], seq_emb.shape[1])
+        padding = torch.zeros(max_length - seq_emb.shape[0], seq_emb.shape[1], device=seq_emb.device)
         padded_seq_embs.append(torch.cat([seq_emb, padding],dim=0))
     
     padded_seq_embs = torch.stack(padded_seq_embs)
@@ -179,16 +227,15 @@ def my_collate_fn(batch):
     batched_graph = dgl.batch(struct_graphs)
     
     # domain处理
-    glob_dm_id = []
+    glob_dm_id = torch.cat(domain_id_lists)
     glob_dm_offset = []
-    for dm in domain_list:
-        glob_dm_offset.append(len(glob_dm_id))
-        for domain in dm:
-            glob_dm_id.append(domain[0])
-    glob_dm_id = torch.tensor(glob_dm_id)
-    glob_dm_offset = torch.tensor(glob_dm_offset)
+    offset = 0
+    for domain_id_list in domain_id_lists:
+        glob_dm_offset.append(offset)
+        offset += domain_id_list.shape[0]
+    glob_dm_offset = torch.tensor(glob_dm_offset, device=glob_dm_id.device)
     
     # label处理
     labels = torch.stack(labels)
 
-    return pnames, padded_seq_embs, batched_graph, [glob_dm_id,glob_dm_offset,plens,domain_list], labels
+    return pnames, padded_seq_embs, batched_graph, [glob_dm_id, glob_dm_offset, plens, domain_lists], labels
