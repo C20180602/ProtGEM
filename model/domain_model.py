@@ -35,6 +35,8 @@ class DomainEncoder(nn.Module):
         for plen,dm in zip(plens,domain_list):
             part_emb = torch.zeros([plen, self.part_dims], device=device)
             for domain in dm:
+                domain[1] = min(domain[1],plen)
+                domain[2] = min(domain[2],plen)
                 pos_flag = torch.stack([torch.tensor([0.])] * (domain[1]-1)
                                        + [torch.tensor([1.])] * (domain[2]-domain[1]+1)
                                        + [torch.tensor([0.])] * (plen-domain[2]))

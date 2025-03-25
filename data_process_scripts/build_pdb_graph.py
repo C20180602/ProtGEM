@@ -166,7 +166,7 @@ def get_graph_info(pdbfilepath):
         i += 1
     return graph
 
-species_name = 'HUMAN'
+species_name = 'CAFA3_train'
 pdb_data_dir = os.path.join('raw_data',species_name,'pdb')
 save_dir = os.path.join('dataset',species_name)
 save_dir_list = os.listdir(save_dir)

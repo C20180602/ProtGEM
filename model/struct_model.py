@@ -284,12 +284,8 @@ if __name__ == "__main__":
     # 设置工作目录为项目文件夹
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     os.chdir("..")
-    
-    # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-    
     device = torch.device("cuda:0")
     model = StructEncoder(cross_gate=True)
-    # model.cuda()
     model = model.to(device)
     model.train()
     

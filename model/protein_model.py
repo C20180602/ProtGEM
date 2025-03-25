@@ -106,6 +106,7 @@ class ProteinEncoder(nn.Module):
         # 融合全局特征
         glob_emb = torch.cat([seq_glob,struct_glob,domain_glob],dim=1)
         glob_emb = self.glob_scale(glob_emb)
+        glob_emb = F.relu(glob_emb)
         # glob_emb: [batch_size, final_hid_dim]
         
         # 融合局部特征：
@@ -116,13 +117,14 @@ class ProteinEncoder(nn.Module):
         part_emb = part_emb[:,0,:]
         # part_emb: [batch_size, part_dims]
         part_emb = self.part_scale(part_emb)
+        part_emb = F.relu(part_emb)
         # part_emb: [batch_size, final_hid_dim]
         
         # Ablation Study 消融实验
         if "glob" in ablation_feat:
-            glob_emb = torch.zeros(batch_size, self.glob_dims, device=glob_emb.device)
+            glob_emb = torch.zeros(batch_size, self.final_hid_dim, device=glob_emb.device)
         if "part" in ablation_feat:
-            part_emb = torch.zeros(batch_size, self.part_dims, device=part_emb.device)
+            part_emb = torch.zeros(batch_size, self.final_hid_dim, device=part_emb.device)
         
         # 最终融合，得到最终的embedding
         emb = torch.cat([glob_emb,part_emb],dim=1)

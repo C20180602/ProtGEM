@@ -10,19 +10,22 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
 from model.go_dataset import GoDataset
-from model.go_model import GoEncoder,PretrainLoss
+from model.go_model import GoEncoder,GoContrastLoss
 from model.protein_model import ProteinEncoder
+from utils import init_logger
 
 from sklearn import metrics
 from sklearn.metrics import roc_auc_score, roc_curve, auc, precision_score, recall_score, f1_score, average_precision_score    
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
+logger = init_logger(os.path.join('logs','train_go.log'))
+
 # 设置设备编号(需要使用CUDA_VISIBLE_DEVICES设置)
 device = torch.device("cuda:0")
 
 # 读取模型超参数
-go_model_conf_path = os.path.join("config","GoEncoder.conf")
+go_model_conf_path = os.path.join("config","GoEncoder2.conf")
 with open(go_model_conf_path,"r") as f:
     gm_param = json.load(f)
     
@@ -46,8 +49,6 @@ with open(os.path.join("dataset","go_graph_dgl.pkl"),"rb") as f:
 go_graph = go_graph.to(device)
 
 # 初始化模型
-print("Use model param in config directory? ([y]/n)")
-config_flag = input()
 print("Use biobert embeddings to initialize GO model? ([y]/n)")
 go_init_flag = input()
 if go_init_flag != 'n':
@@ -69,7 +70,7 @@ train_loader = DataLoader(ds, batch_size=batch_size, shuffle=True)
 optimizer_go = torch.optim.Adam(model_go.parameters(), lr=init_lr)
 lr_scheduler_go = get_cosine_schedule_with_warmup(optimizer_go, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
 
-criterion = PretrainLoss(pos_k, neg_k)
+criterion = GoContrastLoss(pos_k, neg_k)
 
 print("Start Training!")
 save_path = os.path.join("model_params","go_pretrain_model.pth")
@@ -79,7 +80,7 @@ for epoch in range(epoch_num):
         x = torch.cat([idx,pos,neg],dim=1)
         x = x.to(device)
         
-        x = model_go(x, go_graph)
+        x = model_go(x)
         loss = criterion(x, contrast_temp)
         
         optimizer_go.zero_grad()
@@ -88,7 +89,7 @@ for epoch in range(epoch_num):
         lr_scheduler_go.step()
         mean_loss += loss.item()
         if i % 80 == 79:
-            print(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/80}')
+            logger.info(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/80}')
             mean_loss = 0.0
     
     model_go.save_model(save_path)

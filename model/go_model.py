@@ -7,12 +7,12 @@ from torch import nn
 
 import pickle
 
-class PretrainLoss(nn.Module):
+class GoContrastLoss(nn.Module):
     '''
     预训练任务的损失函数
     '''
     def __init__(self, pos_k, neg_k):
-        super(PretrainLoss, self).__init__()
+        super(GoContrastLoss, self).__init__()
         self.pos_k = pos_k
         self.neg_k = neg_k
     
@@ -49,13 +49,10 @@ class GoEncoder(nn.Module):
     对GO标签进行编码
     每个标签都对应一个1024维的向量
     '''
-    def __init__(self, vocab_dim=42093, emb_dim=1024, hid_dim=512, out_dim=1024, layer_num = 3, n_heads = 1, manual_init = False, init_tensor = None):
+    def __init__(self, vocab_dim=42093, emb_dim=1024, manual_init = False, init_tensor = None):
         super(GoEncoder, self).__init__()
         
         self.vocab_dim = vocab_dim
-        self.hid_dim = hid_dim
-        self.layer_num = layer_num
-        self.n_heads = n_heads
         
         # 读取手动设置的初始embedding参数
         if manual_init :
@@ -65,32 +62,9 @@ class GoEncoder(nn.Module):
         # 否则使用随机参数
         else:
             self.emb = nn.Parameter(torch.randn(vocab_dim, emb_dim),requires_grad = True)
-        
-        self.lin1 = nn.Linear(emb_dim,hid_dim)
-        self.layers = nn.Sequential()
-        self.liners = nn.Sequential()
-        for i in range(layer_num):
-            # self.layers.append(GATv2Conv(hid_dim,hid_dim,n_heads))
-            self.liners.append(nn.Linear(n_heads*hid_dim,hid_dim))
-        self.LN = nn.LayerNorm(hid_dim)
-        self.lin2 = nn.Linear(hid_dim,out_dim)
     
-    def forward(self, indices, graph):
-        # graph = dgl.add_self_loop(graph)
+    def forward(self, indices):
         x = self.emb[indices]
-        x = self.lin1(x)
-        x = F.relu(x)
-        # x: [node_cnt, hid_dim]
-        for i in range(self.layer_num):
-            # x = self.layers[i](graph,x)
-            # # x: [node_cnt, n_head, hid_dim]
-            # x = x.view(self.vocab_dim,-1)
-            # # x: [node_cnt, n_head*hid_dim]
-            x = self.liners[i](x)
-            x = F.relu(x)
-        # x = x[indices]
-        # x: [indices_cnt, hid_dim]
-        x = self.lin2(x)
         x = x / x.norm(p=2, dim=-1, keepdim=True)
         return x
 

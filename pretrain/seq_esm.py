@@ -26,7 +26,7 @@ for p in model.parameters():
 model.eval()
 
 # 读取预处理后的文件
-species_name = "HUMAN"
+species_name = "CAFA3_train"
 with open(os.path.join("processed_data",species_name+"_protein_info.json"),'r') as f:
     protein_info = json.load(f)
 

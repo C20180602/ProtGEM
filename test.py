@@ -39,6 +39,13 @@ with open(test_conf_path,"r") as f:
     test_param = json.load(f)
 batch_size = test_param["batch_size"]
 
+# 读取train中的数据集设置
+train_conf_path = os.path.join("config","train.conf")
+with open(train_conf_path,"r") as f:
+    train_param = json.load(f)
+go_max_percent = train_param["go_max_percent"]
+go_min_count = train_param["go_min_count"]
+
 # 读取必要的数据
 with open(os.path.join("processed_data","go_terms.json"),"r") as f:
     go_terms = json.load(f)
@@ -46,8 +53,6 @@ ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_functio
 ns_ids = {"bp":[],"cc":[],"mf":[]}
 for i,go in enumerate(go_terms):
     ns_ids[ns_map[go["namespace"]]].append(i)
-for ns in ns_ids:
-    print(ns," cnt:",len(ns_ids[ns]))
 actual_ns = {"bp":[],"cc":[],"mf":[]}
 pred_ns = {"bp":[],"cc":[],"mf":[]}
 with open(os.path.join("dataset","go_graph_dgl.pkl"),"rb") as f:
@@ -58,26 +63,33 @@ topo_order = list(nx.topological_sort(go_graph_nx))
 go_graph = go_graph.to(device)
 
 # 初始化模型
-print("Use model param in config directory? ([y]/n)")
-config_flag = input()
-if config_flag != 'n':
-    model_protein = ProteinEncoder(**pm_param)
-    model_go = GoEncoder(**gm_param)
-else:
-    model_protein = ProteinEncoder()
-    model_go = GoEncoder()
+model_protein = ProteinEncoder(**pm_param)
+model_go = GoEncoder(**gm_param)
 model_protein.load_model("model_params/protein_model.pth")
 model_protein.to(device)
 model_go.load_model("model_params/go_model.pth")
 model_go.to(device)
 
-# 读取test数据
-ds = MyDataset("HUMAN")
+ds = MyDataset("CAFA3_train", device, go_max_percent, go_min_count, use_cache=True)
 test_indices = np.load(os.path.join("dataset","test_indices.npy")).tolist()
+for idx in test_indices:
+    if idx > len(ds):
+        print(idx,len(ds))
+        print("Error: test_indices out of range!")
+        exit(1)
 test_dataset = Subset(ds, test_indices)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_fn)
 
-ds.show_dataset_info()
+go_idx = torch.tensor(ds.balanced_go_list).to(device)
+balanced_go_map_inv = ds.balanced_go_map_inv
+for ns in ns_ids:
+    new_ids = []
+    for go in ns_ids[ns]:
+        if go in balanced_go_map_inv:
+            new_ids.append(balanced_go_map_inv[go])
+    ns_ids[ns] = new_ids
+
+ds.show_dataset_info(logger)
 summary(model_protein)
 summary(model_go)
 
@@ -85,10 +97,14 @@ logger.info("Parameters INFO:")
 logger.info(test_param)
 logger.info(pm_param)
 logger.info(gm_param)
+logger.info(f"bp_cnt:{len(ns_ids['bp'])}")
+logger.info(f"cc_cnt:{len(ns_ids['cc'])}")
+logger.info(f"mf_cnt:{len(ns_ids['mf'])}")
 logger.info("Start Testing!")
-go_idx = torch.arange(gm_param["vocab_dim"]).to(device)
+
 model_protein.eval()
 model_go.eval()
+ds.valid_mode()
 ablation_list = [[],["seq"],["struct"],["domain"],["seq","struct"],["seq","domain"],["struct","domain"],["glob"],["part"]]
 for ablation_feature in ablation_list:
     logger.info("ablation_feature: "+str(ablation_feature))
@@ -101,13 +117,13 @@ for ablation_feature in ablation_list:
             
             protein_emb = model_protein(seq_embs, batched_graph, domain_info, ablation_feat=ablation_feature)
             # protein_emb: [batch_size, hid_dim]
-            go_emb = model_go(go_idx, go_graph)
+            go_emb = model_go(go_idx)
             # go_emb: [go_nums, hid_dim]
             predict_matrix = protein_emb @ go_emb.T
             predict_matrix = torch.sigmoid(predict_matrix/0.2)
             # predict_matrix: [batch_size, go_nums]
             predict_matrix = predict_matrix.transpose(1,0)
-            predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order)
+            predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order, ds.balanced_go_map_inv)
             predict_matrix = predict_matrix.transpose(1,0)
             pred += predict_matrix.tolist()
             actual += labels.tolist()
@@ -116,8 +132,8 @@ for ablation_feature in ablation_list:
                     ids = ns_ids[ns]
                     pred_ns[ns] += predict_matrix[:,ids].tolist()
                     actual_ns[ns] += labels[:,ids].tolist()
-    cal_metrics(pred, actual)
+    cal_metrics(pred, actual, logger)
     if ablation_feature == []:
         for ns in ns_ids:
             logger.info("Namespace: "+ns)
-            cal_metrics(pred_ns[ns], actual_ns[ns])
+            cal_metrics(pred_ns[ns], actual_ns[ns], logger)

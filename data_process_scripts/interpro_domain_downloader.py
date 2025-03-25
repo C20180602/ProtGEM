@@ -1,7 +1,6 @@
 '''
 修改自InterPro官网上的代码
 用于读取InterPro上的查找结果 export.tsv 并根据结果下载所有蛋白质的结构域信息
-TODO: 改为InterProScan用于处理未知蛋白质
 '''
 # standard library modules
 import sys, errno, re, json, ssl, os
@@ -108,7 +107,7 @@ def download_to_file(url, file_path):
     sleep(1)
 
 # 设置物种名称，大写
-species_name = "ECOLI"
+species_name = "CAFA3_train"
 # 先读取之前已经完成的进度
 exist_file_list = set()
 already_exist_file = os.listdir(os.path.join("raw_data",species_name,"domain"))
@@ -116,20 +115,23 @@ for file in already_exist_file:
     if file.endswith(".tsv"):
         exist_file_list.add(file.split(".")[0])
 
-with open(os.path.join("raw_data",species_name,"export.tsv")) as f:
-    # 丢弃第一行头文件
-    line = f.readline()
+with open(os.path.join("raw_data",species_name,"seq","seq.fasta")) as f:
     line = f.readline()
     cnt = 0
     while line:
-        cnt += 1
-        print(cnt)
-        protein_id = line.split("\t")[0]
-        # 如果之前完成了，就跳过该条信息
-        if protein_id in exist_file_list:
-            line = f.readline()
-            continue
-        protein_id = line.split("\t")[0]
-        url = f"https://www.ebi.ac.uk:443/interpro/api/entry/InterPro/protein/reviewed/{protein_id}/?page_size=200"
-        download_to_file(url,os.path.join("raw_data","ECOLI","domain", protein_id+'.tsv'))
+        if line.startswith(">"):
+            line = line.strip()
+            cnt += 1
+            print(cnt)
+            if cnt<=62579:
+                line = f.readline()
+                continue 
+            protein_id = line.split(">")[1]
+            # 如果之前完成了，就跳过该条信息
+            if protein_id in exist_file_list:
+                print(protein_id, " exists")
+                line = f.readline()
+                continue
+            url = f"https://www.ebi.ac.uk:443/interpro/api/entry/InterPro/protein/reviewed/{protein_id}/?page_size=200"
+            download_to_file(url,os.path.join("raw_data",species_name,"domain", protein_id+'.tsv'))
         line = f.readline()
