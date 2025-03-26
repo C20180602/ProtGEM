@@ -11,8 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
 from model.dataset import MyDataset, my_collate_fn
-from model.go_model import GoEncoder
-from model.protein_model import ProteinEncoder, ContrastLoss
+from model.framework import ProteinGoModel, ContrastLoss
 from utils import init_logger, cal_metrics 
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -22,14 +21,19 @@ def generate_mask(batch_size, seq_len, rate):
     mask = ((torch.rand([batch_size,seq_len])) > rate).float()
     return mask
 
-logger = init_logger(os.path.join('logs','train_protein.log'))
+logger = init_logger(os.path.join('logs','train_protein_tmp.log'))
 
 # 设置设备编号(需要使用CUDA_VISIBLE_DEVICES设置)
 device = torch.device("cuda:0")
 
+# 读取全局变量
+with open("config/global.conf","r") as f:
+    global_var = json.load(f)
+species_name = global_var["species_name"]
+
 # 读取模型超参数
-protein_model_conf_path = os.path.join("config","ProteinEncoder.conf")
-go_model_conf_path = os.path.join("config","GoEncoder.conf")
+protein_model_conf_path = os.path.join("config","ProteinEncoder2.conf")
+go_model_conf_path = os.path.join("config","GoEncoder2.conf")
 with open(protein_model_conf_path,"r") as f:
     pm_param = json.load(f)
 with open(go_model_conf_path,"r") as f:
@@ -66,14 +70,12 @@ with open(os.path.join("dataset","go_graph_dgl.pkl"),"rb") as f:
 go_graph = go_graph.to(device)
 
 # 初始化模型 （所有模型都默认使用参数初始化）
-model_protein = ProteinEncoder(**pm_param)
-model_go = GoEncoder(**gm_param)
-model_protein.to(device)
-model_go.load_model("model_params/v1/go_pretrain_model.pth")
-model_go.to(device)
+pg_model = ProteinGoModel(pm_param, gm_param)
+pg_model.gm.load_model("model_params/go_pretrain_model.pth")
+pg_model.to(device)
 
 # 初始化数据集并进行划分
-ds = MyDataset("CAFA3_train", target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count)
+ds = MyDataset(species_name, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count)
 ds.show_dataset_info(logger)
 train_size = int(0.7*len(ds))
 valid_size = int(0.2*len(ds))
@@ -85,10 +87,8 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, co
 val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_fn)
 
 # 设置优化器、学习率规划器以及损失函数
-optimizer_protein = torch.optim.Adam(model_protein.parameters(), lr=init_lr)
-lr_scheduler_protein = get_cosine_schedule_with_warmup(optimizer_protein, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
-optimizer_go = torch.optim.Adam(model_go.parameters(), lr=init_lr)
-lr_scheduler_go = get_cosine_schedule_with_warmup(optimizer_go, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
+optimizer = torch.optim.Adam(pg_model.parameters(), lr=init_lr)
+lr_scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
 
 criterion1 = ContrastLoss()
 criterion2 = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([bce_pos_weight],device=device))
@@ -108,28 +108,20 @@ for epoch in range(epoch_num):
     mean_loss1 = 0.0
     mean_loss2 = 0.0
     for i, (pids, seq_embs, batched_graph, domain_info, labels) in enumerate(train_loader):
-        optimizer_protein.zero_grad()
-        optimizer_go.zero_grad()
+        optimizer.zero_grad()
         
         mask = generate_mask(seq_embs.shape[0], seq_embs.shape[1], mask_rate)
         mask = mask.to(device)
-        protein_emb = model_protein(seq_embs, batched_graph, domain_info, mask=mask, ablation_feat=dropout_feat_list[epoch])
-        # protein_emb: [batch_size, hid_dim]
-        go_emb = model_go(go_idx)
-        # go_emb: [go_nums, hid_dim]
-        predict_matrix = protein_emb @ go_emb.T
-        predict_matrix = torch.sigmoid(predict_matrix/0.2)
-        # predict_matrix = (predict_matrix + 1)/2
+        
+        predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, ablation_feat=dropout_feat_list[epoch])
         
         loss1 = criterion1(predict_matrix, labels, contrast_temp)
         loss2 = criterion2(predict_matrix, labels)
         
         loss = alpha*loss1 + loss2
         loss.backward()
-        optimizer_protein.step()
-        optimizer_go.step()
-        lr_scheduler_protein.step()
-        lr_scheduler_go.step()
+        optimizer.step()
+        lr_scheduler.step()
         mean_loss += loss.item()
         mean_loss1 += loss1.item()
         mean_loss2 += loss2.item()
@@ -138,31 +130,26 @@ for epoch in range(epoch_num):
             mean_loss = 0.0
             mean_loss1 = 0.0
             mean_loss2 = 0.0
+            pred = predict_matrix.tolist()
+            actual = labels.tolist()
+            cal_metrics(pred, actual, logger)
             
     # validate
     ds.valid_mode()
-    model_protein.eval()
-    model_go.eval()
+    pg_model.eval()
     total = 0
     correct = 0
     actual = []
     pred = []
     with torch.no_grad():
         for pids, seq_embs, batched_graph, domain_info, labels in tqdm(val_loader):
-            protein_emb = model_protein(seq_embs, batched_graph, domain_info, ablation_feat=dropout_feat_list[epoch])
-            # protein_emb: [batch_size, hid_dim]
-            go_emb = model_go(go_idx, go_graph)
-            # go_emb: [go_nums, hid_dim]
-            predict_matrix = protein_emb @ go_emb.T
-            predict_matrix = torch.sigmoid(predict_matrix/0.2)
+            predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=dropout_feat_list[epoch])
             # predict_matrix = (predict_matrix + 1)/2
             pred += predict_matrix.tolist()
             actual += labels.tolist()
             
     cal_metrics(pred, actual, logger)
     
-    model_protein.save_model("model_params/protein_model.pth")
-    model_go.save_model("model_params/go_model.pth")
-    model_protein.train()
-    model_go.train()
+    pg_model.save_model("model_params/pg_model.pth")
+    pg_model.train()
         

@@ -14,7 +14,9 @@ protein_cnt = 0
 protein_info = {}
 
 # 填写物种名
-species_name = 'CAFA3_train'
+with open("config/global.conf","r") as f:
+    global_var = json.load(f)
+species_name = global_var["species_name"]
 os.chdir(os.path.join("raw_data",species_name))
 
 ''' sequence '''

@@ -14,9 +14,12 @@ from model.dataset import MyDataset, my_collate_fn
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-# 读取test数据
-species_name = "HUMAN"
+# 读取全局变量
+with open("config/global.conf","r") as f:
+    global_var = json.load(f)
+species_name = global_var["species_name"]
 
+# 读取test数据
 ds = MyDataset(species_name)
 test_indices = np.load(os.path.join("dataset","test_indices.npy")).tolist()
 test_dataset = Subset(ds, test_indices)

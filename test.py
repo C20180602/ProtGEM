@@ -13,8 +13,7 @@ from torchinfo import summary
 from torch.utils.data import Dataset, DataLoader, Subset
 from tqdm import tqdm
 from model.dataset import MyDataset, my_collate_fn, probablity_propagate
-from model.go_model import GoEncoder
-from model.protein_model import ProteinEncoder, ContrastLoss
+from model.framework import ContrastLoss, ProteinGoModel
 
 from utils import init_logger, cal_metrics 
 
@@ -24,6 +23,11 @@ logger = init_logger(os.path.join('logs','test_protein.log'))
 
 # 设置设备编号(需要使用CUDA_VISIBLE_DEVICES设置)
 device = torch.device("cuda:0")
+
+# 读取全局变量
+with open("config/global.conf","r") as f:
+    global_var = json.load(f)
+species_name = global_var["species_name"]
 
 # 读取模型超参数
 protein_model_conf_path = os.path.join("config","ProteinEncoder.conf")
@@ -63,14 +67,12 @@ topo_order = list(nx.topological_sort(go_graph_nx))
 go_graph = go_graph.to(device)
 
 # 初始化模型
-model_protein = ProteinEncoder(**pm_param)
-model_go = GoEncoder(**gm_param)
-model_protein.load_model("model_params/protein_model.pth")
-model_protein.to(device)
-model_go.load_model("model_params/go_model.pth")
-model_go.to(device)
+pg_model = ProteinGoModel(pm_param, gm_param)
+pg_model.pm.load_model("model_params/protein_model.pth")
+pg_model.gm.load_model("model_params/go_model.pth")
+pg_model.to(device)
 
-ds = MyDataset("CAFA3_train", device, go_max_percent, go_min_count, use_cache=True)
+ds = MyDataset(species_name, device, go_max_percent, go_min_count, use_cache=True)
 test_indices = np.load(os.path.join("dataset","test_indices.npy")).tolist()
 for idx in test_indices:
     if idx > len(ds):
@@ -90,8 +92,7 @@ for ns in ns_ids:
     ns_ids[ns] = new_ids
 
 ds.show_dataset_info(logger)
-summary(model_protein)
-summary(model_go)
+summary(pg_model)
 
 logger.info("Parameters INFO:")
 logger.info(test_param)
@@ -102,8 +103,7 @@ logger.info(f"cc_cnt:{len(ns_ids['cc'])}")
 logger.info(f"mf_cnt:{len(ns_ids['mf'])}")
 logger.info("Start Testing!")
 
-model_protein.eval()
-model_go.eval()
+pg_model.eval()
 ds.valid_mode()
 ablation_list = [[],["seq"],["struct"],["domain"],["seq","struct"],["seq","domain"],["struct","domain"],["glob"],["part"]]
 for ablation_feature in ablation_list:
@@ -115,12 +115,7 @@ for ablation_feature in ablation_list:
     with torch.no_grad():
         for pids, seq_embs, batched_graph, domain_info, labels in tqdm(test_loader):
             
-            protein_emb = model_protein(seq_embs, batched_graph, domain_info, ablation_feat=ablation_feature)
-            # protein_emb: [batch_size, hid_dim]
-            go_emb = model_go(go_idx)
-            # go_emb: [go_nums, hid_dim]
-            predict_matrix = protein_emb @ go_emb.T
-            predict_matrix = torch.sigmoid(predict_matrix/0.2)
+            predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=ablation_feature)
             # predict_matrix: [batch_size, go_nums]
             predict_matrix = predict_matrix.transpose(1,0)
             predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order, ds.balanced_go_map_inv)

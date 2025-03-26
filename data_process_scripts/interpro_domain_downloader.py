@@ -107,7 +107,9 @@ def download_to_file(url, file_path):
     sleep(1)
 
 # 设置物种名称，大写
-species_name = "CAFA3_train"
+with open("config/global.conf","r") as f:
+    global_var = json.load(f)
+species_name = global_var["species_name"]
 # 先读取之前已经完成的进度
 exist_file_list = set()
 already_exist_file = os.listdir(os.path.join("raw_data",species_name,"domain"))

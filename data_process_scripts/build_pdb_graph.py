@@ -14,6 +14,7 @@ import numpy as np
 import torch
 import dgl
 import warnings
+import json
 from tqdm import tqdm
 
 # 忽略使用DGLGraph建立空图的警告
@@ -166,7 +167,9 @@ def get_graph_info(pdbfilepath):
         i += 1
     return graph
 
-species_name = 'CAFA3_train'
+with open("config/global.conf","r") as f:
+    global_var = json.load(f)
+species_name = global_var["species_name"]
 pdb_data_dir = os.path.join('raw_data',species_name,'pdb')
 save_dir = os.path.join('dataset',species_name)
 save_dir_list = os.listdir(save_dir)

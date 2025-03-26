@@ -3,13 +3,17 @@
 需要操作系统支持gzip命令
 '''
 import os
+import json
 
 # 设置工作路径为项目文件夹
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 os.chdir("..")
 
 # 切换路径，进入需要处理的文件夹
-data_path = os.path.join('raw_data','HUMAN','pdb')
+with open("config/global.conf","r") as f:
+    global_var = json.load(f)
+species_name = global_var["species_name"]
+data_path = os.path.join('raw_data',species_name,'pdb')
 os.chdir(data_path)
 for file_path in os.listdir('.'):
     if file_path.endswith(".pdb.gz"):
