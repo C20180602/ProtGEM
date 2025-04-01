@@ -3,8 +3,10 @@
 将某物种的uniprot_id:{id:,seq:,domain:[(interpro_id,start,end)],GO:set(go_id)}处理为dict保存为.json文件
 并统计信息
 '''
+import Bio.PDB.PDBParser
 import os
 import json
+from tqdm import tqdm
 
 # 设置工作目录为项目文件夹
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -20,32 +22,48 @@ species_name = global_var["species_name"]
 os.chdir(os.path.join("raw_data",species_name))
 
 ''' sequence '''
+parser = Bio.PDB.PDBParser()
+three2one= {
+    'VAL':'V', 'ILE':'I', 'LEU':'L', 'GLU':'E', 'GLN':'Q',
+    'ASP':'D', 'ASN':'N', 'HIS':'H', 'TRP':'W', 'PHE':'F', 
+    'TYR':'Y', 'ARG':'R', 'LYS':'K', 'SER':'S', 'THR':'T', 
+    'MET':'M', 'ALA':'A', 'GLY':'G', 'PRO':'P', 'CYS':'C'
+}
+one2num = {
+    'A' : 0,'R' : 1,'N' : 2,'D' : 3,'C' : 4,
+    'Q' : 5,'E' : 6,'G' : 7,'H' : 8,'I' : 9,
+    'L' : 10,'K' : 11,'M' : 12,'F' : 13,'P' : 14,
+    'S' : 15,'T' : 16,'W' : 17,'Y' : 18,'V' : 19,
+}
+def get_seq_info(pdbfilepath):
+    struct = parser.get_structure(0,pdbfilepath)
+    # 只取第一个模型
+    model = struct.get_models().__next__()
+    # i表示当前氨基酸的序号
+    seq = ""
+    for res in model.get_residues():
+        acid = three2one[res.get_resname()]
+        seq = seq + acid
+    return seq
+
 seq_data_cnt = 0
-with open(os.path.join("seq","seq.fasta"),'r') as f:
-    line = f.readline()
-    while line:
-        if line.startswith(">"):
-            uniprot_id = line.split('|')[1]
-            seq = ""
-            line = f.readline()
-            while line:
-                if line.startswith(">"):
-                    break
-                line = line.strip()
-                seq = seq + line
-                line = f.readline()
-            # 过滤过长的蛋白质
-            if len(seq)>5000:
-                continue
-            # 读取完序列数据之后 初始化该蛋白质对应的dict
-            id = protein_cnt
-            protein_cnt += 1
-            protein_info[uniprot_id] = {}
-            protein_info[uniprot_id]["id"] = id
-            protein_info[uniprot_id]["seq"] = seq
-            protein_info[uniprot_id]["go"] = []
-            protein_info[uniprot_id]["domain"] = []
-            seq_data_cnt += 1
+pdb_data_dir = os.path.join('raw_data',species_name,'pdb')
+for filename in tqdm(os.listdir(pdb_data_dir), desc="Read sequences from PDB files"):
+    pdbfilepath = os.path.join(pdb_data_dir, filename)
+    seq = get_seq_info(pdbfilepath)
+    # 过滤过长的蛋白质
+    if len(seq)>5000:
+        continue
+    # 读取完序列数据之后 初始化该蛋白质对应的dict
+    uniprot_id = filename.split('-')[1]
+    id = protein_cnt
+    protein_cnt += 1
+    protein_info[uniprot_id] = {}
+    protein_info[uniprot_id]["id"] = id
+    protein_info[uniprot_id]["seq"] = seq
+    protein_info[uniprot_id]["go"] = []
+    protein_info[uniprot_id]["domain"] = []
+    seq_data_cnt += 1
 print("protein_cnt: ",protein_cnt)
 print("seq_data_cnt: ",seq_data_cnt)
 

@@ -21,7 +21,7 @@ species_name = global_var["species_name"]
 
 # 读取test数据
 ds = MyDataset(species_name)
-test_indices = np.load(os.path.join("dataset","test_indices.npy")).tolist()
+test_indices = np.load(os.path.join("dataset","{}_test_indices.npy".format(species_name))).tolist()
 test_dataset = Subset(ds, test_indices)
 test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, collate_fn=my_collate_fn)
 with open(os.path.join("processed_data",species_name+"_protein_info.json"), 'r') as f:

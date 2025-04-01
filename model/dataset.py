@@ -71,7 +71,7 @@ def probablity_propagate(prob_vector, go_graph:nx.DiGraph, topo_order, balanced_
 class MyDataset(Dataset):
     def __init__(self, species_name, target_device, go_max_percent=1.0, go_min_count=0, use_cache = False):
         # GO数据与interpro数据, 较小直接读入
-        # seq_emb, struct较大，采用懒加载
+        # seq_emb, struct较大, 采用懒加载
         
         # 设置工作目录为项目文件夹
         os.chdir(os.path.dirname(os.path.abspath(__file__)))

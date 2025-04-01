@@ -81,7 +81,7 @@ train_size = int(0.7*len(ds))
 valid_size = int(0.2*len(ds))
 test_size = len(ds) - train_size - valid_size
 train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(ds, [train_size, valid_size, test_size])
-np.save(os.path.join("dataset","test_indices.npy"), test_dataset.indices)
+np.save(os.path.join("dataset","{}_test_indices.npy".format(species_name)), test_dataset.indices)
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=my_collate_fn)
 val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_fn)
@@ -107,6 +107,8 @@ for epoch in range(epoch_num):
     mean_loss = 0.0
     mean_loss1 = 0.0
     mean_loss2 = 0.0
+    pred = []
+    actual = []
     for i, (pids, seq_embs, batched_graph, domain_info, labels) in enumerate(train_loader):
         optimizer.zero_grad()
         
@@ -130,9 +132,10 @@ for epoch in range(epoch_num):
             mean_loss = 0.0
             mean_loss1 = 0.0
             mean_loss2 = 0.0
-            pred = predict_matrix.tolist()
-            actual = labels.tolist()
-            cal_metrics(pred, actual, logger)
+            pred += predict_matrix.tolist()
+            actual += labels.tolist()
+    logger.info("train set:")
+    cal_metrics(pred, actual, logger)
             
     # validate
     ds.valid_mode()
@@ -147,7 +150,7 @@ for epoch in range(epoch_num):
             # predict_matrix = (predict_matrix + 1)/2
             pred += predict_matrix.tolist()
             actual += labels.tolist()
-            
+    logger.info("test set:")
     cal_metrics(pred, actual, logger)
     
     pg_model.save_model("model_params/pg_model.pth")

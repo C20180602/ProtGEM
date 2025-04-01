@@ -32,7 +32,8 @@ class ProteinGoModel(nn.Module):
         self.MLP = nn.Sequential(
             nn.Linear(1024, 64),
             nn.ReLU(),
-            nn.Linear(64, 1)
+            nn.Linear(64, 1),
+            nn.Sigmoid()
         )
         
     def forward(self, seq_embs, batched_graph, domain_info, go_idx, mask=None, ablation_feat = []):
