@@ -69,7 +69,7 @@ def probablity_propagate(prob_vector, go_graph:nx.DiGraph, topo_order, balanced_
     return prob_vector
 
 class MyDataset(Dataset):
-    def __init__(self, species_name, target_device, go_max_percent=1.0, go_min_count=0, use_cache = False):
+    def __init__(self, species_name, ont=None, target_device=torch.device("cuda:0"), go_max_percent=1.0, go_min_count=0, use_cache = False):
         # GO数据与interpro数据, 较小直接读入
         # seq_emb, struct较大, 采用懒加载
         
@@ -78,15 +78,19 @@ class MyDataset(Dataset):
         os.chdir("..")
         
         self.species_name = species_name
+        self.ont = ont
         self.device = target_device
         self.train_flag = True
         
         # 读取各类文件
         print("loading all kinds of files...")
+        ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_function":"mf"}
         with open(os.path.join("processed_data",species_name+"_protein_info.json"), 'r') as f:
             self.protein_info = json.load(f)
         with open(os.path.join("processed_data","go_id.json"), 'r') as f:
             self.vocab_go = json.load(f)
+        with open(os.path.join("processed_data","go_terms.json"), 'r') as f:
+            self.go_terms = json.load(f)
         self.go_count_map = {}
         with open(os.path.join("processed_data","interpro_id.json"), 'r') as f:
             interpro_list = json.load(f)
@@ -147,8 +151,9 @@ class MyDataset(Dataset):
         # balance of posivite/negative samples
         self.balanced_go_list = []
         for go in self.go_count_map:
-            if self.go_count_map[go] >= go_min_count and self.go_count_map[go] <= len(self.data_info)*go_max_percent:
-                self.balanced_go_list.append(go)
+            if self.ont is not None and ns_map[self.go_terms[go]["namespace"]] == self.ont:
+                if self.go_count_map[go] >= go_min_count and self.go_count_map[go] <= len(self.data_info)*go_max_percent:
+                    self.balanced_go_list.append(go)
         self.balanced_go_list = sorted(self.balanced_go_list)
         self.balanced_go_map_inv = {go:i for i,go in enumerate(self.balanced_go_list)}
         
@@ -210,25 +215,25 @@ class MyDataset(Dataset):
         return pname,plen, seq_emb,struct_graph, domain_list, domain_id_list, label
 
     def save_dataset(self):
-        save_path = os.path.join("dataset",self.species_name+"_cache.pkl")
-        balanced_go_list_path = os.path.join("dataset",self.species_name+"_balanced_go_list_cache.json")
-        with open(save_path,"wb") as f:
+        dataset_path = os.path.join("dataset","{}_{}_cache.pkl".format(self.species_name,self.ont))
+        balanced_go_list_path = os.path.join("dataset","{}_{}_balanced_go_list_cache.json".format(self.species_name,self.ont))
+        with open(dataset_path,"wb") as f:
             pickle.dump(self.data_info,f)
         with open(balanced_go_list_path,"w") as f:
             json.dump(self.balanced_go_list,f,indent=4)
     
     def load_dataset(self):
-        load_path = os.path.join("dataset",self.species_name+"_cache.pkl")
-        balanced_go_list_path = os.path.join("dataset",self.species_name+"_balanced_go_list_cache.json")
-        with open(load_path,"rb") as f:
+        dataset_path = os.path.join("dataset","{}_{}_cache.pkl".format(self.species_name,self.ont))
+        balanced_go_list_path = os.path.join("dataset","{}_{}_balanced_go_list_cache.json".format(self.species_name,self.ont))
+        with open(dataset_path,"rb") as f:
             self.data_info = pickle.load(f)
         with open(balanced_go_list_path,"r") as f:
             self.balanced_go_list = json.load(f)
     
     def has_cache(self):
-        cache_path = os.path.join("dataset",self.species_name+"_cache.pkl")
-        balanced_go_list_path = os.path.join("dataset",self.species_name+"_balanced_go_list_cache.json")
-        if os.path.exists(cache_path) and os.path.exists(balanced_go_list_path):
+        dataset_path = os.path.join("dataset","{}_{}_cache.pkl".format(self.species_name,self.ont))
+        balanced_go_list_path = os.path.join("dataset","{}_{}_balanced_go_list_cache.json".format(self.species_name,self.ont))
+        if os.path.exists(dataset_path) and os.path.exists(balanced_go_list_path):
             return True
         return False
     
@@ -253,6 +258,7 @@ class MyDataset(Dataset):
             go_min = min(go_min, len(info[5]))
             go_sum += len(info[5])
         logger.info("Dataset Info:")
+        logger.info("Species:{} ontology:{}".format(self.species_name,self.ont))
         logger.info("Protein Num: %d"%(len(self.data_info)))
         logger.info("Protein Length: Max: %d, Min: %d, Avg: %.2f"%(len_max, len_min, len_sum/len(self.data_info)))
         logger.info("Domain Num: Max: %d, Min: %d, Avg: %.2f"%(domain_max, domain_min, domain_sum/len(self.data_info)))

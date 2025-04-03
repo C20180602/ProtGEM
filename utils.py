@@ -32,3 +32,4 @@ def cal_metrics(pred, actual, logger):
     fmax = np.max(f1)
     logger.info("Fmax: "+str(fmax))
     logger.info("thresh: "+str(thresh))
+    return auc_score, aupr_score, fmax, thresh
