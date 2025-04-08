@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from model.seq_model import SeqEncoder
-from model.struct_model import StructEncoder
+from model.struct_model import StructEncoder, StructEncoderv2
 from model.domain_model import DomainEncoder
 import model.transformer as tf
 
@@ -112,6 +112,64 @@ class ProteinEncoder(nn.Module):
         
         # 最终融合，得到最终的embedding
         emb = torch.cat([glob_emb,part_emb],dim=1)
+        emb = self.dropout(emb)
+        emb = self.final_out(emb)
+        emb = emb / emb.norm(p=2, dim=1, keepdim=True)
+        return emb
+    
+    def save_model(self, path):
+        torch.save(self.state_dict(), path)
+    
+    def load_model(self, path):
+        self.load_state_dict(torch.load(path))
+
+class ProteinEncoderv2(nn.Module):
+    '''
+    蛋白质进行编码
+    每个蛋白质最终对应一个1024维的向量
+    '''
+    def __init__(self, final_out_dim=1024, fusion_dropout=0.5, esm_dim = 1280, model_args = None):
+        super(ProteinEncoderv2, self).__init__()
+        
+        if model_args == None:
+            self.struct_enc = StructEncoderv2()
+            self.domain_enc = DomainEncoder()
+        else:
+            self.struct_args = model_args['StructEncoder']
+            self.domain_args = model_args['DomainEncoder']
+            
+            self.struct_enc = StructEncoderv2(**self.struct_args)
+            self.domain_enc = DomainEncoder(**self.domain_args)
+        
+        self.total_dims = self.struct_enc.out_dims + self.domain_enc.glob_dims
+        
+        self.dropout = nn.Dropout(fusion_dropout)
+        self.glob_scale = nn.Linear(self.total_dims, final_out_dim)
+        self.final_out = nn.Linear(final_out_dim, final_out_dim)
+        
+    def forward(self, batched_graph, domain_info, mask=None, ablation_feat = []):
+        batch_size = batched_graph.batch_num_nodes().shape[0]
+        
+        # Ablation Study 消融实验
+        if "seq" in ablation_feat:
+            batched_graph.ndata["esm"] = torch.zeros((batched_graph.ndata["esm"].shape), device=seq_embs.device)
+        
+        if "struct" not in ablation_feat:
+            struct_emb = self.struct_enc(batched_graph)
+        else:
+            struct_emb = torch.zeros(batch_size, self.struct_enc.glob_dims, device=batched_graph.device)
+        
+        if "domain" not in ablation_feat:
+            domain_emb, _ = self.domain_enc(*domain_info)
+        else:
+            domain_emb = torch.zeros(batch_size, self.domain_enc.glob_dims, device=domain_info[0].device)
+        
+        emb = torch.cat([struct_emb, domain_emb],dim=1)
+        emb = self.glob_scale(emb)
+        emb = F.relu(emb)
+        # emb: [batch_size, final_hid_dim]
+        
+        # 最终融合，得到最终的embedding
         emb = self.dropout(emb)
         emb = self.final_out(emb)
         emb = emb / emb.norm(p=2, dim=1, keepdim=True)

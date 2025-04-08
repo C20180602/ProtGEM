@@ -4,6 +4,7 @@ from torch import nn
 import torch.nn.functional as F
 import dgl
 import dgl.function as fn
+from dgl.nn import GraphConv, GATv2Conv
 
 def L2(x, axis=-1, keepdims=False, eps=1e-8, sqrt=True):
     # x: [...,vector_num, vector_dim]
@@ -259,43 +260,61 @@ class StructEncoderv2(nn.Module):
     中间输出为batch( node(out_dims) )
     最后输出全局特征(batch,global_dims), 局部特征list((n,part_dims))
     '''
-    def __init__(self, ): 
-        super(StructEncoder, self).__init__()
+    def __init__(self, in_dim=1280, hid_dim=1280, num_heads=4, num_layers=2, dropout=0.3): 
+        super(StructEncoderv2, self).__init__()
+        self.in_dims = in_dim
+        self.hid_dims = hid_dim
+        self.out_dims = hid_dim
+        self.num_heads = num_heads
+        self.num_layers = num_layers
         
+        self.dropout = nn.Dropout(0.3)
         
+        self.conv_list = nn.ModuleList()
+        self.lin_list = nn.ModuleList()
+        self.bn_list = nn.ModuleList()
+        for i in range(num_layers):
+            self.conv_list.add_module("conv_"+str(i),GATv2Conv(in_dim, hid_dim, num_heads))
+            self.lin_list.add_module("lin_"+str(i),nn.Linear(hid_dim*num_heads, hid_dim))
+            self.bn_list.add_module("bn_"+str(i),nn.BatchNorm1d(hid_dim))
 
-    def forward(self, bg: dgl.DGLGraph):
-        bg.ndata["res"] = self.ln_s(bg.ndata["res"])
-        bg.ndata["pos"] = self.ln_v(bg.ndata["pos"])
-        graph_size_list = bg.batch_num_nodes()
+    def forward(self, bg):
+        # 添加self loop会导致batchgraph图变为普通图
+        # bg = dgl.add_self_loop(bg)
+        x = bg.ndata["esm"]
+        for conv, bn, lin in zip(self.conv_list,self.bn_list,self.lin_list):
+            pre_x = x
+            x = F.elu(conv(bg, bn(x)))
+            x = self.dropout(x)
+            x = x.view(bg.ndata["esm"].shape[0],-1)
+            x = pre_x + F.elu(lin(x))
         
-        pass
+        bg.ndata["esm"] = x
+        emb_out = dgl.readout_nodes(bg,"esm")
         
-        # glob_emb_out :[batch, global_dims]
-        # part_emb_out : list(len=batch)[n_i, part_dims]
-        
-        # return glob_emb_out, part_emb_out
+        return emb_out
 
 # DEBUG
 if __name__ == "__main__":
     import os
-    from dataset import MyDataset, my_collate_fn
-    from dgl.dataloading import GraphDataLoader
+    from dataset import MyDataset, my_collate_fn_v2
+    from torch.utils.data import Dataset, DataLoader
     # 设置工作目录为项目文件夹
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     os.chdir("..")
     device = torch.device("cuda:0")
-    model = StructEncoder(cross_gate=True)
+    model = StructEncoderv2(1280,1280)
     model = model.to(device)
     model.train()
     
-    ds = MyDataset("HUMAN")
-    dl = GraphDataLoader(ds, batch_size=2, shuffle=True, collate_fn=my_collate_fn)
+    ds = MyDataset("CAFA3_train", "cc", target_device=device, go_max_percent=1.0, go_min_count=1)
+    dl = DataLoader(ds, batch_size=8, shuffle=True, collate_fn=my_collate_fn_v2)
     # [debug] dgl只有存取多图的函数，所以必须取下标
-    for pid, _, batched_graph, _, _  in dl:
+    for pid, batched_graph, _, _  in dl:
         batched_graph = batched_graph.to(device)
-        glob,part = model(batched_graph)
+        print(batched_graph)
+        emb = model(batched_graph)
+        print(emb.shape)
         break
     print("-----------------")
-    print(glob)
-    print(part)
+    print(emb)

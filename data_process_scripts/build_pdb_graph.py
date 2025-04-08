@@ -100,6 +100,12 @@ def get_graph_info(pdbfilepath):
     model = struct.get_models().__next__()
     graph = dgl.DGLGraph()
     
+    peptide_cnt = 0
+    ss_cnt = 0
+    close_cnt = 0
+    res_list = []
+    ca_pos_list = []
+    sg_pos_list = []
     # i,j表示当前氨基酸的序号
     i = 0
     for chain in model.get_chains():
@@ -110,12 +116,19 @@ def get_graph_info(pdbfilepath):
         las_O = 0
         for residue in residues:
             res_name = three2one[residue.get_resname()]
+            res_list.append(res_name)
             # pos: [node_nums,6,3]
             pos_feature = []
             pos_feature.append(torch.from_numpy(residue['N'].get_coord()))
             pos_feature.append(torch.from_numpy(residue['CA'].get_coord()))
             pos_feature.append(torch.from_numpy(residue['C'].get_coord()))
             pos_feature.append(torch.from_numpy(residue['O'].get_coord()))
+            
+            ca_pos_list.append(torch.from_numpy(residue['CA'].get_coord()))
+            if res_name == "C":
+                sg_pos_list.append(torch.from_numpy(residue['SG'].get_coord()))
+            else:
+                sg_pos_list.append(torch.tensor([1e9,1e9,1e9]))
             N = residue['N'].get_coord()
             CA = residue['CA'].get_coord()
             C = residue['C'].get_coord()
@@ -131,68 +144,64 @@ def get_graph_info(pdbfilepath):
                 bond_feature = torch.cat([Peptide_bond_feature,peptide_plane],dim=0)
                 graph.add_edges(torch.tensor([i-1]), torch.tensor([i]), {'feat': bond_feature.unsqueeze(0)})
                 graph.add_edges(torch.tensor([i]), torch.tensor([i-1]), {'feat': bond_feature.unsqueeze(0)})
+                peptide_cnt += 1
             i += 1
             chain_start_flag = 0
             las_C = C
             las_O = O
-    i = 0
-    for residue1 in model.get_residues():
-        j = 0
-        for residue2 in model.get_residues():
-            if j <= i:
-                continue
-            res_name1 = three2one[residue1.get_resname()]
-            res_name2 = three2one[residue2.get_resname()]
+    
+    n = len(res_list)
+    for i in range(n):
+        res1 = res_list[i]
+        Cpos1 = ca_pos_list[i]
+        ca_pos_tensor = torch.stack(ca_pos_list)
+        dis_tensor = torch.norm(ca_pos_tensor-Cpos1,dim=1)
+        j_tensor = torch.where(dis_tensor < thresh_aa)[0]
+        cadidate_num = j_tensor.shape[0]
+        # print(cadidate_num)
+        bond_feature = torch.cat([Close_bond_feature.unsqueeze(0).expand(cadidate_num,-1), ca_pos_tensor[j_tensor] - Cpos1], dim=1)
+        # print(bond_feature.shape)
+        graph.add_edges(torch.tensor([i]*cadidate_num), j_tensor, {'feat': bond_feature})
+        close_cnt += cadidate_num
+        
+        if res1 == "C":
+            Spos1 = sg_pos_list[i]
+            sg_pos_tensor = torch.stack(sg_pos_list)
 
-            Cpos1 = torch.from_numpy(residue1['CA'].get_coord())
-            Cpos2 = torch.from_numpy(residue2['CA'].get_coord())
-            distance = float(torch.norm(Cpos1-Cpos2))
-            if distance <= thresh_aa:
-                bond_feature = torch.cat([Close_bond_feature,Cpos2-Cpos1],dim=0)
-                graph.add_edges(torch.tensor([i]), torch.tensor([j]), {'feat': bond_feature.unsqueeze(0)})
-                bond_feature = torch.cat([Close_bond_feature,Cpos1-Cpos2],dim=0)
-                graph.add_edges(torch.tensor([j]), torch.tensor([i]), {'feat': bond_feature.unsqueeze(0)})
-            
-            # 当枚举的两个氨基酸均为半胱氨酸时，判断是否可能存在二硫键
-            if res_name1=='C' and res_name2=='C':
-                Spos1 = torch.from_numpy(residue1['SG'].get_coord())
-                Spos2 = torch.from_numpy(residue2['SG'].get_coord())
-                if float(torch.norm(Spos1-Spos2)) <= thresh_ss:
+            dis_tensor = torch.norm(sg_pos_tensor-Spos1,dim=1)
+            j_tensor = torch.where(dis_tensor < thresh_ss)[0]
+            for j in j_tensor:
+                j = j.item()
+                if i == j:
+                    continue
+                res2 = res_list[j]
+                # 当枚举的两个氨基酸均为半胱氨酸时，判断是否可能存在二硫键
+                if res2=='C':
+                    Spos2 = sg_pos_list[j]
                     bond_feature = torch.cat([Disulfide_bond_feature,Spos2-Spos1],dim=0)
                     graph.add_edges(torch.tensor([i]), torch.tensor([j]), {'feat': bond_feature.unsqueeze(0)})
-                    bond_feature = torch.cat([Disulfide_bond_feature,Spos1-Spos2],dim=0)
-                    graph.add_edges(torch.tensor([j]), torch.tensor([i]), {'feat': bond_feature.unsqueeze(0)})
-                
-            j += 1
-        i += 1
+                    ss_cnt += 1
+    print("edge cnt(pep, ss, close):",peptide_cnt, ss_cnt, close_cnt," => ",peptide_cnt*2+ss_cnt+close_cnt)
+    print("edge_data:",graph.edata["feat"].shape)
     return graph
 
 with open("config/global.conf","r") as f:
     global_var = json.load(f)
 species_name = global_var["species_name"]
+
+with open(os.path.join("processed_data",species_name+"_protein_info.json"),"r") as f:
+    protein_info = json.load(f)
 pdb_data_dir = os.path.join('raw_data',species_name,'pdb')
 save_dir = os.path.join('dataset',species_name)
 save_dir_list = os.listdir(save_dir)
 model_fnum_log = {}
-for filename in tqdm(os.listdir(pdb_data_dir)):
-    if filename.endswith('.pdb'):
-        protein_name=filename.split('-')[1]
-        fnum = int(filename.split('-')[2][1:])
-        # 需要合并多个模型
-        if fnum != 1:
-            continue
-        
-        model_fnum_log[protein_name] = fnum
-        
-        # 为保证数据集完整性,暂时不考虑没有Uniprot序列记录的数据
-        if protein_name not in save_dir_list:
-            print("Warning: ",protein_name," dosen't exist directory to save file")
-            # os.mkdir(os.path.join(save_dir,protein_name))
-            continue
-        
-        graph = get_graph_info(os.path.join(pdb_data_dir, filename))
-        print(filename)
-        print(graph)
-        dgl.save_graphs(os.path.join(save_dir,protein_name,'struct.dgl'),graph)
+for pid in tqdm(protein_info):
+    filename="AF-{}-F1-model_v4.pdb".format(pid)
+    
+    graph = get_graph_info(os.path.join(pdb_data_dir, filename))
+    # print(filename)
+    # print(graph)
+    dgl.save_graphs(os.path.join(save_dir,pid,'struct.dgl'),graph)
+    # break
 
 print(len(model_fnum_log))

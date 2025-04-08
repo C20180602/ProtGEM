@@ -32,8 +32,8 @@ with open("config/global.conf","r") as f:
 species_name = global_var["species_name"]
 
 # 读取模型超参数
-protein_model_conf_path = os.path.join("config","ProteinEncoder2.conf")
-go_model_conf_path = os.path.join("config","GoEncoder2.conf")
+protein_model_conf_path = os.path.join("config","ProteinEncoder.conf")
+go_model_conf_path = os.path.join("config","GoEncoder.conf")
 with open(protein_model_conf_path,"r") as f:
     pm_param = json.load(f)
 with open(go_model_conf_path,"r") as f:
@@ -71,7 +71,7 @@ go_graph = go_graph.to(device)
 
 # 初始化模型 （所有模型都默认使用参数初始化）
 pg_model = ProteinGoModel(pm_param, gm_param)
-pg_model.gm.load_model("model_params/go_pretrain_model.pth")
+pg_model.gm.load_model("model_params/v2_on_cafa3/go_pretrain_model.pth")
 pg_model.to(device)
 
 # 初始化数据集并进行划分

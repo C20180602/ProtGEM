@@ -51,14 +51,6 @@ go_max_percent = train_param["go_max_percent"]
 go_min_count = train_param["go_min_count"]
 
 # 读取必要的数据
-with open(os.path.join("processed_data","go_terms.json"),"r") as f:
-    go_terms = json.load(f)
-ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_function":"mf"}
-ns_ids = {"bp":[],"cc":[],"mf":[]}
-for i,go in enumerate(go_terms):
-    ns_ids[ns_map[go["namespace"]]].append(i)
-actual_ns = {"bp":[],"cc":[],"mf":[]}
-pred_ns = {"bp":[],"cc":[],"mf":[]}
 with open(os.path.join("dataset","go_graph_dgl.pkl"),"rb") as f:
     go_graph = pickle.load(f)
 with open(os.path.join("dataset","go_graph_nx.pkl"),"rb") as f:
@@ -72,7 +64,7 @@ for ont in ["bp","cc","mf"]:
     pg_model.load_model("model_params/pg_model_{}.pth".format(ont))
     pg_model.to(device)
 
-    ds = MyDataset(species_name, device, go_max_percent, go_min_count, use_cache=True)
+    ds = MyDataset(species_name, ont, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=True)
     test_indices = np.load(os.path.join("dataset","{}_{}_test_indices.npy".format(species_name,ont))).tolist()
     for idx in test_indices:
         if idx > len(ds):
@@ -84,12 +76,6 @@ for ont in ["bp","cc","mf"]:
 
     go_idx = torch.tensor(ds.balanced_go_list).to(device)
     balanced_go_map_inv = ds.balanced_go_map_inv
-    for ns in ns_ids:
-        new_ids = []
-        for go in ns_ids[ns]:
-            if go in balanced_go_map_inv:
-                new_ids.append(balanced_go_map_inv[go])
-        ns_ids[ns] = new_ids
 
     ds.show_dataset_info(logger)
     summary(pg_model)
@@ -98,9 +84,7 @@ for ont in ["bp","cc","mf"]:
     logger.info(test_param)
     logger.info(pm_param)
     logger.info(gm_param)
-    logger.info(f"bp_cnt:{len(ns_ids['bp'])}")
-    logger.info(f"cc_cnt:{len(ns_ids['cc'])}")
-    logger.info(f"mf_cnt:{len(ns_ids['mf'])}")
+    logger.info("GO_term num:"+str(len(ds.balanced_go_list)))
     logger.info("Start Testing!")
 
     pg_model.eval()
@@ -122,9 +106,5 @@ for ont in ["bp","cc","mf"]:
                 predict_matrix = predict_matrix.transpose(1,0)
                 pred += predict_matrix.tolist()
                 actual += labels.tolist()
-                if ablation_feature == []:
-                    for ns in ns_ids:
-                        ids = ns_ids[ns]
-                        pred_ns[ns] += predict_matrix[:,ids].tolist()
-                        actual_ns[ns] += labels[:,ids].tolist()
+
         cal_metrics(pred, actual, logger)

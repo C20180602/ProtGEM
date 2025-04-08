@@ -52,7 +52,7 @@ for filename in tqdm(os.listdir(pdb_data_dir), desc="Read sequences from PDB fil
     pdbfilepath = os.path.join(pdb_data_dir, filename)
     seq = get_seq_info(pdbfilepath)
     # 过滤过长的蛋白质
-    if len(seq)>5000:
+    if len(seq)>1022:
         continue
     # 读取完序列数据之后 初始化该蛋白质对应的dict
     uniprot_id = filename.split('-')[1]

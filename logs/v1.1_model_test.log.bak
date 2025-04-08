@@ -1,0 +1,174 @@
+2025-04-05 17:53:59,076 global INFO Dataset Info:
+2025-04-05 17:53:59,076 global INFO Species:CAFA3_train ontology:bp
+2025-04-05 17:53:59,076 global INFO Protein Num: 48950
+2025-04-05 17:53:59,076 global INFO Protein Length: Max: 2699, Min: 16, Avg: 524.35
+2025-04-05 17:53:59,076 global INFO Domain Num: Max: 29, Min: 0, Avg: 4.73
+2025-04-05 17:53:59,076 global INFO GO Terms: Max: 678, Min: 2, Avg: 52.30
+2025-04-05 17:53:59,076 global INFO Balanced GO List length: 17824
+2025-04-05 17:53:59,085 global INFO Parameters INFO:
+2025-04-05 17:53:59,085 global INFO {'batch_size': 8}
+2025-04-05 17:53:59,085 global INFO {'final_out_dim': 1024, 'final_hid_dim': 2048, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 3, 'conv_gvp_layers': 2, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-04-05 17:53:59,085 global INFO {'vocab_dim': 42093, 'emb_dim': 1024}
+2025-04-05 17:53:59,085 global INFO GO_term num:17824
+2025-04-05 17:53:59,085 global INFO Start Testing!
+2025-04-05 17:53:59,085 global INFO ablation_feature: []
+2025-04-05 18:02:31,054 global INFO AUC: 0.9600221796572164
+2025-04-05 18:02:31,054 global INFO AUPR: 0.35469435589040094
+2025-04-05 18:02:31,179 global INFO Fmax: 0.39502724953390483
+2025-04-05 18:02:31,179 global INFO thresh: 0.35652074217796326
+2025-04-05 18:02:31,183 global INFO ablation_feature: ['seq']
+2025-04-05 18:11:00,342 global INFO AUC: 0.9600229932293787
+2025-04-05 18:11:00,342 global INFO AUPR: 0.3546815415770487
+2025-04-05 18:11:00,466 global INFO Fmax: 0.39503151794084257
+2025-04-05 18:11:00,466 global INFO thresh: 0.35632380843162537
+2025-04-05 18:11:00,471 global INFO ablation_feature: ['struct']
+2025-04-05 18:19:26,047 global INFO AUC: 0.9594021402030563
+2025-04-05 18:19:26,047 global INFO AUPR: 0.3488472479699714
+2025-04-05 18:19:26,161 global INFO Fmax: 0.3916795799824912
+2025-04-05 18:19:26,161 global INFO thresh: 0.36583805084228516
+2025-04-05 18:19:26,165 global INFO ablation_feature: ['domain']
+2025-04-05 18:27:44,543 global INFO AUC: 0.9395534327903319
+2025-04-05 18:27:44,544 global INFO AUPR: 0.17386845739109744
+2025-04-05 18:27:44,546 global INFO Fmax: 0.22639878014325965
+2025-04-05 18:27:44,546 global INFO thresh: 0.2380625456571579
+2025-04-05 18:27:44,550 global INFO ablation_feature: ['seq', 'struct']
+2025-04-05 18:35:50,695 global INFO AUC: 0.9593928224450624
+2025-04-05 18:35:50,695 global INFO AUPR: 0.34893874969288574
+2025-04-05 18:35:50,811 global INFO Fmax: 0.3918300593804774
+2025-04-05 18:35:50,811 global INFO thresh: 0.36660999059677124
+2025-04-05 18:35:50,816 global INFO ablation_feature: ['seq', 'domain']
+2025-04-05 18:43:50,100 global INFO AUC: 0.9395475624292632
+2025-04-05 18:43:50,100 global INFO AUPR: 0.17360206668921602
+2025-04-05 18:43:50,102 global INFO Fmax: 0.226290088567924
+2025-04-05 18:43:50,102 global INFO thresh: 0.23744750022888184
+2025-04-05 18:43:50,106 global INFO ablation_feature: ['struct', 'domain']
+2025-04-05 18:51:57,399 global INFO AUC: 0.9213451672532911
+2025-04-05 18:51:57,399 global INFO AUPR: 0.08085712267812566
+2025-04-05 18:51:57,399 global INFO Fmax: 0.12967776064942746
+2025-04-05 18:51:57,400 global INFO thresh: 0.10012874752283096
+2025-04-05 18:51:57,402 global INFO ablation_feature: ['glob']
+2025-04-05 19:00:14,272 global INFO AUC: 0.9204353411436754
+2025-04-05 19:00:14,272 global INFO AUPR: 0.07909629733602283
+2025-04-05 19:00:14,275 global INFO Fmax: 0.12969192076816025
+2025-04-05 19:00:14,275 global INFO thresh: 0.08094415813684464
+2025-04-05 19:00:14,280 global INFO ablation_feature: ['part']
+2025-04-05 19:08:38,782 global INFO AUC: 0.9597639775663787
+2025-04-05 19:08:38,782 global INFO AUPR: 0.3532685559998682
+2025-04-05 19:08:38,899 global INFO Fmax: 0.3941500446466371
+2025-04-05 19:08:38,899 global INFO thresh: 0.3590788245201111
+2025-04-05 19:08:45,594 global INFO Dataset Info:
+2025-04-05 19:08:45,594 global INFO Species:CAFA3_train ontology:cc
+2025-04-05 19:08:45,594 global INFO Protein Num: 48099
+2025-04-05 19:08:45,594 global INFO Protein Length: Max: 2697, Min: 16, Avg: 519.39
+2025-04-05 19:08:45,594 global INFO Domain Num: Max: 29, Min: 0, Avg: 4.59
+2025-04-05 19:08:45,594 global INFO GO Terms: Max: 678, Min: 2, Avg: 47.88
+2025-04-05 19:08:45,594 global INFO Balanced GO List length: 2245
+2025-04-05 19:08:45,602 global INFO Parameters INFO:
+2025-04-05 19:08:45,602 global INFO {'batch_size': 8}
+2025-04-05 19:08:45,602 global INFO {'final_out_dim': 1024, 'final_hid_dim': 2048, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 3, 'conv_gvp_layers': 2, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-04-05 19:08:45,602 global INFO {'vocab_dim': 42093, 'emb_dim': 1024}
+2025-04-05 19:08:45,602 global INFO GO_term num:2245
+2025-04-05 19:08:45,602 global INFO Start Testing!
+2025-04-05 19:08:45,603 global INFO ablation_feature: []
+2025-04-05 19:10:18,287 global INFO AUC: 0.9864498184580641
+2025-04-05 19:10:18,287 global INFO AUPR: 0.6920249060932866
+2025-04-05 19:10:18,334 global INFO Fmax: 0.6414854763753743
+2025-04-05 19:10:18,335 global INFO thresh: 0.529068648815155
+2025-04-05 19:10:18,336 global INFO ablation_feature: ['seq']
+2025-04-05 19:11:29,856 global INFO AUC: 0.9864745551750146
+2025-04-05 19:11:29,856 global INFO AUPR: 0.6916705791376156
+2025-04-05 19:11:29,898 global INFO Fmax: 0.6407324222571237
+2025-04-05 19:11:29,898 global INFO thresh: 0.5249239802360535
+2025-04-05 19:11:29,899 global INFO ablation_feature: ['struct']
+2025-04-05 19:12:52,008 global INFO AUC: 0.9863939288531279
+2025-04-05 19:12:52,009 global INFO AUPR: 0.6896842414143449
+2025-04-05 19:12:52,055 global INFO Fmax: 0.6395937243310361
+2025-04-05 19:12:52,055 global INFO thresh: 0.5409717559814453
+2025-04-05 19:12:52,056 global INFO ablation_feature: ['domain']
+2025-04-05 19:14:11,872 global INFO AUC: 0.9707104681713342
+2025-04-05 19:14:11,873 global INFO AUPR: 0.5598898173789671
+2025-04-05 19:14:11,893 global INFO Fmax: 0.5572542039437756
+2025-04-05 19:14:11,893 global INFO thresh: 0.530275285243988
+2025-04-05 19:14:11,894 global INFO ablation_feature: ['seq', 'struct']
+2025-04-05 19:15:17,857 global INFO AUC: 0.9857654373892866
+2025-04-05 19:15:17,858 global INFO AUPR: 0.6803585890845247
+2025-04-05 19:15:17,902 global INFO Fmax: 0.6326630477080062
+2025-04-05 19:15:17,902 global INFO thresh: 0.5421025156974792
+2025-04-05 19:15:17,904 global INFO ablation_feature: ['seq', 'domain']
+2025-04-05 19:16:23,898 global INFO AUC: 0.9703315109034909
+2025-04-05 19:16:23,898 global INFO AUPR: 0.56075346032143
+2025-04-05 19:16:23,898 global INFO Fmax: 0.5572542039437756
+2025-04-05 19:16:23,899 global INFO thresh: 0.5252972841262817
+2025-04-05 19:16:23,899 global INFO ablation_feature: ['struct', 'domain']
+2025-04-05 19:17:38,761 global INFO AUC: 0.9684415915894561
+2025-04-05 19:17:38,762 global INFO AUPR: 0.5560987440890299
+2025-04-05 19:17:38,797 global INFO Fmax: 0.5659492971852125
+2025-04-05 19:17:38,797 global INFO thresh: 0.455077588558197
+2025-04-05 19:17:38,798 global INFO ablation_feature: ['glob']
+2025-04-05 19:19:02,377 global INFO AUC: 0.927097179828972
+2025-04-05 19:19:02,378 global INFO AUPR: 0.2549216014337755
+2025-04-05 19:19:02,380 global INFO Fmax: 0.29005729947028375
+2025-04-05 19:19:02,380 global INFO thresh: 0.3578355610370636
+2025-04-05 19:19:02,380 global INFO ablation_feature: ['part']
+2025-04-05 19:20:27,187 global INFO AUC: 0.9864729714784476
+2025-04-05 19:20:27,187 global INFO AUPR: 0.692056092194443
+2025-04-05 19:20:27,233 global INFO Fmax: 0.6411088332887087
+2025-04-05 19:20:27,233 global INFO thresh: 0.5247266888618469
+2025-04-05 19:20:30,931 global INFO Dataset Info:
+2025-04-05 19:20:30,932 global INFO Species:CAFA3_train ontology:mf
+2025-04-05 19:20:30,932 global INFO Protein Num: 34126
+2025-04-05 19:20:30,932 global INFO Protein Length: Max: 2696, Min: 16, Avg: 528.37
+2025-04-05 19:20:30,932 global INFO Domain Num: Max: 29, Min: 0, Avg: 5.01
+2025-04-05 19:20:30,932 global INFO GO Terms: Max: 678, Min: 2, Avg: 56.73
+2025-04-05 19:20:30,932 global INFO Balanced GO List length: 6037
+2025-04-05 19:20:30,940 global INFO Parameters INFO:
+2025-04-05 19:20:30,940 global INFO {'batch_size': 8}
+2025-04-05 19:20:30,940 global INFO {'final_out_dim': 1024, 'final_hid_dim': 2048, 'fusion_layers': 1, 'fusion_att_heads': 2, 'fusion_hid_dim': 512, 'fusion_dropout': 0.5, 'model_args': {'SeqEncoder': {'in_dim': 1280, 'n_heads': 2, 'layer_cnt': 1, 'ffn_hid_dim': 1280, 'global_dims': 1024, 'part_dims': 256, 'dropout': 0.5}, 'StructEncoder': {'global_dims': 1024, 'part_dims': 256, 'in_dims': [46, 6], 'out_dims': [46, 6], 'edge_dims': [6, 0], 'global_refer_nodes': 5, 'num_layers': 3, 'conv_gvp_layers': 2, 'ffn_gvp_layers': 2, 'dropout': 0.5, 'h_dim': None, 'cross_gate': True}, 'DomainEncoder': {'in_dims': 46061, 'global_dims': 1024, 'part_dims': 256}}}
+2025-04-05 19:20:30,940 global INFO {'vocab_dim': 42093, 'emb_dim': 1024}
+2025-04-05 19:20:30,940 global INFO GO_term num:6037
+2025-04-05 19:20:30,940 global INFO Start Testing!
+2025-04-05 19:20:30,940 global INFO ablation_feature: []
+2025-04-05 19:22:17,159 global INFO AUC: 0.9770779164290981
+2025-04-05 19:22:17,160 global INFO AUPR: 0.6384845587890926
+2025-04-05 19:22:17,236 global INFO Fmax: 0.6164955748784421
+2025-04-05 19:22:17,237 global INFO thresh: 0.48443499207496643
+2025-04-05 19:22:17,239 global INFO ablation_feature: ['seq']
+2025-04-05 19:23:49,380 global INFO AUC: 0.9769707059667697
+2025-04-05 19:23:49,380 global INFO AUPR: 0.638458697792045
+2025-04-05 19:23:49,460 global INFO Fmax: 0.6162423171646887
+2025-04-05 19:23:49,460 global INFO thresh: 0.4802550971508026
+2025-04-05 19:23:49,462 global INFO ablation_feature: ['struct']
+2025-04-05 19:25:29,318 global INFO AUC: 0.9760796238128892
+2025-04-05 19:25:29,318 global INFO AUPR: 0.6324187431042892
+2025-04-05 19:25:29,396 global INFO Fmax: 0.6125447979480853
+2025-04-05 19:25:29,397 global INFO thresh: 0.5007126927375793
+2025-04-05 19:25:29,399 global INFO ablation_feature: ['domain']
+2025-04-05 19:27:07,225 global INFO AUC: 0.9281855733474682
+2025-04-05 19:27:07,226 global INFO AUPR: 0.24971158797012516
+2025-04-05 19:27:07,266 global INFO Fmax: 0.31123974849527
+2025-04-05 19:27:07,266 global INFO thresh: 0.4257078766822815
+2025-04-05 19:27:07,268 global INFO ablation_feature: ['seq', 'struct']
+2025-04-05 19:28:35,885 global INFO AUC: 0.9756280607976261
+2025-04-05 19:28:35,885 global INFO AUPR: 0.6306899044820473
+2025-04-05 19:28:35,967 global INFO Fmax: 0.611611315944058
+2025-04-05 19:28:35,967 global INFO thresh: 0.49039721488952637
+2025-04-05 19:28:35,969 global INFO ablation_feature: ['seq', 'domain']
+2025-04-05 19:30:02,096 global INFO AUC: 0.926659034725311
+2025-04-05 19:30:02,096 global INFO AUPR: 0.2353008808728818
+2025-04-05 19:30:02,097 global INFO Fmax: 0.2818772231891038
+2025-04-05 19:30:02,097 global INFO thresh: 0.38884174823760986
+2025-04-05 19:30:02,098 global INFO ablation_feature: ['struct', 'domain']
+2025-04-05 19:31:36,621 global INFO AUC: 0.9305324369795309
+2025-04-05 19:31:36,622 global INFO AUPR: 0.26874855582388857
+2025-04-05 19:31:36,672 global INFO Fmax: 0.3309714595472903
+2025-04-05 19:31:36,672 global INFO thresh: 0.44928282499313354
+2025-04-05 19:31:36,674 global INFO ablation_feature: ['glob']
+2025-04-05 19:33:17,475 global INFO AUC: 0.8626526770390898
+2025-04-05 19:33:17,475 global INFO AUPR: 0.05855911395095324
+2025-04-05 19:33:17,485 global INFO Fmax: 0.19200258009225066
+2025-04-05 19:33:17,485 global INFO thresh: 0.31538236141204834
+2025-04-05 19:33:17,486 global INFO ablation_feature: ['part']
+2025-04-05 19:34:59,596 global INFO AUC: 0.9770767617759263
+2025-04-05 19:34:59,596 global INFO AUPR: 0.6388775028577525
+2025-04-05 19:34:59,677 global INFO Fmax: 0.6165610267946615
+2025-04-05 19:34:59,677 global INFO thresh: 0.47553080320358276

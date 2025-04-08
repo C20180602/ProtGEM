@@ -114,7 +114,7 @@ class MyDataset(Dataset):
         
         print("processing dataset...")
         species_path = os.path.join("dataset",species_name)
-        protein_list = os.listdir(species_path)
+        protein_list = list(self.protein_info.keys())
         self.data_info = []
         for pname in tqdm(protein_list):
             seq_path = os.path.join(species_path,pname,"seq_emb.pkl")
@@ -293,3 +293,28 @@ def my_collate_fn(batch):
     labels = torch.stack(labels)
 
     return pnames, padded_seq_embs, batched_graph, [glob_dm_id, glob_dm_offset, plens, domain_lists], labels
+
+def my_collate_fn_v2(batch):
+    pnames, plens, seq_embs, struct_graphs, domain_lists, domain_id_lists, labels = zip(*batch)
+    
+    # 处理seq_emb，并入graph中
+    for seq_emb, struct_graph in zip(seq_embs,struct_graphs):
+        struct_graph.ndata["esm"] = seq_emb
+        struct_graph = dgl.add_self_loop(struct_graph)
+    
+    # 结构图处理为batch_graph
+    batched_graph = dgl.batch(struct_graphs)
+    
+    # domain处理
+    glob_dm_id = torch.cat(domain_id_lists)
+    glob_dm_offset = []
+    offset = 0
+    for domain_id_list in domain_id_lists:
+        glob_dm_offset.append(offset)
+        offset += domain_id_list.shape[0]
+    glob_dm_offset = torch.tensor(glob_dm_offset, dtype=torch.long, device=glob_dm_id.device)
+    
+    # label处理
+    labels = torch.stack(labels)
+
+    return pnames, batched_graph, [glob_dm_id, glob_dm_offset, plens, domain_lists], labels

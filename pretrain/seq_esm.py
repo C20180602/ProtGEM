@@ -25,8 +25,11 @@ for p in model.parameters():
     p.requires_grad = False
 model.eval()
 
+# 读取全局变量
+with open("config/global.conf","r") as f:
+    global_var = json.load(f)
+species_name = global_var["species_name"]
 # 读取预处理后的文件
-species_name = "CAFA3_train"
 with open(os.path.join("processed_data",species_name+"_protein_info.json"),'r') as f:
     protein_info = json.load(f)
 
