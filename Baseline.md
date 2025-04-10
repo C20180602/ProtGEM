@@ -88,10 +88,24 @@ raw_data的文件夹结构：
 
 ## 模型训练
 
-模型文件均保存在model_params文件夹中
+1、运行train_go_emb.py，预训练go的初始嵌入，得到go_pretrain_model模型，保存在model_params文件夹中
 
-1、运行train_go_emb.py，预训练go的初始嵌入，得到go_pretrain_model模型
+2、运行train.py，训练protein_model模型和go_model模型，输出内容在workspace_{species_name}_{model_name}中
 
-2、运行train.py，训练protein_model模型和go_model模型
+CUDA_VISIBLE_DEVICES=0 python train.py -o bp -t v1.1 -n model_v1.1 -s HUMAN
+CUDA_VISIBLE_DEVICES=1 python train.py -o cc -t v1.1 -n model_v1.1 -s HUMAN
+CUDA_VISIBLE_DEVICES=2 python train.py -o mf -t v1.1 -n model_v1.1 -s HUMAN
+
+CUDA_VISIBLE_DEVICES=0 python train.py -o bp -t v1.1 -n model_v1.1 -s CAFA3
+CUDA_VISIBLE_DEVICES=1 python train.py -o cc -t v1.1 -n model_v1.1 -s CAFA3
+CUDA_VISIBLE_DEVICES=2 python train.py -o mf -t v1.1 -n model_v1.1 -s CAFA3
 
 3、运行test.py，得到测试集结果与消融实验结果。
+
+CUDA_VISIBLE_DEVICES=0 python test.py -o bp -s HUMAN -n model_v1.1 -t v1.1
+CUDA_VISIBLE_DEVICES=1 python test.py -o cc -s HUMAN -n model_v1.1 -t v1.1
+CUDA_VISIBLE_DEVICES=2 python test.py -o mf -s HUMAN -n model_v1.1 -t v1.1
+
+CUDA_VISIBLE_DEVICES=0 python test.py -o bp -s CAFA3 -n model_v1.1 -t v1.1
+CUDA_VISIBLE_DEVICES=1 python test.py -o cc -s CAFA3 -n model_v1.1 -t v1.1
+CUDA_VISIBLE_DEVICES=2 python test.py -o mf -s CAFA3 -n model_v1.1 -t v1.1

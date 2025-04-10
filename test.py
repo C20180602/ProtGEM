@@ -1,6 +1,8 @@
 import os
 import json
 import pickle
+import click
+from pathlib import Path
 
 import torch
 import torch.utils.data
@@ -12,84 +14,91 @@ from torch import nn
 from torchinfo import summary
 from torch.utils.data import Dataset, DataLoader, Subset
 from tqdm import tqdm
-from model.dataset import MyDataset, my_collate_fn, probablity_propagate
-from model.framework import ContrastLoss, ProteinGoModel
+from model.dataset import MyDataset, my_collate_fn, my_collate_fn_v2, probablity_propagate
+from model.framework import ContrastLoss, ProteinGoModel, ProteinGoModelv2
 
-from utils import init_logger, cal_metrics 
+from utils import init_logger, cal_metrics, load_config_clone
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+default_pm_conf = {"v1.1":Path("config","ProteinEncoder.conf"), "v2":Path("config","ProteinEncoder2.conf")}
+default_gm_conf = {"v1.1":Path("config","GoEncoder.conf"), "v2":Path("config","GoEncoder2.conf")}
 
-logger = init_logger(os.path.join('logs','test_protein.log'))
+@click.command()
+@click.option('-o', '--ont', type=click.Choice(['bp', 'cc', 'mf', 'all']), default='mf')
+@click.option('-s', '--species-name', type=click.STRING, default='HUMAN')
+@click.option('-n', '--model-name', type=click.STRING, default='model_v1.1')
+@click.option('-t', '--model-type', type=click.Choice(['v1.1','v2']), default='v1.1')
+@click.option('-thresh', '--thresh', type=click.FLOAT, default=None)
+def main(ont, species_name, model_name, model_type, thresh):
+    workspace_dir = Path("workspace",species_name,model_name)
+    log_dir = Path(workspace_dir,"log")
+    idx_dir = Path(workspace_dir,"idx")
+    cache_dir = Path(workspace_dir,"cache")
+    config_dir = Path(workspace_dir,"config")
+    model_param_dir = Path(workspace_dir,"model_param")
 
-# 设置设备编号(需要使用CUDA_VISIBLE_DEVICES设置)
-device = torch.device("cuda:0")
-
-# 读取全局变量
-with open("config/global.conf","r") as f:
-    global_var = json.load(f)
-species_name = global_var["species_name"]
-
-# 读取模型超参数
-protein_model_conf_path = os.path.join("config","ProteinEncoder.conf")
-go_model_conf_path = os.path.join("config","GoEncoder.conf")
-with open(protein_model_conf_path,"r") as f:
-    pm_param = json.load(f)
-with open(go_model_conf_path,"r") as f:
-    gm_param = json.load(f)
+    # 设置设备编号(需要使用CUDA_VISIBLE_DEVICES设置)
+    device = torch.device("cuda:0")
     
-# 读取测试设置的参数
-test_conf_path = os.path.join("config","test.conf")
-with open(test_conf_path,"r") as f:
-    test_param = json.load(f)
-batch_size = test_param["batch_size"]
+    # 初始化日志
+    logger = init_logger(Path(log_dir, 'test_{}.log'.format(ont)))
 
-# 读取train中的数据集设置
-train_conf_path = os.path.join("config","train.conf")
-with open(train_conf_path,"r") as f:
-    train_param = json.load(f)
-go_max_percent = train_param["go_max_percent"]
-go_min_count = train_param["go_min_count"]
-
-# 读取必要的数据
-with open(os.path.join("dataset","go_graph_dgl.pkl"),"rb") as f:
-    go_graph = pickle.load(f)
-with open(os.path.join("dataset","go_graph_nx.pkl"),"rb") as f:
-    go_graph_nx = pickle.load(f)
-topo_order = list(nx.topological_sort(go_graph_nx))
-go_graph = go_graph.to(device)
-
-# 初始化模型
-for ont in ["bp","cc","mf"]:
-    pg_model = ProteinGoModel(pm_param, gm_param)
-    pg_model.load_model("model_params/pg_model_{}.pth".format(ont))
+    # 读取模型配置参数
+    pm_param = load_config_clone(default_pm_conf[model_type], config_dir)
+    gm_param = load_config_clone(default_gm_conf[model_type], config_dir)
+    # 初始化模型
+    if model_type == "v1.1":
+        pg_model = ProteinGoModel(pm_param, gm_param)
+        local_collate_fn = my_collate_fn
+        ablation_list = [[],["seq"],["struct"],["domain"],["glob"],["part"]]
+    else:
+        pg_model = ProteinGoModelv2(pm_param, gm_param)
+        local_collate_fn = my_collate_fn_v2
+        ablation_list = [[],["seq"],["struct"],["domain"]]
+    pg_model.load_model(Path(model_param_dir,"{}_model.pt".format(ont)))
     pg_model.to(device)
+    for p in pg_model.parameters():
+        p.requires_grad = False
+    pg_model.eval()
 
-    ds = MyDataset(species_name, ont, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=True)
-    test_indices = np.load(os.path.join("dataset","{}_{}_test_indices.npy".format(species_name,ont))).tolist()
-    for idx in test_indices:
-        if idx > len(ds):
-            print(idx,len(ds))
-            print("Error: test_indices out of range!")
-            exit(1)
+    # 测试集参数
+    test_default_conf_path = Path("config","test.conf")
+    test_param = load_config_clone(test_default_conf_path, config_dir)
+    batch_size = test_param["batch_size"]
+
+    # 读取train中的数据集设置
+    train_default_conf_path = Path("config","train.conf")
+    train_param = load_config_clone(train_default_conf_path, config_dir)
+    go_max_percent = train_param["go_max_percent"]
+    go_min_count = train_param["go_min_count"]
+
+    # 读取必要的数据
+    with open(Path("dataset","go_graph_nx.pkl"),"rb") as f:
+        go_graph_nx = pickle.load(f)
+    topo_order = list(nx.topological_sort(go_graph_nx))
+    
+    # 读取测试集
+    ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=True)
+    ds.show_dataset_info(logger)
+    test_indices = np.load(Path(idx_dir,f"{ont}_test_indices.npy")).tolist()
+    if max(test_indices) > len(ds):
+        logger.error(str(max(test_indices))+str(len(ds)))
+        logger.error("Error: test_indices out of range!")
+        exit(1)
     test_dataset = Subset(ds, test_indices)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_fn)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)
 
     go_idx = torch.tensor(ds.balanced_go_list).to(device)
     balanced_go_map_inv = ds.balanced_go_map_inv
 
-    ds.show_dataset_info(logger)
     summary(pg_model)
-
     logger.info("Parameters INFO:")
-    logger.info(test_param)
     logger.info(pm_param)
     logger.info(gm_param)
     logger.info("GO_term num:"+str(len(ds.balanced_go_list)))
     logger.info("Start Testing!")
 
-    pg_model.eval()
     ds.valid_mode()
-    ablation_list = [[],["seq"],["struct"],["domain"],["seq","struct"],["seq","domain"],["struct","domain"],["glob"],["part"]]
     for ablation_feature in ablation_list:
         logger.info("ablation_feature: "+str(ablation_feature))
         total = 0
@@ -106,5 +115,12 @@ for ont in ["bp","cc","mf"]:
                 predict_matrix = predict_matrix.transpose(1,0)
                 pred += predict_matrix.tolist()
                 actual += labels.tolist()
+        if ablation_feature == []:
+            auc_score, aupr_score, f1_score, _ = cal_metrics(pred, actual, thresh)
+            logger.info("AUC: {:.4f} AUPR: {:.4f} F1_score: {:.4f}".format(auc_score, aupr_score, f1_score))
+        else:
+            auc_score, aupr_score, fmax, tmp_thresh = cal_metrics(pred, actual)
+            logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, fmax, tmp_thresh))
 
-        cal_metrics(pred, actual, logger)
+if __name__ == '__main__':
+    main()

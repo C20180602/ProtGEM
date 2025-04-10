@@ -71,8 +71,8 @@ class ProteinGoModelv2(nn.Module):
             nn.Sigmoid()
         )
         
-    def forward(self, batched_graph, domain_info, go_idx, mask=None, ablation_feat = []):
-        protein_emb = self.pm( batched_graph, domain_info, mask, ablation_feat)
+    def forward(self, seq_embs, batched_graph, domain_info, go_idx, mask=None, ablation_feat = []):
+        protein_emb = self.pm(seq_embs, batched_graph, domain_info, mask, ablation_feat)
         go_emb = self.gm(go_idx)
         # protein_emb: [batch_size, hid_dim]
         # go_emb: [go_nums, hid_dim]

@@ -260,22 +260,23 @@ class StructEncoderv2(nn.Module):
     中间输出为batch( node(out_dims) )
     最后输出全局特征(batch,global_dims), 局部特征list((n,part_dims))
     '''
-    def __init__(self, in_dim=1280, hid_dim=1280, num_heads=4, num_layers=2, dropout=0.3): 
+    def __init__(self, in_dim=1280, hid_dim=1280, num_layers=2, dropout=0.3): 
         super(StructEncoderv2, self).__init__()
         self.in_dims = in_dim
         self.hid_dims = hid_dim
         self.out_dims = hid_dim
-        self.num_heads = num_heads
+        self.glob_dims = hid_dim
         self.num_layers = num_layers
+        assert in_dim == hid_dim
         
-        self.dropout = nn.Dropout(0.3)
+        self.dropout = nn.Dropout(dropout)
         
         self.conv_list = nn.ModuleList()
         self.lin_list = nn.ModuleList()
         self.bn_list = nn.ModuleList()
         for i in range(num_layers):
-            self.conv_list.add_module("conv_"+str(i),GATv2Conv(in_dim, hid_dim, num_heads))
-            self.lin_list.add_module("lin_"+str(i),nn.Linear(hid_dim*num_heads, hid_dim))
+            self.conv_list.add_module("conv_"+str(i),GraphConv(in_dim, hid_dim))
+            self.lin_list.add_module("lin_"+str(i),nn.Linear(hid_dim, hid_dim))
             self.bn_list.add_module("bn_"+str(i),nn.BatchNorm1d(hid_dim))
 
     def forward(self, bg):
@@ -286,7 +287,6 @@ class StructEncoderv2(nn.Module):
             pre_x = x
             x = F.elu(conv(bg, bn(x)))
             x = self.dropout(x)
-            x = x.view(bg.ndata["esm"].shape[0],-1)
             x = pre_x + F.elu(lin(x))
         
         bg.ndata["esm"] = x

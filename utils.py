@@ -1,6 +1,12 @@
 import os
+import json
 import logging
 import numpy as np
+from pathlib import Path
+
+import torch
+import torch.utils.data
+from torch.utils.data import Subset
 from sklearn import metrics
 from sklearn.metrics import roc_curve, auc
 
@@ -18,18 +24,61 @@ def init_logger(log_path):
     logger.addHandler(handler2)
     return logger
 
-def cal_metrics(pred, actual, logger):
+def cal_metrics(pred, actual, thresh=None):
     actual = np.array(actual).flatten()
     pred = np.array(pred).flatten()
     fpr, tpr, th = roc_curve(actual, pred, pos_label=1)
     auc_score = auc(fpr, tpr)
     precision, recall, pr_thresh = metrics.precision_recall_curve(actual, pred)
     aupr_score = metrics.auc(recall, precision)
-    logger.info("AUC: "+str(auc_score))
-    logger.info("AUPR: "+str(aupr_score))
     f1 = 2*precision*recall/(precision+recall+1e-8)
-    thresh = pr_thresh[np.argmax(f1)]
-    fmax = np.max(f1)
-    logger.info("Fmax: "+str(fmax))
-    logger.info("thresh: "+str(thresh))
+    if thresh is None:
+        thresh = pr_thresh[np.argmax(f1)]
+        fmax = np.max(f1)
+    else:
+        index = np.searchsorted(pr_thresh, thresh)
+        fmax = f1[index]
     return auc_score, aupr_score, fmax, thresh
+
+# 克隆config之后，只读取workspace中本地的config，便于记录每次的参数以单独调试
+def load_config_clone(default_conf_path, clone_dir_path):
+    clone_conf_path = Path(clone_dir_path,default_conf_path.name)
+    if not Path.exists(clone_conf_path):
+        os.system(f"cp {default_conf_path.resolve()} {clone_conf_path.resolve()}")
+    with open(clone_conf_path,"r") as f:
+        param = json.load(f)
+    return param
+
+def get_split_dataset(idx_dir, ont, ds, logger, train_p=0.9, valid_p=0.05, use_cache=True):
+    train_idx_path = Path(idx_dir,f"{ont}_train_indices.npy")
+    valid_idx_path = Path(idx_dir,f"{ont}_valid_indices.npy")
+    test_idx_path = Path(idx_dir,f"{ont}_test_indices.npy")
+    if (not Path.exists(train_idx_path)) or (not Path.exists(valid_idx_path)) or (not Path.exists(test_idx_path)) or use_cache==False:
+        logger.warning("resplit the dataset")
+        train_size = int(train_p*len(ds))
+        valid_size = int(valid_p*len(ds))
+        test_size = len(ds) - train_size - valid_size
+        train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(ds, [train_size, valid_size, test_size])
+        np.save(train_idx_path, train_dataset.indices)
+        np.save(valid_idx_path, valid_dataset.indices)
+        np.save(test_idx_path, test_dataset.indices)
+    else:
+        train_indices = np.load(train_idx_path).tolist()
+        valid_indices = np.load(valid_idx_path).tolist()
+        test_indices = np.load(test_idx_path).tolist()
+        if max(train_indices) > len(ds):
+            logger.error(str(max(train_indices))+str(len(ds)))
+            logger.error("Error: train_indices out of range!")
+            exit(1)
+        if max(valid_indices) > len(ds):
+            logger.error(str(max(valid_indices))+str(len(ds)))
+            logger.error("Error: valid_indices out of range!")
+            exit(1)
+        if max(test_indices) > len(ds):
+            logger.error(str(max(test_indices))+str(len(ds)))
+            logger.error("Error: test_indices out of range!")
+            exit(1)
+        train_dataset = Subset(ds, train_indices)
+        valid_dataset = Subset(ds, valid_indices)
+        test_dataset = Subset(ds, test_indices)
+    return train_dataset, valid_dataset, test_dataset

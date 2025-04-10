@@ -147,22 +147,22 @@ class ProteinEncoderv2(nn.Module):
         self.glob_scale = nn.Linear(self.total_dims, final_out_dim)
         self.final_out = nn.Linear(final_out_dim, final_out_dim)
         
-    def forward(self, batched_graph, domain_info, mask=None, ablation_feat = []):
+    def forward(self, seq_embs, batched_graph, domain_info, mask=None, ablation_feat = []):
         batch_size = batched_graph.batch_num_nodes().shape[0]
         
         # Ablation Study 消融实验
         if "seq" in ablation_feat:
             batched_graph.ndata["esm"] = torch.zeros((batched_graph.ndata["esm"].shape), device=seq_embs.device)
         
-        if "struct" not in ablation_feat:
-            struct_emb = self.struct_enc(batched_graph)
-        else:
+        if "struct" in ablation_feat:
             struct_emb = torch.zeros(batch_size, self.struct_enc.glob_dims, device=batched_graph.device)
-        
-        if "domain" not in ablation_feat:
-            domain_emb, _ = self.domain_enc(*domain_info)
         else:
+            struct_emb = self.struct_enc(batched_graph)
+        
+        if "domain" in ablation_feat:
             domain_emb = torch.zeros(batch_size, self.domain_enc.glob_dims, device=domain_info[0].device)
+        else:
+            domain_emb, _ = self.domain_enc(*domain_info)
         
         emb = torch.cat([struct_emb, domain_emb],dim=1)
         emb = self.glob_scale(emb)

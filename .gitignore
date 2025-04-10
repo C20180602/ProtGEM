@@ -8,6 +8,7 @@ dmis-lab/
 *.pth
 *.log
 /model_params/v1
+/workspace
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

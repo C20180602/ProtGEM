@@ -2,12 +2,14 @@ import os
 import json
 import queue
 import pickle
+from pathlib import Path
+from tqdm import tqdm
+
 import networkx as nx
 import torch
 import dgl
 import numpy as np
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
 # use BFS to propagate goterms O(n)
 def propagate(go_list, go_graph:nx.DiGraph):
@@ -69,7 +71,7 @@ def probablity_propagate(prob_vector, go_graph:nx.DiGraph, topo_order, balanced_
     return prob_vector
 
 class MyDataset(Dataset):
-    def __init__(self, species_name, ont=None, target_device=torch.device("cuda:0"), go_max_percent=1.0, go_min_count=0, use_cache = False):
+    def __init__(self, species_name, ont, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"), go_max_percent=1.0, go_min_count=0, use_cache = False):
         # GO数据与interpro数据, 较小直接读入
         # seq_emb, struct较大, 采用懒加载
         
@@ -79,24 +81,25 @@ class MyDataset(Dataset):
         
         self.species_name = species_name
         self.ont = ont
+        self.cache_dir = cache_dir
         self.device = target_device
         self.train_flag = True
         
         # 读取各类文件
         print("loading all kinds of files...")
         ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_function":"mf"}
-        with open(os.path.join("processed_data",species_name+"_protein_info.json"), 'r') as f:
+        with open(Path("processed_data",species_name+"_protein_info.json"), 'r') as f:
             self.protein_info = json.load(f)
-        with open(os.path.join("processed_data","go_id.json"), 'r') as f:
+        with open(Path("processed_data","go_id.json"), 'r') as f:
             self.vocab_go = json.load(f)
-        with open(os.path.join("processed_data","go_terms.json"), 'r') as f:
+        with open(Path("processed_data","go_terms.json"), 'r') as f:
             self.go_terms = json.load(f)
         self.go_count_map = {}
-        with open(os.path.join("processed_data","interpro_id.json"), 'r') as f:
+        with open(Path("processed_data","interpro_id.json"), 'r') as f:
             interpro_list = json.load(f)
             self.vocab_interpro = {interpro:i for i,interpro in enumerate(interpro_list)}
             
-        with open(os.path.join("dataset","go_graph_nx.pkl"),"rb") as f:
+        with open(Path("dataset","go_graph_nx.pkl"),"rb") as f:
             self.go_graph_nx = pickle.load(f)
         
         # 初始化随机旋转矩阵
@@ -113,20 +116,20 @@ class MyDataset(Dataset):
             return
         
         print("processing dataset...")
-        species_path = os.path.join("dataset",species_name)
+        species_path = Path("dataset",species_name)
         protein_list = list(self.protein_info.keys())
         self.data_info = []
         for pname in tqdm(protein_list):
-            seq_path = os.path.join(species_path,pname,"seq_emb.pkl")
+            seq_path = Path(species_path,pname,"seq_emb.pkl")
             struct_path = os.path.join(species_path,pname,"struct.dgl")
             
             # 当一个数据在序列, 结构, GO标签都存在时, 将其加入数据集
-            if os.path.exists(seq_path) and os.path.exists(struct_path) and pname in self.protein_info and self.protein_info[pname]["go"] != []:
+            if Path.exists(seq_path) and os.path.exists(struct_path) and pname in self.protein_info and self.protein_info[pname]["go"] != []:
                 struct_graph,_ = dgl.load_graphs(struct_path)
                 struct_graph = struct_graph[0]
                 plen = len(self.protein_info[pname]["seq"])
-                # 只选择pdb文件与序列长度相等的进入数据集
-                if len(struct_graph.nodes()) == plen:
+                # pdb文件与序列长度相等 且 domain标签数不为0
+                if len(struct_graph.nodes()) == plen and len(self.protein_info[pname]["domain"]) > 0:
                     # go数据统计
                     go_id_list = []
                     for go in self.protein_info[pname]["go"]:
@@ -144,14 +147,14 @@ class MyDataset(Dataset):
                             domain_list.append([self.vocab_interpro[domain[0]],domain[1],domain[2]])
                     
                     # 保存数据为: (蛋白质名, 序列长度, 序列嵌入路径, 结构图路径, interpro标签, 传递后的GO标签)
-                    if propagated_go_list != []:
+                    if propagated_go_list != [] and len(domain_list)>0:
                         self.data_info.append((pname,plen,
-                                            os.path.abspath(seq_path), os.path.abspath(struct_path),
+                                            seq_path.resolve(), os.path.abspath(struct_path),
                                             domain_list, propagated_go_list))
         # balance of posivite/negative samples
         self.balanced_go_list = []
         for go in self.go_count_map:
-            if self.ont is not None and ns_map[self.go_terms[go]["namespace"]] == self.ont:
+            if (self.ont == "all") or (ns_map[self.go_terms[go]["namespace"]] == self.ont):
                 if self.go_count_map[go] >= go_min_count and self.go_count_map[go] <= len(self.data_info)*go_max_percent:
                     self.balanced_go_list.append(go)
         self.balanced_go_list = sorted(self.balanced_go_list)
@@ -215,25 +218,25 @@ class MyDataset(Dataset):
         return pname,plen, seq_emb,struct_graph, domain_list, domain_id_list, label
 
     def save_dataset(self):
-        dataset_path = os.path.join("dataset","{}_{}_cache.pkl".format(self.species_name,self.ont))
-        balanced_go_list_path = os.path.join("dataset","{}_{}_balanced_go_list_cache.json".format(self.species_name,self.ont))
+        dataset_path = Path(self.cache_dir,f"{self.ont}_dataset.pkl")
+        balanced_go_list_path = Path(self.cache_dir,f"{self.ont}_balanced_go_list.json")
         with open(dataset_path,"wb") as f:
             pickle.dump(self.data_info,f)
         with open(balanced_go_list_path,"w") as f:
             json.dump(self.balanced_go_list,f,indent=4)
     
     def load_dataset(self):
-        dataset_path = os.path.join("dataset","{}_{}_cache.pkl".format(self.species_name,self.ont))
-        balanced_go_list_path = os.path.join("dataset","{}_{}_balanced_go_list_cache.json".format(self.species_name,self.ont))
+        dataset_path = Path(self.cache_dir,f"{self.ont}_dataset.pkl")
+        balanced_go_list_path = Path(self.cache_dir,f"{self.ont}_balanced_go_list.json")
         with open(dataset_path,"rb") as f:
             self.data_info = pickle.load(f)
         with open(balanced_go_list_path,"r") as f:
             self.balanced_go_list = json.load(f)
     
     def has_cache(self):
-        dataset_path = os.path.join("dataset","{}_{}_cache.pkl".format(self.species_name,self.ont))
-        balanced_go_list_path = os.path.join("dataset","{}_{}_balanced_go_list_cache.json".format(self.species_name,self.ont))
-        if os.path.exists(dataset_path) and os.path.exists(balanced_go_list_path):
+        dataset_path = Path(self.cache_dir,f"{self.ont}_dataset.pkl")
+        balanced_go_list_path = Path(self.cache_dir,f"{self.ont}_balanced_go_list.json")
+        if Path.exists(dataset_path) and Path.exists(balanced_go_list_path):
             return True
         return False
     
@@ -297,6 +300,14 @@ def my_collate_fn(batch):
 def my_collate_fn_v2(batch):
     pnames, plens, seq_embs, struct_graphs, domain_lists, domain_id_lists, labels = zip(*batch)
     
+    # 处理seq_emb，使用padding
+    max_length = max([seq_emb.shape[0] for seq_emb in seq_embs])
+    padded_seq_embs = []
+    for seq_emb in seq_embs:
+        padding = torch.zeros(max_length - seq_emb.shape[0], seq_emb.shape[1], device=seq_emb.device)
+        padded_seq_embs.append(torch.cat([seq_emb, padding],dim=0))
+    padded_seq_embs = torch.stack(padded_seq_embs)
+    
     # 处理seq_emb，并入graph中
     for seq_emb, struct_graph in zip(seq_embs,struct_graphs):
         struct_graph.ndata["esm"] = seq_emb
@@ -317,4 +328,4 @@ def my_collate_fn_v2(batch):
     # label处理
     labels = torch.stack(labels)
 
-    return pnames, batched_graph, [glob_dm_id, glob_dm_offset, plens, domain_lists], labels
+    return pnames, padded_seq_embs, batched_graph, [glob_dm_id, glob_dm_offset, plens, domain_lists], labels
