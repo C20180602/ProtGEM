@@ -30,6 +30,7 @@ class ProteinEncoder(nn.Module):
         self.glob_dims = self.seq_enc.glob_dims + self.struct_enc.glob_dims + self.domain_enc.glob_dims
         self.part_dims = self.seq_enc.part_dims + self.struct_enc.part_dims + self.domain_enc.part_dims
         self.final_hid_dim = final_hid_dim
+        
         self.fusion_layers = nn.Sequential()
         for i in range(fusion_layers):
             self.fusion_layers.add_module("Layer"+str(i),tf.TransformerEncoderLayer(self.part_dims, fusion_att_heads, fusion_hid_dim, fusion_dropout))
@@ -39,7 +40,7 @@ class ProteinEncoder(nn.Module):
         self.part_scale = nn.Linear(self.part_dims, self.final_hid_dim)
         self.final_out = nn.Linear(2 * self.final_hid_dim, final_out_dim)
         
-    def forward(self, seq_embs, batched_graph, domain_info, mask=None, ablation_feat = []):
+    def forward(self, seq_embs, batched_graph, domain_info, mask=None, graph_mask=None, ablation_feat = []):
         # seq_embs: [batch_size, seq_len, seq_dim]
         # mask [batch_size, seq_len]
         batch_size = seq_embs.shape[0]
@@ -47,13 +48,13 @@ class ProteinEncoder(nn.Module):
         
         # Ablation Study 消融实验
         if "seq" not in ablation_feat:
-            seq_glob, seq_part = self.seq_enc(seq_embs,mask)
+            seq_glob, seq_part = self.seq_enc(seq_embs, mask)
         else:
             seq_glob = torch.zeros(batch_size, self.seq_enc.glob_dims, device=seq_embs.device)
             seq_part = torch.zeros(batch_size, max_len, self.seq_enc.part_dims, device=seq_embs.device)
         
         if "struct" not in ablation_feat:
-            struct_glob, struct_part = self.struct_enc(batched_graph)
+            struct_glob, struct_part = self.struct_enc(batched_graph, graph_mask)
         else:
             struct_glob = torch.zeros(batch_size, self.struct_enc.glob_dims, device=batched_graph.device)
             struct_part = [torch.zeros(max_len, self.struct_enc.part_dims, device=batched_graph.device) for _ in range(batch_size)]
@@ -74,8 +75,6 @@ class ProteinEncoder(nn.Module):
             padding = torch.zeros(max_len - struct_emb.shape[0], struct_emb.shape[1], device=struct_emb.device)
             padded_struct_part.append(torch.cat([struct_emb, padding],dim=0))
         padded_struct_part = torch.stack(padded_struct_part)
-        if mask is not None:
-            padded_struct_part = padded_struct_part * mask.unsqueeze(-1)
         
         padded_domain_part = []
         for domain_emb in domain_part:

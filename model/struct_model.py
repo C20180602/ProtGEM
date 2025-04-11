@@ -233,7 +233,12 @@ class StructEncoder(nn.Module):
         self.part_emb_out = GVP(out_dims, (part_dims,0), h_dim, activations, cross_gate)
         self.glob_emb_out = nn.Linear(self.glob_topk * self.outs, global_dims)
 
-    def forward(self, bg: dgl.DGLGraph):
+    def forward(self, bg: dgl.DGLGraph, mask=None):
+        if mask is not None:
+            mask = mask.unsqueeze(-1)
+            bg.ndata["res"] *= mask
+            mask = mask.unsqueeze(-1)
+            bg.ndata["pos"] *= mask
         bg.ndata["res"] = self.ln_s(bg.ndata["res"])
         bg.ndata["pos"] = self.ln_v(bg.ndata["pos"])
         graph_size_list = bg.batch_num_nodes()

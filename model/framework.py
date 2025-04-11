@@ -29,15 +29,18 @@ class ProteinGoModel(nn.Module):
         self.pm = ProteinEncoder(**pm_param)
         self.gm = GoEncoder(**gm_param)
         
+        assert pm_param['final_out_dim'] == gm_param['emb_dim']
+        self.in_dim = pm_param['final_out_dim']
+        self.hid_dim = 256
         self.MLP = nn.Sequential(
-            nn.Linear(1024, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1),
+            nn.Linear(self.in_dim, self.hid_dim),
+            nn.ELU(),
+            nn.Linear(self.hid_dim, 1),
             nn.Sigmoid()
         )
         
-    def forward(self, seq_embs, batched_graph, domain_info, go_idx, mask=None, ablation_feat = []):
-        protein_emb = self.pm(seq_embs, batched_graph, domain_info, mask, ablation_feat)
+    def forward(self, seq_embs, batched_graph, domain_info, go_idx, mask=None, graph_mask=None, ablation_feat = []):
+        protein_emb = self.pm(seq_embs, batched_graph, domain_info, mask, graph_mask, ablation_feat)
         go_emb = self.gm(go_idx)
         # protein_emb: [batch_size, hid_dim]
         # go_emb: [go_nums, hid_dim]
@@ -64,15 +67,18 @@ class ProteinGoModelv2(nn.Module):
         self.pm = ProteinEncoderv2(**pm_param)
         self.gm = GoEncoder(**gm_param)
         
+        assert pm_param['final_out_dim'] == gm_param['emb_dim']
+        self.in_dim = pm_param['final_out_dim']
+        self.hid_dim = 256
         self.MLP = nn.Sequential(
-            nn.Linear(1024, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1),
+            nn.Linear(self.in_dim, self.hid_dim),
+            nn.ELU(),
+            nn.Linear(self.hid_dim, 1),
             nn.Sigmoid()
         )
         
-    def forward(self, seq_embs, batched_graph, domain_info, go_idx, mask=None, ablation_feat = []):
-        protein_emb = self.pm(seq_embs, batched_graph, domain_info, mask, ablation_feat)
+    def forward(self, seq_embs, batched_graph, domain_info, go_idx, mask=None, graph_mask=None, ablation_feat = []):
+        protein_emb = self.pm(seq_embs, batched_graph, domain_info, mask, graph_mask, ablation_feat)
         go_emb = self.gm(go_idx)
         # protein_emb: [batch_size, hid_dim]
         # go_emb: [go_nums, hid_dim]

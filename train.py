@@ -8,6 +8,7 @@ import torch
 import torch.utils.data
 import numpy as np
 import torch.functional as F
+import dgl
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from transformers import get_cosine_schedule_with_warmup
@@ -22,6 +23,10 @@ default_gm_conf = {"v1.1":Path("config","GoEncoder.conf"), "v2":Path("config","G
 
 def generate_mask(batch_size, seq_len, rate):
     mask = ((torch.rand([batch_size,seq_len])) > rate).float()
+    return mask
+
+def generate_graph_mask(node_num, rate):
+    mask = ((torch.rand([node_num])) > rate).float()
     return mask
 
 @click.command()
@@ -58,9 +63,12 @@ def main(ont, species_name, model_name, model_type):
     if model_type == "v1.1":
         pg_model = ProteinGoModel(pm_param, gm_param)
         local_collate_fn = my_collate_fn
-    else:
+    elif model_type == "v2":
         pg_model = ProteinGoModelv2(pm_param, gm_param)
         local_collate_fn = my_collate_fn_v2
+    else:
+        logger.error("unknown model type")
+        return
     pg_model.gm.load_model(Path("model_params","go_pretrain_model.pth"))
     pg_model.to(device)
         
@@ -97,7 +105,7 @@ def main(ont, species_name, model_name, model_type):
 
     ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count)
     ds.show_dataset_info(logger)
-    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger,train_proportion,valid_proportion,use_cache=False)
+    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger,train_proportion,valid_proportion,use_cache=True)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=local_collate_fn)
     val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)
@@ -129,9 +137,11 @@ def main(ont, species_name, model_name, model_type):
             optimizer.zero_grad()
             
             mask = generate_mask(seq_embs.shape[0], seq_embs.shape[1], mask_rate)
+            graph_mask = generate_graph_mask(batched_graph.num_nodes(), mask_rate)
             mask = mask.to(device)
+            graph_mask = graph_mask.to(device)
             
-            predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, ablation_feat=dropout_feat_list[epoch])
+            predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask, ablation_feat=dropout_feat_list[epoch])
             
             loss1 = criterion1(predict_matrix, labels, contrast_temp)
             loss2 = criterion2(predict_matrix, labels)

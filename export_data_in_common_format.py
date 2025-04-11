@@ -53,6 +53,7 @@ def main(species_name, model_name):
     with open(Path("processed_data","go_terms.json"),"r") as f:
         go_terms = json.load(f)
     
+    all_pid_set = set()
     for ont in ['bp','cc','mf']:
         ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=True)
         ds.show_dataset_info(logger)
@@ -65,7 +66,6 @@ def main(species_name, model_name):
 
         go_idx = torch.tensor(ds.balanced_go_list).to(device)
         balanced_go_list = ds.balanced_go_list
-        all_pid_set = set()
         for tag in dl:
             pid_set = set()
             pid_go_dict = {}
@@ -80,8 +80,18 @@ def main(species_name, model_name):
                         f.write(f"{pid}\t{go}\t{ont}\n")
             with open(Path(export_dir,f"{ont}_{tag}_pid_list.pkl"),"wb") as f:
                 pickle.dump(list(pid_set),f)
-    with open(Path(export_dir,f"pid_list.pkl"),"wb") as f:
+    with open(Path(export_dir,"pid_list.pkl"),"wb") as f:
         pickle.dump(list(all_pid_set),f)
+    with open(Path(export_dir,"pid_list.json"),"w") as f:
+        json.dump(list(all_pid_set),f)
+    pid2esm = {}
+    for pid in all_pid_set:
+        esm_path = os.path.abspath(os.path.join("dataset",species_name,pid,"seq_emb.pkl"))
+        if os.path.exists(esm_path):
+            pid2esm[pid] = esm_path
+    with open(Path(export_dir,"pid2esm.pkl"),"wb") as f:
+        pickle.dump(pid2esm,f)
+
 
 if __name__ == '__main__':
     main()

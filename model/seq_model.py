@@ -24,23 +24,28 @@ class SeqEncoder(nn.Module):
         for i in range(layer_cnt):
             self.layers.add_module("Layer"+str(i),tf.TransformerEncoderLayer(in_dim,n_heads,ffn_hid_dim,dropout))
         
-        self.part_readout = tf.TransformerEncoderLayer_NoRes(in_dim, n_heads, ffn_hid_dim, part_dims, dropout)
+        # self.part_readout = tf.TransformerEncoderLayer_NoRes(in_dim, n_heads, ffn_hid_dim, part_dims, dropout)
+        self.part_readout = nn.Linear(in_dim, part_dims)
         self.glob_readout = nn.Linear(in_dim, global_dims)
     
     def forward(self, x, mask=None):
         # x [batch_size, seq_len, in_dim]
         # mask [batch_size, seq_len]
-        x = self.PE(self.LN(x)*self.scale)
-        for layer in self.layers:
-            x = layer(x, mask)
+        if mask is not None:
+            mask = mask.unsqueeze(-1)
+            x *= mask
+        # x = self.PE(self.LN(x)*self.scale)
+        # for layer in self.layers:
+        #     x = layer(x, mask)
         # x [batch_size, seq_len, in_dim]
         
-        part_emb_out = self.part_readout(x, mask)
+        part_emb_out = F.elu(self.part_readout(x))
         # part_emb_out [batch_size, seq_len, part_dims]
         
-        x = x[:,0,:]
-        # x [batch_size, in_dim]
-        glob_emb_out = F.relu(self.glob_readout(x))
+        # x = x[:,0,:]
+        x = x.sum(dim=1)
+        # # x [batch_size, in_dim]
+        glob_emb_out = F.elu(self.glob_readout(x))
         # glob_emb_out [batch_size, global_dims]
         
         return glob_emb_out, part_emb_out
