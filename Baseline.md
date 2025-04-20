@@ -96,13 +96,17 @@ CUDA_VISIBLE_DEVICES=0 python train.py -o bp -t v1.1 -n model_v1.1 -s HUMAN
 CUDA_VISIBLE_DEVICES=1 python train.py -o cc -t v1.1 -n model_v1.1 -s HUMAN
 CUDA_VISIBLE_DEVICES=2 python train.py -o mf -t v1.1 -n model_v1.1 -s HUMAN
 
-CUDA_VISIBLE_DEVICES=0 python train.py -o bp -t v2 -n model_v2 -s HUMAN
-CUDA_VISIBLE_DEVICES=1 python train.py -o cc -t v2 -n model_v2 -s HUMAN
-CUDA_VISIBLE_DEVICES=2 python train.py -o mf -t v2 -n model_v2 -s HUMAN
+CUDA_VISIBLE_DEVICES=0 python train.py -o bp -t v1.1 -n model_v1.1_wo_pre -s HUMAN
+CUDA_VISIBLE_DEVICES=1 python train.py -o cc -t v1.1 -n model_v1.1_wo_pre -s HUMAN
+CUDA_VISIBLE_DEVICES=2 python train.py -o mf -t v1.1 -n model_v1.1_wo_pre -s HUMAN
 
 CUDA_VISIBLE_DEVICES=0 python train.py -o bp -t v1.1 -n model_v1.1 -s CAFA3
 CUDA_VISIBLE_DEVICES=1 python train.py -o cc -t v1.1 -n model_v1.1 -s CAFA3
 CUDA_VISIBLE_DEVICES=2 python train.py -o mf -t v1.1 -n model_v1.1 -s CAFA3
+
+CUDA_VISIBLE_DEVICES=4 python train.py -o bp -t v1.1 -n model_v1.1_large -s CAFA3
+CUDA_VISIBLE_DEVICES=1 python train.py -o cc -t v1.1 -n model_v1.1_large -s CAFA3
+CUDA_VISIBLE_DEVICES=2 python train.py -o mf -t v1.1 -n model_v1.1_large -s CAFA3
 ```
 3、运行test.py，得到测试集结果与消融实验结果。
 ```
@@ -110,11 +114,15 @@ CUDA_VISIBLE_DEVICES=0 python test.py -o bp -s HUMAN -n model_v1.1 -t v1.1
 CUDA_VISIBLE_DEVICES=1 python test.py -o cc -s HUMAN -n model_v1.1 -t v1.1
 CUDA_VISIBLE_DEVICES=2 python test.py -o mf -s HUMAN -n model_v1.1 -t v1.1
 
-CUDA_VISIBLE_DEVICES=0 python test.py -o bp -s HUMAN -n model_v2 -t v2
-CUDA_VISIBLE_DEVICES=1 python test.py -o cc -s HUMAN -n model_v2 -t v2
-CUDA_VISIBLE_DEVICES=2 python test.py -o mf -s HUMAN -n model_v2 -t v2
+CUDA_VISIBLE_DEVICES=0 python test.py -o bp -s HUMAN -n model_v1.1_wo_pre -t v1.1
+CUDA_VISIBLE_DEVICES=1 python test.py -o cc -s HUMAN -n model_v1.1_wo_pre -t v1.1
+CUDA_VISIBLE_DEVICES=2 python test.py -o mf -s HUMAN -n model_v1.1_wo_pre -t v1.1
 
 CUDA_VISIBLE_DEVICES=0 python test.py -o bp -s CAFA3 -n model_v1.1 -t v1.1
 CUDA_VISIBLE_DEVICES=1 python test.py -o cc -s CAFA3 -n model_v1.1 -t v1.1
 CUDA_VISIBLE_DEVICES=2 python test.py -o mf -s CAFA3 -n model_v1.1 -t v1.1
+
+CUDA_VISIBLE_DEVICES=0 python test.py -o bp -s CAFA3 -n model_v1.1_large -t v1.1
+CUDA_VISIBLE_DEVICES=1 python test.py -o cc -s CAFA3 -n model_v1.1_large -t v1.1
+CUDA_VISIBLE_DEVICES=2 python test.py -o mf -s CAFA3 -n model_v1.1_large -t v1.1
 ```

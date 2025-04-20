@@ -75,6 +75,12 @@ def main(ont, species_name, model_name, model_type, thresh):
     # 读取必要的数据
     with open(Path("dataset","go_graph_nx.pkl"),"rb") as f:
         go_graph_nx = pickle.load(f)
+    with open(Path("processed_data","go_id.json"),"r") as f:
+        go_id = json.load(f)
+    with open(Path("processed_data","interpro2go.json"),"r") as f:
+        interpro2go = json.load(f)
+    with open(Path("processed_data","interpro_id.json"),"r") as f:
+        interpro_id = json.load(f)
     topo_order = list(nx.topological_sort(go_graph_nx))
     
     # 读取测试集
