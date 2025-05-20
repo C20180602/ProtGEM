@@ -1,0 +1,22 @@
+.gradio-header {
+    color: #000000;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.gradio-input {
+    width: 100%;
+    height: 40px;
+    padding: 10px;
+    border: 1px solid #000000;
+    border-radius: 5px;
+}
+
+.gradio-output {
+    width: 100%;
+    height: 40px;
+    padding: 10px;
+    border: 1px solid #000000;
+    border-radius: 5px;
+}

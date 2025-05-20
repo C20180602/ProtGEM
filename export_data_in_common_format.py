@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
 from model.dataset import MyDataset, my_collate_fn, my_collate_fn_v2
-from model.framework import ProteinGoModel, ProteinGoModelv2, ContrastLoss
+from model.predictor import ProteinGoModel, ProteinGoModelv2, ContrastLoss
 from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))

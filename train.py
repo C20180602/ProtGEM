@@ -10,16 +10,19 @@ import numpy as np
 import torch.functional as F
 import dgl
 from torch import nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, Subset
 from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
 from model.dataset import MyDataset, my_collate_fn, my_collate_fn_v2
-from model.framework import ProteinGoModel, ProteinGoModelv2, ContrastLoss
+from model.go_dataset import GoDataset
+from model.go_model import GoContrastLoss
+from model.predictor import ProteinGoModel, ProteinGoModelv2, ContrastLoss
 from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 default_pm_conf = {"v1.1":Path("config","ProteinEncoder.conf"), "v2":Path("config","ProteinEncoder2.conf")}
 default_gm_conf = {"v1.1":Path("config","GoEncoder.conf"), "v2":Path("config","GoEncoder2.conf")}
+default_pred_conf = {"v1.1":Path("config","Predictor.conf"), "v2":Path("config","Predictor.conf")}
 
 def generate_mask(batch_size, seq_len, rate):
     mask = ((torch.rand([batch_size,seq_len])) > rate).float()
@@ -59,9 +62,10 @@ def main(ont, species_name, model_name, model_type):
     # 读取模型配置参数
     pm_param = load_config_clone(default_pm_conf[model_type], config_dir)
     gm_param = load_config_clone(default_gm_conf[model_type], config_dir)
+    pred_param = load_config_clone(default_pred_conf[model_type], config_dir)
     # 初始化模型
     if model_type == "v1.1":
-        pg_model = ProteinGoModel(pm_param, gm_param)
+        pg_model = ProteinGoModel(pm_param, gm_param, **pred_param)
         local_collate_fn = my_collate_fn
     elif model_type == "v2":
         pg_model = ProteinGoModelv2(pm_param, gm_param)
@@ -83,7 +87,9 @@ def main(ont, species_name, model_name, model_type):
     go_max_percent = train_param["go_max_percent"]
     go_min_count = train_param["go_min_count"]
     mask_rate = train_param["mask_rate"]
-    alpha = train_param["alpha"]
+    alpha1 = train_param["alpha1"]
+    alpha2 = train_param["alpha2"]
+    alpha3 = train_param["alpha3"]
     log_batch_count = train_param["log_batch_count"]
     bce_pos_weight = train_param["bce_pos_weight"]
     seq_epoch_num = train_param["seq_epoch_num"]
@@ -95,7 +101,17 @@ def main(ont, species_name, model_name, model_type):
                         [["seq","domain"]]*struct_epoch_num + \
                         [["seq","struct"]]*domain_epoch_num + \
                         [[]]*fusion_epoch_num
-
+    go_loss_switch = train_param["go_loss_switch"]
+                        
+    train_go_default_conf_path = Path("config","train_go.conf")
+    train_go_param = load_config_clone(train_go_default_conf_path, config_dir)
+    pos_k = train_go_param["pos_k"]
+    pos_max = train_go_param["pos_max"]
+    neg_k = train_go_param["neg_k"]
+    neg_max = train_go_param["neg_max"]
+    pos_rate = train_go_param["pos_rate"]
+    contrast_temp_go = train_go_param["contrast_temp"]
+    
     # 初始化数据集并进行划分
     best_fmax = 0.0
     best_epoch = -1
@@ -110,12 +126,15 @@ def main(ont, species_name, model_name, model_type):
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=local_collate_fn)
     val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)
 
+    go_ds = GoDataset(pos_k, pos_max, neg_k, neg_max, pos_rate)
+
     # 设置优化器、学习率规划器以及损失函数
     optimizer = torch.optim.Adam(pg_model.parameters(), lr=init_lr)
     lr_scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
 
     criterion1 = ContrastLoss()
     criterion2 = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([bce_pos_weight],device=device))
+    criterion3 = GoContrastLoss(pos_k, neg_k)
 
     logger.info("Parameters INFO:")
     logger.info(train_param)
@@ -131,9 +150,10 @@ def main(ont, species_name, model_name, model_type):
         mean_loss = 0.0
         mean_loss1 = 0.0
         mean_loss2 = 0.0
+        mean_loss3 = 0.0
         pred = []
         actual = []
-        for i, (pids, seq_embs, batched_graph, domain_info, labels) in enumerate(train_loader):
+        for i, (idxs, pids, seq_embs, batched_graph, domain_info, labels) in enumerate(train_loader):
             optimizer.zero_grad()
             
             mask = generate_mask(seq_embs.shape[0], seq_embs.shape[1], mask_rate)
@@ -145,19 +165,35 @@ def main(ont, species_name, model_name, model_type):
             
             loss1 = criterion1(predict_matrix, labels, contrast_temp)
             loss2 = criterion2(predict_matrix, labels)
+            loss3 = torch.tensor(0.0,device=device)
+            if go_loss_switch:
+                go_id_set = set()
+                for idx in idxs:
+                    for go in ds.data_info[idx][5]:
+                        go_id_set.add(go)
+                go_subset = Subset(go_ds, list(go_id_set))
+                go_dl = DataLoader(go_subset, batch_size=batch_size, shuffle=True)
+                for (idx, pos, neg) in go_dl:
+                    x = torch.cat([idx,pos,neg],dim=1)
+                    x = x.to(device)
+                    x = pg_model.gm(x)
+                    loss3 += criterion3(x, contrast_temp_go)
+                loss3 /= len(go_id_set)
             
-            loss = alpha*loss1 + loss2
+            loss = alpha1*loss1 + alpha2*loss2 + alpha3*loss3
             loss.backward()
             optimizer.step()
             lr_scheduler.step()
             mean_loss += loss.item()
             mean_loss1 += loss1.item()
             mean_loss2 += loss2.item()
+            mean_loss3 += loss3.item()
             if i % log_batch_count == log_batch_count-1:
-                logger.info(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/log_batch_count}, Loss1: {mean_loss1/log_batch_count}, Loss2: {mean_loss2/log_batch_count}')
+                logger.info(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/log_batch_count}, Loss1: {mean_loss1/log_batch_count}, Loss2: {mean_loss2/log_batch_count}, Loss3: {mean_loss3/log_batch_count}')
                 mean_loss = 0.0
                 mean_loss1 = 0.0
                 mean_loss2 = 0.0
+                mean_loss3 = 0.0
                 pred += predict_matrix.tolist()
                 actual += labels.tolist()
         logger.info("train set:")
@@ -172,7 +208,7 @@ def main(ont, species_name, model_name, model_type):
         actual = []
         pred = []
         with torch.no_grad():
-            for pids, seq_embs, batched_graph, domain_info, labels in tqdm(val_loader):
+            for idxs, pids, seq_embs, batched_graph, domain_info, labels in tqdm(val_loader):
                 predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=dropout_feat_list[epoch])
                 # predict_matrix = (predict_matrix + 1)/2
                 pred += predict_matrix.tolist()

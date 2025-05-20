@@ -12,21 +12,29 @@ CUDA 12.1，torch 2.2.1+cu121，dgl 2.4.0
 
 其他python依赖库：(最好按顺序安装)
 
-transformers 4.46.3
+transformers==4.46.3
 
-biopython 1.84
+biopython==1.84
 
-matplotlib 3.9.2
+matplotlib==3.9.2
 
-pyyaml 6.0.2
+pyyaml==6.0.2
 
-pydantic 2.8.2
+pydantic==2.8.2
 
-fair-esm 2.0.0
+fair-esm==2.0.0
 
-h5py 3.12.1
+h5py==3.12.1
 
-torchinfo 1.8.0
+torchinfo==1.8.0
+
+如果需要使用在线推理，还需安装：
+
+xmltramp2==3.1.1
+
+gradio==5.29.0
+
+gradio_molecule3d==0.0.7
 
 # 配置流程
 

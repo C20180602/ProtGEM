@@ -24,20 +24,24 @@ class ProteinGoModel(nn.Module):
     '''
     蛋白质和GO标签的联合模型
     '''
-    def __init__(self, pm_param, gm_param):
+    def __init__(self, pm_param, gm_param, layer_cnt=1, hid_dim=256):
         super(ProteinGoModel, self).__init__()
         self.pm = ProteinEncoder(**pm_param)
         self.gm = GoEncoder(**gm_param)
         
         assert pm_param['final_out_dim'] == gm_param['emb_dim']
         self.in_dim = pm_param['final_out_dim']
-        self.hid_dim = 256
-        self.MLP = nn.Sequential(
-            nn.Linear(self.in_dim, self.hid_dim),
-            nn.ELU(),
-            nn.Linear(self.hid_dim, 1),
-            nn.Sigmoid()
-        )
+        self.hid_dim = hid_dim
+        self.MLP = nn.Sequential()
+        for i in range(layer_cnt):
+            if i==0:
+                self.MLP.append(nn.Linear(self.in_dim, self.hid_dim))
+            else:
+                self.MLP.append(nn.Linear(self.hid_dim, self.hid_dim))
+            self.MLP.append(nn.LayerNorm(self.hid_dim))
+            self.MLP.append(nn.ELU())
+        self.MLP.append(nn.Linear(self.hid_dim, 1))
+        self.MLP.append(nn.Sigmoid())
         
     def forward(self, seq_embs, batched_graph, domain_info, go_idx, mask=None, graph_mask=None, ablation_feat = []):
         protein_emb = self.pm(seq_embs, batched_graph, domain_info, mask, graph_mask, ablation_feat)

@@ -215,7 +215,7 @@ class MyDataset(Dataset):
         label = go_list_to_tensor(info[5],self.balanced_go_map_inv)
         label = label.to(self.device)
         
-        return pname,plen, seq_emb,struct_graph, domain_list, domain_id_list, label
+        return idx, pname,plen, seq_emb,struct_graph, domain_list, domain_id_list, label
 
     def save_dataset(self):
         dataset_path = Path(self.cache_dir,f"{self.ont}_dataset.pkl")
@@ -269,7 +269,7 @@ class MyDataset(Dataset):
         logger.info("Balanced GO List length: %d"%(len(self.balanced_go_list)))
     
 def my_collate_fn(batch):
-    pnames, plens, seq_embs, struct_graphs, domain_lists, domain_id_lists, labels = zip(*batch)
+    idxs, pnames, plens, seq_embs, struct_graphs, domain_lists, domain_id_lists, labels = zip(*batch)
     
     # 处理seq_emb，使用padding
     max_length = max([seq_emb.shape[0] for seq_emb in seq_embs])
@@ -295,10 +295,10 @@ def my_collate_fn(batch):
     # label处理
     labels = torch.stack(labels)
 
-    return pnames, padded_seq_embs, batched_graph, [glob_dm_id, glob_dm_offset, plens, domain_lists], labels
+    return idxs, pnames, padded_seq_embs, batched_graph, [glob_dm_id, glob_dm_offset, plens, domain_lists], labels
 
 def my_collate_fn_v2(batch):
-    pnames, plens, seq_embs, struct_graphs, domain_lists, domain_id_lists, labels = zip(*batch)
+    idxs, pnames, plens, seq_embs, struct_graphs, domain_lists, domain_id_lists, labels = zip(*batch)
     
     # 处理seq_emb，使用padding
     max_length = max([seq_emb.shape[0] for seq_emb in seq_embs])
@@ -328,4 +328,4 @@ def my_collate_fn_v2(batch):
     # label处理
     labels = torch.stack(labels)
 
-    return pnames, padded_seq_embs, batched_graph, [glob_dm_id, glob_dm_offset, plens, domain_lists], labels
+    return idxs, pnames, padded_seq_embs, batched_graph, [glob_dm_id, glob_dm_offset, plens, domain_lists], labels

@@ -15,13 +15,14 @@ from torchinfo import summary
 from torch.utils.data import Dataset, DataLoader, Subset
 from tqdm import tqdm
 from model.dataset import MyDataset, my_collate_fn, my_collate_fn_v2, probablity_propagate
-from model.framework import ContrastLoss, ProteinGoModel, ProteinGoModelv2
+from model.predictor import ContrastLoss, ProteinGoModel, ProteinGoModelv2
 
 from utils import init_logger, cal_metrics, load_config_clone
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 default_pm_conf = {"v1.1":Path("config","ProteinEncoder.conf"), "v2":Path("config","ProteinEncoder2.conf")}
 default_gm_conf = {"v1.1":Path("config","GoEncoder.conf"), "v2":Path("config","GoEncoder2.conf")}
+default_pred_conf = {"v1.1":Path("config","Predictor.conf"), "v2":Path("config","Predictor.conf")}
 
 @click.command()
 @click.option('-o', '--ont', type=click.Choice(['bp', 'cc', 'mf', 'all']), default='mf')
@@ -46,9 +47,10 @@ def main(ont, species_name, model_name, model_type, thresh):
     # 读取模型配置参数
     pm_param = load_config_clone(default_pm_conf[model_type], config_dir)
     gm_param = load_config_clone(default_gm_conf[model_type], config_dir)
+    pred_param = load_config_clone(default_pred_conf[model_type], config_dir)
     # 初始化模型
     if model_type == "v1.1":
-        pg_model = ProteinGoModel(pm_param, gm_param)
+        pg_model = ProteinGoModel(pm_param, gm_param, **pred_param)
         local_collate_fn = my_collate_fn
         ablation_list = [[],["seq"],["struct"],["domain"],["glob"],["part"]]
     else:
@@ -112,7 +114,7 @@ def main(ont, species_name, model_name, model_type, thresh):
         actual = []
         pred = []
         with torch.no_grad():
-            for pids, seq_embs, batched_graph, domain_info, labels in tqdm(test_loader):
+            for idxs, pids, seq_embs, batched_graph, domain_info, labels in tqdm(test_loader):
                 
                 predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=ablation_feature)
                 # predict_matrix: [batch_size, go_nums]
