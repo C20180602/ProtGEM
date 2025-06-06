@@ -17,12 +17,6 @@ import warnings
 import json
 from tqdm import tqdm
 
-# 忽略使用DGLGraph建立空图的警告
-warnings.filterwarnings("ignore")
-# 设置工作目录为项目文件夹
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-os.chdir("..")
-
 parser = Bio.PDB.PDBParser()
 # 连接Cα的肽键的边特征向量
 Peptide_bond_feature = torch.tensor([1.0,0.0,0.0])
@@ -185,23 +179,30 @@ def get_graph_info(pdbfilepath):
     print("edge_data:",graph.edata["feat"].shape)
     return graph
 
-with open("config/global.conf","r") as f:
-    global_var = json.load(f)
-species_name = global_var["species_name"]
+if __name__ == "__main__":
+    # 忽略使用DGLGraph建立空图的警告
+    warnings.filterwarnings("ignore")
+    # 设置工作目录为项目文件夹
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir("..")
 
-with open(os.path.join("processed_data",species_name+"_protein_info.json"),"r") as f:
-    protein_info = json.load(f)
-pdb_data_dir = os.path.join('raw_data',species_name,'pdb')
-save_dir = os.path.join('dataset',species_name)
-save_dir_list = os.listdir(save_dir)
-model_fnum_log = {}
-for pid in tqdm(protein_info):
-    filename="AF-{}-F1-model_v4.pdb".format(pid)
-    
-    graph = get_graph_info(os.path.join(pdb_data_dir, filename))
-    # print(filename)
-    # print(graph)
-    dgl.save_graphs(os.path.join(save_dir,pid,'struct.dgl'),graph)
-    # break
+    with open("config/global.conf","r") as f:
+        global_var = json.load(f)
+    species_name = global_var["species_name"]
 
-print(len(model_fnum_log))
+    with open(os.path.join("processed_data",species_name+"_protein_info.json"),"r") as f:
+        protein_info = json.load(f)
+    pdb_data_dir = os.path.join('raw_data',species_name,'pdb')
+    save_dir = os.path.join('dataset',species_name)
+    save_dir_list = os.listdir(save_dir)
+    model_fnum_log = {}
+    for pid in tqdm(protein_info):
+        filename="AF-{}-F1-model_v4.pdb".format(pid)
+        
+        graph = get_graph_info(os.path.join(pdb_data_dir, filename))
+        # print(filename)
+        # print(graph)
+        dgl.save_graphs(os.path.join(save_dir,pid,'struct.dgl'),graph)
+        # break
+
+    print(len(model_fnum_log))

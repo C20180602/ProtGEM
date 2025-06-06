@@ -119,7 +119,7 @@ def main(ont, species_name, model_name, model_type):
     corr_aupr = 0.0
     corr_thresh = 0.0
 
-    ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count)
+    ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=True)
     ds.show_dataset_info(logger)
     train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger,train_proportion,valid_proportion,use_cache=True)
 
@@ -140,6 +140,7 @@ def main(ont, species_name, model_name, model_type):
     logger.info(train_param)
     logger.info(pm_param)
     logger.info(gm_param)
+    logger.info(pred_param)
     logger.info("Start Training!")
     go_idx = torch.tensor(ds.balanced_go_list).to(device)
     for epoch in range(epoch_num):
@@ -194,6 +195,9 @@ def main(ont, species_name, model_name, model_type):
                 mean_loss1 = 0.0
                 mean_loss2 = 0.0
                 mean_loss3 = 0.0
+            
+            # 对于训练集预测结果，采样进行指标计算，节省时间
+            if i % 50 == 49:
                 pred += predict_matrix.tolist()
                 actual += labels.tolist()
         logger.info("train set:")

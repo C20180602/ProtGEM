@@ -9,7 +9,7 @@ dmis-lab/
 *.log
 /model_params/v1
 /workspace
-
+/tmp_data
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

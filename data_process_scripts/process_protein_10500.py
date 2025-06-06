@@ -115,10 +115,11 @@ for file in os.listdir("domain"):
         line = f.readline()
         while line:
             interpro_id = line.split("\t")[0]
-            range = line.split("\t")[-2]
-            start = int(range.split("..")[0])
-            end = int(range.split("..")[-1])
-            protein_info[uniprot_id]["domain"].append((interpro_id,start,end))
+            range_list = line.split("\t")[-2].split(",")
+            for range in range_list:
+                start = int(range.split("..")[0])
+                end = int(range.split("..")[-1])
+                protein_info[uniprot_id]["domain"].append((interpro_id,start,end))
             
             # 统计该物种中各个类型的interpro标签的数据量
             data_type = line.split("\t")[3]

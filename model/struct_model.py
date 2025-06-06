@@ -255,15 +255,12 @@ class StructEncoder(nn.Module):
         # out_s :[Σn, part_dims]
         # [debug] batch_num_nodes()函数取出来的是tensor
         part_emb_out = list(torch.split(out_s, graph_size_list.tolist(), dim=0))
-        # part_emb_out : list(len=batch)[n_i, part_dims]
-        
+        # part_emb_out : list(len=batch)[n_i, part_dims]    
         return glob_emb_out, part_emb_out
     
 class StructEncoderv2(nn.Module):
     '''
-    输入图列表:batched_graph( node(sigma{in_dims}) edge(sigma{edge_dims}) )
-    中间输出为batch( node(out_dims) )
-    最后输出全局特征(batch,global_dims), 局部特征list((n,part_dims))
+    简单的两层GNN
     '''
     def __init__(self, in_dim=1280, hid_dim=1280, num_layers=2, dropout=0.3): 
         super(StructEncoderv2, self).__init__()

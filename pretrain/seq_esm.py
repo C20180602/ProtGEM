@@ -4,9 +4,6 @@
 import json
 import os
 import pickle
-import tqdm
-import pandas as pd
-from pandas import DataFrame as df
 
 import torch
 import esm
