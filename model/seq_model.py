@@ -16,6 +16,7 @@ class SeqEncoder(nn.Module):
     def __init__(self, in_dim=1280, n_heads=2, layer_cnt=2, ffn_hid_dim=1280, global_dims=512, part_dims=64, dropout=0.4):
         super(SeqEncoder, self).__init__()
         self.glob_dims = global_dims
+        self.in_dim = in_dim
         self.part_dims = part_dims
         self.scale =math.sqrt(in_dim) # 放缩系数sqrt(in_dim)
         self.LN = nn.LayerNorm(in_dim)
@@ -27,6 +28,9 @@ class SeqEncoder(nn.Module):
         # self.part_readout = tf.TransformerEncoderLayer_NoRes(in_dim, n_heads, ffn_hid_dim, part_dims, dropout)
         self.part_readout = nn.Linear(in_dim, part_dims)
         self.glob_readout = nn.Linear(in_dim, global_dims)
+        
+        self.part_LN = nn.LayerNorm(part_dims)
+        self.glob_LN = nn.LayerNorm(global_dims)
     
     def forward(self, x, mask=None):
         # x [batch_size, seq_len, in_dim]
@@ -38,14 +42,18 @@ class SeqEncoder(nn.Module):
         # for layer in self.layers:
         #     x = layer(x, mask)
         # x [batch_size, seq_len, in_dim]
-        
-        part_emb_out = F.elu(self.part_readout(x))
+        x = self.LN(x)
+        A = torch.randn(self.in_dim, self.part_dims, device=x.device)
+        Q, R = torch.linalg.qr(A, mode='reduced')
+        part_emb_out = x @ Q
+        part_emb_out = self.part_LN(part_emb_out)
         # part_emb_out [batch_size, seq_len, part_dims]
         
         # x = x[:,0,:]
-        x = x.sum(dim=1)
+        x = x.mean(dim=1)
         # # x [batch_size, in_dim]
         glob_emb_out = F.elu(self.glob_readout(x))
+        glob_emb_out = self.glob_LN(glob_emb_out)
         # glob_emb_out [batch_size, global_dims]
         
         return glob_emb_out, part_emb_out

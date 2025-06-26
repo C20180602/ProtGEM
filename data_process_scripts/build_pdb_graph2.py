@@ -34,6 +34,37 @@ class PDB_Builder:
         self.num_rbf = num_rbf
         self.num_positional_embeddings = num_positional_embeddings
         self.device = device
+        self.three2one= {
+            'VAL':'V', 'ILE':'I', 'LEU':'L', 'GLU':'E', 'GLN':'Q',
+            'ASP':'D', 'ASN':'N', 'HIS':'H', 'TRP':'W', 'PHE':'F', 
+            'TYR':'Y', 'ARG':'R', 'LYS':'K', 'SER':'S', 'THR':'T', 
+            'MET':'M', 'ALA':'A', 'GLY':'G', 'PRO':'P', 'CYS':'C'
+        }
+        self.blosum62 = {
+            'A' : torch.tensor([ 4., -1, -2, -2,  0, -1, -1,  0, -2, -1, -1, -1, -1, -2, -1,  1,  0, -3, -2,  0, -2, -1,  0]),
+            'R' : torch.tensor([-1.,  5,  0, -2, -3,  1,  0, -2,  0, -3, -2,  2, -1, -3, -2, -1, -1, -3, -2, -3, -1,  0, -1]),
+            'N' : torch.tensor([-2.,  0,  6,  1, -3,  0,  0,  0,  1, -3, -3,  0, -2, -3, -2,  1,  0, -4, -2, -3,  3,  0, -1]),
+            'D' : torch.tensor([-2., -2,  1,  6, -3,  0,  2, -1, -1, -3, -4, -1, -3, -3, -1,  0, -1, -4, -3, -3,  4,  1, -1]),
+            'C' : torch.tensor([ 0., -3, -3, -3,  9, -3, -4, -3, -3, -1, -1, -3, -1, -2, -3, -1, -1, -2, -2, -1, -3, -3, -2]),
+            'Q' : torch.tensor([-1.,  1,  0,  0, -3,  5,  2, -2,  0, -3, -2,  1,  0, -3, -1,  0, -1, -2, -1, -2,  0,  3, -1]),
+            'E' : torch.tensor([-1.,  0,  0,  2, -4,  2,  5, -2,  0, -3, -3,  1, -2, -3, -1,  0, -1, -3, -2, -2,  1,  4, -1]),
+            'G' : torch.tensor([ 0., -2,  0, -1, -3, -2, -2,  6, -2, -4, -4, -2, -3, -3, -2,  0, -2, -2, -3, -3, -1, -2, -1]),
+            'H' : torch.tensor([-2.,  0,  1, -1, -3,  0,  0, -2,  8, -3, -3, -1, -2, -1, -2, -1, -2, -2,  2, -3,  0,  0, -1]),
+            'I' : torch.tensor([-1., -3, -3, -3, -1, -3, -3, -4, -3,  4,  2, -3,  1,  0, -3, -2, -1, -3, -1,  3, -3, -3, -1]),
+            'L' : torch.tensor([-1., -2, -3, -4, -1, -2, -3, -4, -3,  2,  4, -2,  2,  0, -3, -2, -1, -2, -1,  1, -4, -3, -1]),
+            'K' : torch.tensor([-1.,  2,  0, -1, -3,  1,  1, -2, -1, -3, -2,  5, -1, -3, -1,  0, -1, -3, -2, -2,  0,  1, -1]),
+            'M' : torch.tensor([-1., -1, -2, -3, -1,  0, -2, -3, -2,  1,  2, -1,  5,  0, -2, -1, -1, -1, -1,  1, -3, -1, -1]),
+            'F' : torch.tensor([-2., -3, -3, -3, -2, -3, -3, -3, -1,  0,  0, -3,  0,  6, -4, -2, -2,  1,  3, -1, -3, -3, -1]),
+            'P' : torch.tensor([-1., -2, -2, -1, -3, -1, -1, -2, -2, -3, -3, -1, -2, -4,  7, -1, -1, -4, -3, -2, -2, -1, -2]),
+            'S' : torch.tensor([ 1., -1,  1,  0, -1,  0,  0,  0, -1, -2, -2,  0, -1, -2, -1,  4,  1, -3, -2, -2,  0,  0,  0]),
+            'T' : torch.tensor([ 0., -1,  0, -1, -1, -1, -1, -2, -2, -1, -1, -1, -1, -2, -1,  1,  5, -2, -2,  0, -1, -1,  0]),
+            'W' : torch.tensor([-3., -3, -4, -4, -2, -2, -3, -2, -2, -3, -2, -3, -1,  1, -4, -3, -2, 11,  2, -3, -4, -3, -2]),
+            'Y' : torch.tensor([-2., -2, -2, -3, -2, -1, -2, -3,  2, -1, -1, -2, -1,  3, -3, -2, -2,  2,  7, -1, -3, -2, -1]),
+            'V' : torch.tensor([ 0., -3, -3, -3, -1, -2, -2, -3, -3,  3,  1, -2,  1, -1, -2, -2,  0, -3, -1,  4, -3, -2, -1]),
+            'B' : torch.tensor([-2., -1,  3,  4, -3,  0,  1, -1,  0, -3, -4,  0, -3, -3, -2,  0, -1, -4, -3, -3,  4,  1, -1]),
+            'Z' : torch.tensor([-1.,  0,  0,  1, -3,  3,  4, -2,  0, -3, -3,  1, -1, -3, -1,  0, -1, -3, -2, -2,  1,  4, -1]),
+            'X' : torch.tensor([ 0., -1, -1, -1, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -2,  0,  0, -2, -1, -1, -1, -1, -1]),
+        }
     
     def _normalize(self, tensor, dim=-1):
         '''
@@ -114,8 +145,9 @@ class PDB_Builder:
         vec = -bisector * math.sqrt(1 / 3) - perp * math.sqrt(2 / 3)
         return vec 
 
-    def featurize_as_graph(self, coords):
+    def featurize_as_graph(self, res_list, coords):
         with torch.no_grad():
+            res_tensor = torch.stack([self.blosum62[res] for res in res_list]).to(self.device)
             mask = torch.isfinite(coords.sum(dim=(1,2)))
             coords[~mask] = np.inf
             
@@ -139,7 +171,7 @@ class PDB_Builder:
                     (node_s, node_v, edge_s, edge_v))
             # Create a DGL graph
             g = dgl.graph((edge_index[0],edge_index[1]))
-            g.ndata["s"] = node_s
+            g.ndata["s"] = torch.cat([node_s, res_tensor],dim=1)
             g.ndata["v"] = node_v
             g.edata["s"] = edge_s
             g.edata["v"] = edge_v
@@ -151,10 +183,13 @@ class PDB_Builder:
         # 只取第一个模型
         model = struct.get_models().__next__()
         graph = dgl.DGLGraph()
+        res_list = []
         residue_list = []
         for chain in model.get_chains():
             residues = chain.get_residues()
             for residue in residues:
+                res_name = self.three2one[residue.get_resname()]
+                res_list.append(res_name)
                 pos_list = []
                 pos_list.append(torch.from_numpy(residue['N'].get_coord()))
                 pos_list.append(torch.from_numpy(residue['CA'].get_coord()))
@@ -164,7 +199,7 @@ class PDB_Builder:
                 residue_list.append(pos_tensor)
         protein_tensor = torch.stack(residue_list,dim=0)
         protein_tensor = protein_tensor.to(self.device)
-        graph = self.featurize_as_graph(protein_tensor)
+        graph = self.featurize_as_graph(res_list, protein_tensor)
         return graph
 
             

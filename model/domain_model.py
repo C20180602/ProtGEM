@@ -21,6 +21,9 @@ class DomainEncoder(nn.Module):
         
         self.glob_emb_out = nn.EmbeddingBag(in_dims, global_dims, mode='sum')
         self.part_emb = nn.Embedding(in_dims, part_dims)
+        
+        self.glob_LN = nn.LayerNorm(global_dims)
+        self.part_LN = nn.LayerNorm(part_dims)
     
     def get_device(self):
         return next(self.parameters()).device
@@ -44,10 +47,13 @@ class DomainEncoder(nn.Module):
                 domain_emb = self.part_emb(torch.tensor([domain[0]], device=device))
                 part_emb += pos_flag @ domain_emb
             part_emb = part_emb.to(device)
+            part_emb = self.part_LN(part_emb)
             part_emb_out.append(part_emb)
         # part_emb_out :list(len=batch_size)[seq_len, part_dims]
         
         glob_emb_out = glob_emb_out.to(device)
+        
+        glob_emb_out = self.glob_LN(glob_emb_out)
         return glob_emb_out, part_emb_out
 
 # DEBUG

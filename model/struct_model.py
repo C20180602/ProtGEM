@@ -232,6 +232,9 @@ class StructEncoder(nn.Module):
             )
         self.part_emb_out = GVP(out_dims, (part_dims,0), h_dim, activations, cross_gate)
         self.glob_emb_out = nn.Linear(self.glob_topk * self.outs, global_dims)
+        
+        self.part_LN = nn.LayerNorm(part_dims)
+        self.glob_LN = nn.LayerNorm(global_dims)
 
     def forward(self, bg: dgl.DGLGraph, mask=None):
         if mask is not None:
@@ -249,11 +252,13 @@ class StructEncoder(nn.Module):
         tmp_emb = tmp_emb.reshape(tmp_emb.shape[0],-1)
         # tmp_emb :[batch, topk*outs_dim]
         glob_emb_out = self.glob_emb_out(tmp_emb)
+        glob_emb_out = self.glob_LN(glob_emb_out)
         # glob_emb_out :[batch, global_dims]
         
         out_s = self.part_emb_out((bg.ndata["s"],bg.ndata["v"]))
         # out_s :[Σn, part_dims]
         # [debug] batch_num_nodes()函数取出来的是tensor
+        out_s = self.part_LN(out_s)
         part_emb_out = list(torch.split(out_s, graph_size_list.tolist(), dim=0))
         # part_emb_out : list(len=batch)[n_i, part_dims]    
         return glob_emb_out, part_emb_out
