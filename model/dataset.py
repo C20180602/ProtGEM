@@ -121,7 +121,7 @@ class MyDataset(Dataset):
         self.data_info = []
         for pname in tqdm(protein_list):
             seq_path = Path(species_path,pname,"seq_emb.pkl")
-            struct_path = os.path.join(species_path,pname,"struct.dgl")
+            struct_path = os.path.join(species_path,pname,"struct_gvp.dgl")
             
             # 当一个数据在序列, 结构, GO标签都存在时, 将其加入数据集
             if Path.exists(seq_path) and os.path.exists(struct_path) and pname in self.protein_info and self.protein_info[pname]["go"] != []:
@@ -204,8 +204,8 @@ class MyDataset(Dataset):
         struct_graph = struct_graph[0]
         assert len(struct_graph.nodes()) == plen
         struct_graph = struct_graph.to(self.device)
-        if self.train_flag:
-            struct_graph = self.structure_data_enhance(struct_graph)
+        # if self.train_flag:
+        #     struct_graph = self.structure_data_enhance(struct_graph)
         
         # domain
         domain_list = info[4]

@@ -5,8 +5,6 @@
 图特征：
 node: "pos": 6, "res": 46
 edge: "feat": 3
-
-TODO: 尝试使用GVP中的建图模式
 '''
 import Bio.PDB.PDBParser
 import os
@@ -132,12 +130,12 @@ def get_graph_info(pdbfilepath):
             pos_feature = torch.stack(pos_feature,dim=0)
             # res: [node_nums,23+23]
             residue_feature = torch.cat([AA_feature_blosum80[res_name],AA_feature_onehot[res_name]],dim=0)
-            graph.add_nodes(1, {'pos': pos_feature.unsqueeze(0), 'res': residue_feature.unsqueeze(0)})
+            graph.add_nodes(1, {'v': pos_feature.unsqueeze(0), 's': residue_feature.unsqueeze(0)})
             if chain_start_flag == 0 :
                 peptide_plane = torch.from_numpy(np.cross(las_O-las_C,N-las_C))
                 bond_feature = torch.cat([Peptide_bond_feature,peptide_plane],dim=0)
-                graph.add_edges(torch.tensor([i-1]), torch.tensor([i]), {'feat': bond_feature.unsqueeze(0)})
-                graph.add_edges(torch.tensor([i]), torch.tensor([i-1]), {'feat': bond_feature.unsqueeze(0)})
+                graph.add_edges(torch.tensor([i-1]), torch.tensor([i]), {'s': bond_feature.unsqueeze(0)})
+                graph.add_edges(torch.tensor([i]), torch.tensor([i-1]), {'s': bond_feature.unsqueeze(0)})
                 peptide_cnt += 1
             i += 1
             chain_start_flag = 0
@@ -173,10 +171,10 @@ def get_graph_info(pdbfilepath):
                 if res2=='C':
                     Spos2 = sg_pos_list[j]
                     bond_feature = torch.cat([Disulfide_bond_feature,Spos2-Spos1],dim=0)
-                    graph.add_edges(torch.tensor([i]), torch.tensor([j]), {'feat': bond_feature.unsqueeze(0)})
+                    graph.add_edges(torch.tensor([i]), torch.tensor([j]), {'s': bond_feature.unsqueeze(0)})
                     ss_cnt += 1
     print("edge cnt(pep, ss, close):",peptide_cnt, ss_cnt, close_cnt," => ",peptide_cnt*2+ss_cnt+close_cnt)
-    print("edge_data:",graph.edata["feat"].shape)
+    print("edge_data:",graph.edata["s"].shape)
     return graph
 
 if __name__ == "__main__":

@@ -119,7 +119,7 @@ def main(ont, species_name, model_name, model_type):
     corr_aupr = 0.0
     corr_thresh = 0.0
 
-    ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=True)
+    ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=False)
     ds.show_dataset_info(logger)
     train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger,train_proportion,valid_proportion,use_cache=True)
 

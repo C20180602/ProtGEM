@@ -93,7 +93,7 @@ class GVP(nn.Module):
             # s=[batch, si], v=[batch, vi, 3]
             v = torch.transpose(v, -1, -2)
             vh = self.wh(v)
-            # vh=[batch, 3, h]  
+            # vh=[batch, 3, h]
             s = self.wm(torch.cat([s, L2(vh, axis=-2)], -1))
             # s=[batch, so]
             if self.vo: 
@@ -148,7 +148,7 @@ class GVPConvLayer(nn.Module):
         
         self.num_layers = conv_gvp_layers
         tmp_gvp = functools.partial(GVP, activations=activations, cross_gate=cross_gate)
-        self.gvp_layers1 = nn.Sequential(tmp_gvp(( 2*self.ins + self.edge_s, 2*self.inv + self.edge_v ), out_dims, h_dim))
+        self.gvp_layers1 = nn.Sequential(tmp_gvp(( 2*self.ins + self.edge_s, 2*self.inv + self.edge_v), out_dims, h_dim))
         for _ in range(conv_gvp_layers-1):
             self.gvp_layers1.append(tmp_gvp(out_dims,out_dims,h_dim))
         
@@ -169,9 +169,9 @@ class GVPConvLayer(nn.Module):
         '''
         # input: edges.src/dst: 'res': [batch_size(dgl), 46], 'pos': [batch_size(dgl), 6, 3]
         # TODO : GVP论文原文只拼接了源节点特征和边特征输入GVP, 可以比较拼入目标节点特征之后性能差异
-        s = torch.cat((edges.src["res"], edges.dst["res"], edges.data["feat"]), dim=1)
+        s = torch.cat((edges.src["s"], edges.dst["s"], edges.data["s"]), dim=1)
         # s: [batch_size, 46 * 2 + 6]
-        v = torch.cat((edges.src["pos"], edges.dst["pos"]), dim=1)
+        v = torch.cat((edges.src["v"], edges.dst["v"], edges.data["v"]), dim=1)
         # v: [batch_size, 6*2, 3]
         s,v = self.gvp_layers1((s,v))
         # s:[batch_size, 46] v: [batch_size, 6, 3]
@@ -183,8 +183,8 @@ class GVPConvLayer(nn.Module):
     # 完成残差拼接和
     def update_udf(self,g,s,v):
         # TODO 是否需要禁止氨基酸Cα点坐标改变?
-        g.ndata["res"] = self.layernorm_s(g.ndata["res"] + s)
-        g.ndata["pos"] = self.layernorm_v(g.ndata["pos"] + v)
+        g.ndata["s"] = self.layernorm_s(g.ndata["s"] + s)
+        g.ndata["v"] = self.layernorm_v(g.ndata["v"] + v)
     
     def forward(self, g: dgl.DGLGraph, node_mask=None):
         g.update_all(self.edge_udf, fn.mean("gvp_out","merge"))
@@ -197,7 +197,7 @@ class GVPConvLayer(nn.Module):
         v = self.dropout_v(v)
         self.update_udf(g,s,v)
         # feed forward network
-        s,v = self.gvp_layers2((g.ndata["res"],g.ndata["pos"]))
+        s,v = self.gvp_layers2((g.ndata["s"],g.ndata["v"]))
         # s:[num_nodes, s_dim] v: [num_nodes, v_dim, 3]
         self.update_udf(g,s,v)
         return g
@@ -236,22 +236,22 @@ class StructEncoder(nn.Module):
     def forward(self, bg: dgl.DGLGraph, mask=None):
         if mask is not None:
             mask = mask.unsqueeze(-1)
-            bg.ndata["res"] *= mask
+            bg.ndata["s"] *= mask
             mask = mask.unsqueeze(-1)
-            bg.ndata["pos"] *= mask
-        bg.ndata["res"] = self.ln_s(bg.ndata["res"])
-        bg.ndata["pos"] = self.ln_v(bg.ndata["pos"])
+            bg.ndata["v"] *= mask
+        bg.ndata["s"] = self.ln_s(bg.ndata["s"])
+        bg.ndata["v"] = self.ln_v(bg.ndata["v"])
         graph_size_list = bg.batch_num_nodes()
         
         bg = self.layers(bg)
-        tmp_emb, _ = dgl.topk_nodes(bg,"res",self.glob_topk)
+        tmp_emb, _ = dgl.topk_nodes(bg,"s",self.glob_topk)
         # tmp_emb :[batch, topk, outs_dim]
         tmp_emb = tmp_emb.reshape(tmp_emb.shape[0],-1)
         # tmp_emb :[batch, topk*outs_dim]
         glob_emb_out = self.glob_emb_out(tmp_emb)
         # glob_emb_out :[batch, global_dims]
         
-        out_s = self.part_emb_out((bg.ndata["res"],bg.ndata["pos"]))
+        out_s = self.part_emb_out((bg.ndata["s"],bg.ndata["v"]))
         # out_s :[Σn, part_dims]
         # [debug] batch_num_nodes()函数取出来的是tensor
         part_emb_out = list(torch.split(out_s, graph_size_list.tolist(), dim=0))

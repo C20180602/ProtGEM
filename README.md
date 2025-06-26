@@ -55,6 +55,8 @@ pip install torch==2.2.1 torchvision==0.17.1 --index-url https://download.pytorc
 pip install dgl==2.4.0 -f https://data.dgl.ai/wheels/torch-2.2/cu121/repo.html
 
 pip install transformers==4.46.3 biopython==1.84 matplotlib==3.9.2 pyyaml==6.0.2 pydantic==2.8.2 fair-esm==2.0.0 h5py==3.12.1 torchinfo==1.8.0
+
+pip install torch-cluster -f https://data.pyg.org/whl/torch-2.2.1+cu121.html
 ```
 
 # 复现方法
