@@ -1,1 +1,3 @@
-添加InterProScan
+将手写的Transformer改为pytorch自带的多头注意力机制
+使用注意力机制预测功能
+消融实验重做

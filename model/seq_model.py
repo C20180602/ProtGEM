@@ -29,6 +29,9 @@ class SeqEncoder(nn.Module):
         self.part_readout = nn.Linear(in_dim, part_dims)
         self.glob_readout = nn.Linear(in_dim, global_dims)
         
+        self.part_drop = nn.Dropout(dropout)
+        self.glob_drop = nn.Dropout(dropout)
+        
         self.part_LN = nn.LayerNorm(part_dims)
         self.glob_LN = nn.LayerNorm(global_dims)
     
@@ -46,6 +49,7 @@ class SeqEncoder(nn.Module):
         A = torch.randn(self.in_dim, self.part_dims, device=x.device)
         Q, R = torch.linalg.qr(A, mode='reduced')
         part_emb_out = x @ Q
+        part_emb_out = self.part_drop(part_emb_out)
         part_emb_out = self.part_LN(part_emb_out)
         # part_emb_out [batch_size, seq_len, part_dims]
         
@@ -53,6 +57,7 @@ class SeqEncoder(nn.Module):
         x = x.mean(dim=1)
         # # x [batch_size, in_dim]
         glob_emb_out = F.elu(self.glob_readout(x))
+        glob_emb_out = self.glob_drop(glob_emb_out)
         glob_emb_out = self.glob_LN(glob_emb_out)
         # glob_emb_out [batch_size, global_dims]
         

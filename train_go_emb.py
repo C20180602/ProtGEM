@@ -25,7 +25,7 @@ logger = init_logger(os.path.join('logs','train_go.log'))
 device = torch.device("cuda:0")
 
 # 读取模型超参数
-go_model_conf_path = os.path.join("config","GoEncoder2.conf")
+go_model_conf_path = os.path.join("config","GoEncoder.conf")
 with open(go_model_conf_path,"r") as f:
     gm_param = json.load(f)
     

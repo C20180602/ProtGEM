@@ -122,6 +122,7 @@ def predict_go_pdb(dataset_name, model_name, model, filepath, progress=gr.Progre
     else:
         pg_model = ProteinGoModelv2(pm_param, gm_param)
     pg_model.to(device)
+    pg_model.eval()
     
     # 其他必要文件
     with open(balanced_go_list_path,"r") as f:
