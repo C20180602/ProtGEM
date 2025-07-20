@@ -17,12 +17,56 @@ from model.dataset import MyDataset, my_collate_fn, my_collate_fn_v2
 from model.go_dataset import GoDataset
 from model.go_model import GoContrastLoss
 from model.predictor import ProteinGoModel, ProteinGoModelv2, ContrastLoss
+from ablation.seq_ablation import ProteinGoModel_seq_abl
+from ablation.struct_ablation import ProteinGoModel_struct_abl
+from ablation.domain_ablation import ProteinGoModel_domain_abl
 from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
-default_pm_conf = {"v1.1":Path("config","ProteinEncoder.conf"), "v2":Path("config","ProteinEncoder2.conf")}
-default_gm_conf = {"v1.1":Path("config","GoEncoder.conf"), "v2":Path("config","GoEncoder2.conf")}
-default_pred_conf = {"v1.1":Path("config","Predictor.conf"), "v2":Path("config","Predictor.conf")}
+
+# 默认配置文件路径
+default_pm_conf = {
+    "v1.1":Path("config","ProteinEncoder.conf"),
+    "v2":Path("config","ProteinEncoder2.conf"),
+    "seq_abl":Path("config","ProteinEncoder.conf"),
+    "struct_abl":Path("config","ProteinEncoder.conf"),
+    "domain_abl":Path("config","ProteinEncoder.conf")
+}
+default_gm_conf = {
+    "v1.1":Path("config","GoEncoder.conf"),
+    "v2":Path("config","GoEncoder2.conf"),
+    "seq_abl":Path("config","GoEncoder.conf"),
+    "struct_abl":Path("config","GoEncoder.conf"),
+    "domain_abl":Path("config","GoEncoder.conf")
+}
+default_pred_conf = {
+    "v1.1":Path("config","Predictor.conf"),
+    "v2":Path("config","Predictor.conf"),
+    "seq_abl":Path("config","Predictor.conf"),
+    "struct_abl":Path("config","Predictor.conf"),
+    "domain_abl":Path("config","Predictor.conf")
+}
+
+def model_init(model_type, pm_param, gm_param, pred_param):
+    if model_type == "v1.1":
+        pg_model = ProteinGoModel(pm_param, gm_param, **pred_param)
+        local_collate_fn = my_collate_fn
+    elif model_type == "v2":
+        pg_model = ProteinGoModelv2(pm_param, gm_param)
+        local_collate_fn = my_collate_fn_v2
+    elif model_type == "seq_abl":
+        pg_model = ProteinGoModel_seq_abl(pm_param, gm_param)
+        local_collate_fn = my_collate_fn
+    elif model_type == "struct_abl":
+        pg_model = ProteinGoModel_struct_abl(pm_param, gm_param)
+        local_collate_fn = my_collate_fn
+    elif model_type == "domain_abl":
+        pg_model = ProteinGoModel_domain_abl(pm_param, gm_param)
+        local_collate_fn = my_collate_fn
+    else:
+        return None, None
+    
+    return pg_model, local_collate_fn
 
 def generate_mask(batch_size, seq_len, rate):
     mask = ((torch.rand([batch_size,seq_len])) > rate).float()
@@ -36,7 +80,7 @@ def generate_graph_mask(node_num, rate):
 @click.option('-o', '--ont', type=click.Choice(['bp', 'cc', 'mf', 'all']), default='mf')
 @click.option('-s', '--species-name', type=click.STRING, default='HUMAN')
 @click.option('-n', '--model-name', type=click.STRING, default='model_v1.1')
-@click.option('-t', '--model-type', type=click.Choice(['v1.1','v2']), default='v1.1')
+@click.option('-t', '--model-type', type=click.Choice(['v1.1','v2','seq_abl','struct_abl','domain_abl']), default='v1.1')
 def main(ont, species_name, model_name, model_type):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
@@ -64,15 +108,11 @@ def main(ont, species_name, model_name, model_type):
     gm_param = load_config_clone(default_gm_conf[model_type], config_dir)
     pred_param = load_config_clone(default_pred_conf[model_type], config_dir)
     # 初始化模型
-    if model_type == "v1.1":
-        pg_model = ProteinGoModel(pm_param, gm_param, **pred_param)
-        local_collate_fn = my_collate_fn
-    elif model_type == "v2":
-        pg_model = ProteinGoModelv2(pm_param, gm_param)
-        local_collate_fn = my_collate_fn_v2
-    else:
-        logger.error("unknown model type")
+    pg_model, local_collate_fn = model_init(model_type, pm_param, gm_param, pred_param)
+    if pg_model is None or local_collate_fn is None:
+        logger.error("Model type not supported!")
         return
+    
     pg_model.gm.load_model(Path("model_params","go_pretrain_model.pth"))
     pg_model.to(device)
         
@@ -162,7 +202,7 @@ def main(ont, species_name, model_name, model_type):
             mask = mask.to(device)
             graph_mask = graph_mask.to(device)
             
-            predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask, ablation_feat=dropout_feat_list[epoch])
+            predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask)
             
             loss1 = criterion1(predict_matrix, labels, contrast_temp)
             loss2 = criterion2(predict_matrix, labels)
@@ -213,7 +253,7 @@ def main(ont, species_name, model_name, model_type):
         pred = []
         with torch.no_grad():
             for idxs, pids, seq_embs, batched_graph, domain_info, labels in tqdm(val_loader):
-                predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=dropout_feat_list[epoch])
+                predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx)
                 # predict_matrix = (predict_matrix + 1)/2
                 pred += predict_matrix.tolist()
                 actual += labels.tolist()

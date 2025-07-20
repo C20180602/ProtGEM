@@ -40,10 +40,6 @@ class ProteinEncoder_seq_abl(nn.Module):
         max_len = seq_embs.shape[1]
         
         seq_glob, seq_part = self.seq_enc(seq_embs, mask)
-        # xxx_glob: [batch_size, global_dims]
-        # seq_part: [batch_size, max_len, part_dims]
-        
-        # padded_(domain/struct)_part: [batch_size, max_len, (domain/struct)_part_dims]
         
         # 融合全局特征
         glob_emb = seq_glob
@@ -61,12 +57,6 @@ class ProteinEncoder_seq_abl(nn.Module):
         part_emb = self.part_scale(part_emb)
         part_emb = F.relu(part_emb)
         # part_emb: [batch_size, final_hid_dim]
-        
-        # Ablation Study 消融实验
-        if "glob" in ablation_feat:
-            glob_emb = torch.zeros(batch_size, self.final_hid_dim, device=glob_emb.device)
-        if "part" in ablation_feat:
-            part_emb = torch.zeros(batch_size, self.final_hid_dim, device=part_emb.device)
         
         # 最终融合，得到最终的embedding
         emb = torch.cat([glob_emb,part_emb],dim=1)
