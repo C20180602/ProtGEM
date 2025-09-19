@@ -56,7 +56,7 @@ class CrossAttention(nn.Module):
 
 class AdaptiveGOEncoder(nn.Module):
     """Enhanced GO encoder with contextual adaptation"""
-    def __init__(self, vocab_dim=42093, emb_dim=1024, context_dim=512, n_layers=2):
+    def __init__(self, vocab_dim=42093, emb_dim=512, context_dim=512, n_layers=3):
         super().__init__()
         self.base_encoder = GoEncoder(vocab_dim, emb_dim)
 
@@ -75,36 +75,40 @@ class AdaptiveGOEncoder(nn.Module):
     def forward(self, go_indices, protein_context=None):
         # Base GO embeddings
         go_emb = self.base_encoder(go_indices)
-
         if protein_context is not None:
             # Expand protein context to match GO dimensions
-            batch_size, go_count = go_emb.shape[:2]
-            protein_context = protein_context.unsqueeze(1).expand(-1, go_count, -1)
+            go_emb = go_emb.unsqueeze(0).tile(protein_context.shape[0], 1, 1)
+            go_count = go_emb.shape[1]
+            protein_context = protein_context.unsqueeze(1).tile(1, go_count, 1)
 
             # Apply context adaptation
             for layer in self.context_layers:
                 combined = torch.cat([go_emb, protein_context], dim=-1)
                 go_emb = go_emb + layer(combined)
-
+        # go_emb: [batch_size, go_count, emb_dim] or [go_count, emb_dim]
         return self.final_norm(go_emb)
 
 class HierarchicalAttentionPooling(nn.Module):
     """Multi-scale attention pooling for protein features"""
-    def __init__(self, d_model, scales=[1, 2, 4]):
+    def __init__(self, in_dim, out_dim, scales=[1, 2, 4]):
         super().__init__()
+        self.in_dim = in_dim
+        self.out_dim = out_dim
         self.scales = scales
         self.attention_layers = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(d_model, d_model // 4),
+                nn.Linear(in_dim, in_dim // 4),
                 nn.Tanh(),
-                nn.Linear(d_model // 4, 1)
+                nn.Linear(in_dim // 4, 1)
             ) for _ in scales
         ])
-        self.output_proj = nn.Linear(d_model * len(scales), d_model)
+        self.output_proj = nn.Linear(in_dim * len(scales), out_dim)
 
     def forward(self, x, mask=None):
         # x: [batch_size, seq_len, d_model]
-        batch_size, seq_len, d_model = x.shape
+        batch_size, seq_len, in_dim = x.shape
+        assert in_dim == self.in_dim
+        
         outputs = []
 
         for scale, attn_layer in zip(self.scales, self.attention_layers):
@@ -112,17 +116,19 @@ class HierarchicalAttentionPooling(nn.Module):
             if scale > 1:
                 pad_len = (scale - seq_len % scale) % scale
                 if pad_len > 0:
-                    padding = torch.zeros(batch_size, pad_len, d_model, device=x.device)
+                    padding = torch.zeros(batch_size, pad_len, in_dim, device=x.device)
                     x_scaled = torch.cat([x, padding], dim=1)
                 else:
                     x_scaled = x
 
-                x_scaled = x_scaled.view(batch_size, -1, scale, d_model).mean(dim=2)
+                x_scaled = x_scaled.view(batch_size, -1, scale, in_dim).mean(dim=2)
             else:
                 x_scaled = x
+            # x_scaled: [batch_size, pad_seq_len//scale, in_dim]
 
             # Attention weights
             attn_weights = attn_layer(x_scaled)
+            # x: [batch_size, pad_seq_len//scale, 1]
             if mask is not None and scale == 1:
                 attn_weights = attn_weights.masked_fill(mask.unsqueeze(-1) == 0, -1e9)
 
@@ -130,11 +136,14 @@ class HierarchicalAttentionPooling(nn.Module):
 
             # Weighted pooling
             pooled = torch.sum(x_scaled * attn_weights, dim=1)
+            # pooled: [batch_size, in_dim]
             outputs.append(pooled)
 
         # Combine multi-scale features
         combined = torch.cat(outputs, dim=-1)
+        # combined: [batch_size, in_dim * len(scales)]
         return self.output_proj(combined)
+        # return: [batch_size, out_dim]
 
 class EnhancedProteinGoModel(nn.Module):
     """Enhanced protein-GO prediction model with advanced architectures"""
@@ -163,7 +172,7 @@ class EnhancedProteinGoModel(nn.Module):
             self.gm = AdaptiveGOEncoder(
                 vocab_dim=gm_param['vocab_dim'],
                 emb_dim=gm_param['emb_dim'],
-                context_dim=pm_param['final_out_dim'] // 2
+                context_dim=pm_param['final_out_dim']
             )
         else:
             self.gm = GoEncoder(**gm_param)
@@ -173,7 +182,7 @@ class EnhancedProteinGoModel(nn.Module):
 
         # Enhanced pooling
         if enhanced_config['use_hierarchical_pooling']:
-            self.protein_pooling = HierarchicalAttentionPooling(self.d_model)
+            self.protein_pooling = HierarchicalAttentionPooling(pm_param['model_args']['SeqEncoder']['in_dim'], self.d_model)
 
         # Interaction mechanisms
         if enhanced_config['interaction_method'] == 'cross_attention':

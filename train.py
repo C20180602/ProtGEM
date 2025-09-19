@@ -17,6 +17,7 @@ from model.dataset import MyDataset, my_collate_fn, my_collate_fn_v2
 from model.go_dataset import GoDataset
 from model.go_model import GoContrastLoss
 from model.predictor import ProteinGoModel, ProteinGoModelv2, ContrastLoss
+from model.enhanced_predictor import EnhancedProteinGoModel, EnhancedProteinGoModelv2
 from ablation.seq_ablation import ProteinGoModel_seq_abl
 from ablation.struct_ablation import ProteinGoModel_struct_abl
 from ablation.domain_ablation import ProteinGoModel_domain_abl
@@ -30,21 +31,27 @@ default_pm_conf = {
     "v2":Path("config","ProteinEncoder2.conf"),
     "seq_abl":Path("config","ProteinEncoder.conf"),
     "struct_abl":Path("config","ProteinEncoder.conf"),
-    "domain_abl":Path("config","ProteinEncoder.conf")
+    "domain_abl":Path("config","ProteinEncoder.conf"),
+    "enhanced_v1":Path("config","EnhancedProteinEncoder.conf"),
+    "enhanced_v2":Path("config","EnhancedProteinEncoder.conf")
 }
 default_gm_conf = {
     "v1.1":Path("config","GoEncoder.conf"),
     "v2":Path("config","GoEncoder2.conf"),
     "seq_abl":Path("config","GoEncoder.conf"),
     "struct_abl":Path("config","GoEncoder.conf"),
-    "domain_abl":Path("config","GoEncoder.conf")
+    "domain_abl":Path("config","GoEncoder.conf"),
+    "enhanced_v1":Path("config","EnhancedGoEncoder.conf"),
+    "enhanced_v2":Path("config","EnhancedGoEncoder.conf")
 }
 default_pred_conf = {
     "v1.1":Path("config","Predictor.conf"),
     "v2":Path("config","Predictor.conf"),
     "seq_abl":Path("config","Predictor.conf"),
     "struct_abl":Path("config","Predictor.conf"),
-    "domain_abl":Path("config","Predictor.conf")
+    "domain_abl":Path("config","Predictor.conf"),
+    "enhanced_v1":Path("config","EnhancedPredictor.conf"),
+    "enhanced_v2":Path("config","EnhancedPredictor.conf")
 }
 
 def model_init(model_type, pm_param, gm_param, pred_param):
@@ -63,6 +70,12 @@ def model_init(model_type, pm_param, gm_param, pred_param):
     elif model_type == "domain_abl":
         pg_model = ProteinGoModel_domain_abl(pm_param, gm_param)
         local_collate_fn = my_collate_fn
+    elif model_type == "enhanced_v1":
+        pg_model = EnhancedProteinGoModel(pm_param, gm_param, pred_param.get('enhanced_config'))
+        local_collate_fn = my_collate_fn
+    elif model_type == "enhanced_v2":
+        pg_model = EnhancedProteinGoModelv2(pm_param, gm_param, pred_param.get('enhanced_config'))
+        local_collate_fn = my_collate_fn_v2
     else:
         return None, None
     
@@ -80,7 +93,7 @@ def generate_graph_mask(node_num, rate):
 @click.option('-o', '--ont', type=click.Choice(['bp', 'cc', 'mf', 'all']), default='mf')
 @click.option('-s', '--species-name', type=click.STRING, default='HUMAN')
 @click.option('-n', '--model-name', type=click.STRING, default='model_v1.1')
-@click.option('-t', '--model-type', type=click.Choice(['v1.1','v2','seq_abl','struct_abl','domain_abl']), default='v1.1')
+@click.option('-t', '--model-type', type=click.Choice(['v1.1','v2','seq_abl','struct_abl','domain_abl','enhanced_v1','enhanced_v2']), default='v1.1')
 def main(ont, species_name, model_name, model_type):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
@@ -112,8 +125,8 @@ def main(ont, species_name, model_name, model_type):
     if pg_model is None or local_collate_fn is None:
         logger.error("Model type not supported!")
         return
-    
-    pg_model.gm.load_model(Path("model_params","go_pretrain_model.pth"))
+    if model_type not in ["enhanced_v1","enhanced_v2"]:
+        pg_model.gm.load_model(Path("model_params","go_pretrain_model.pth"))
     pg_model.to(device)
         
     # 读取训练参数
@@ -159,7 +172,7 @@ def main(ont, species_name, model_name, model_type):
     corr_aupr = 0.0
     corr_thresh = 0.0
 
-    ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=False)
+    ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=True)
     ds.show_dataset_info(logger)
     train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger,train_proportion,valid_proportion,use_cache=True)
 
