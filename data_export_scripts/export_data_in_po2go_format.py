@@ -18,6 +18,7 @@ from model.predictor import ProteinGoModel, ProteinGoModelv2, ContrastLoss
 from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+os.chdir('..')
 default_pm_conf = {"v1.1":Path("config","ProteinEncoder.conf"), "v2":Path("config","ProteinEncoder2.conf")}
 default_gm_conf = {"v1.1":Path("config","GoEncoder.conf"), "v2":Path("config","GoEncoder2.conf")}
 

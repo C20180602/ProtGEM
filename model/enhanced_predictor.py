@@ -243,10 +243,7 @@ class EnhancedProteinGoModel(nn.Module):
 
         # Enhanced interaction computation
         if self.config['interaction_method'] == 'cross_attention':
-            interaction_features, attention_weights = self.cross_attention(
-                protein_emb, go_emb, go_emb
-            )
-            interaction_features = interaction_features.mean(dim=1).unsqueeze(1).expand(-1, go_count, -1)
+            interaction_features, attention_weights = self.cross_attention(protein_emb, go_emb, go_emb)
 
         elif self.config['interaction_method'] == 'bilinear':
             interaction_features = self.bilinear(protein_emb, go_emb)
@@ -342,7 +339,7 @@ class EnhancedProteinGoModelv2(nn.Module):
 
         if self.config['interaction_method'] == 'cross_attention':
             interaction_features, _ = self.cross_attention(protein_emb, go_emb, go_emb)
-            interaction_features = interaction_features.mean(dim=1).unsqueeze(1).expand(-1, go_count, -1)
+            # interaction_features = interaction_features.mean(dim=1).unsqueeze(1).expand(-1, go_count, -1)
         else:
             interaction_features = protein_emb * go_emb
 

@@ -13,6 +13,7 @@ from tqdm import tqdm
 from model.dataset import MyDataset, my_collate_fn
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+os.chdir('..')
 
 # 读取全局变量
 with open("config/global.conf","r") as f:
