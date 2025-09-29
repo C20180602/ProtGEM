@@ -1,3 +1,13 @@
+# 2025.9.29 新增功能：迁移预测
+- 运行transer_test.py即可测试
+- 使用基于PRETRAIN_DATASET训练的模型，对TARGET_DATASET进行预测
+- 使用的GO标签集合来自于训练集筛选后的标签
+- 会剔除掉已经处于PRETRAIN_DATASET中的蛋白质（可优化为只剔除PRETRAIN_DATASET训练集中的蛋白质）
+
+```
+python transfer_test.py -o cc -s PRETRAIN_DATASET -n model_v1.1 -t v1.1 -ds TARGET_DATASET
+```
+
 # 2025.9.26 数据Pipeline优化
 - 可以只根据蛋白质的uniprot_id（后文简称pid）进行数据集构建，不依赖物种分类（物种名称可视为数据集名称）
 - 下载流程进行了多线程优化

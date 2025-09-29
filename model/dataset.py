@@ -71,7 +71,8 @@ def probablity_propagate(prob_vector, go_graph:nx.DiGraph, topo_order, balanced_
     return prob_vector
 
 class MyDataset(Dataset):
-    def __init__(self, species_name, ont, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"), go_max_percent=1.0, go_min_count=0, use_cache = False):
+    def __init__(self, species_name, ont, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"),
+                 go_max_percent=1.0, go_min_count=0, inference_flag = False, force_balance_go_list = None, exclude_pid_list = None, use_cache = False):
         # GO数据与interpro数据, 较小直接读入
         # seq_emb, struct较大, 采用懒加载
         
@@ -119,7 +120,10 @@ class MyDataset(Dataset):
         species_path = Path("dataset",species_name)
         protein_list = list(self.protein_info.keys())
         self.data_info = []
+        ex_set = set(exclude_pid_list)
         for pname in tqdm(protein_list):
+            if pname in ex_set:
+                continue
             seq_path = Path(species_path,pname,"seq_emb.pkl")
             # 因为某些愚蠢的原因，有些蛋白质的序列嵌入文件是损坏的
             with open(seq_path,"rb") as f:
@@ -133,8 +137,8 @@ class MyDataset(Dataset):
                 struct_graph,_ = dgl.load_graphs(struct_path)
                 struct_graph = struct_graph[0]
                 plen = len(self.protein_info[pname]["seq"])
-                # pdb文件与序列长度相等 且 domain标签数不为0
-                if len(struct_graph.nodes()) == plen and len(self.protein_info[pname]["domain"]) > 0:
+                # pdb文件与序列长度相等
+                if len(struct_graph.nodes()) == plen:
                     # go数据统计
                     go_id_list = []
                     for go in self.protein_info[pname]["go"]:
@@ -152,16 +156,19 @@ class MyDataset(Dataset):
                             domain_list.append([self.vocab_interpro[domain[0]],domain[1],domain[2]])
                     
                     # 保存数据为: (蛋白质名, 序列长度, 序列嵌入路径, 结构图路径, interpro标签, 传递后的GO标签)
-                    if propagated_go_list != [] and len(domain_list)>0:
+                    if propagated_go_list != [] and (inference_flag or ((not inference_flag) and len(domain_list)>0)):
                         self.data_info.append((pname,plen,
                                             seq_path.resolve(), os.path.abspath(struct_path),
                                             domain_list, propagated_go_list))
         # balance of posivite/negative samples
-        self.balanced_go_list = []
-        for go in self.go_count_map:
-            if (self.ont == "all") or (ns_map[self.go_terms[go]["namespace"]] == self.ont):
-                if self.go_count_map[go] >= go_min_count and self.go_count_map[go] <= len(self.data_info)*go_max_percent:
-                    self.balanced_go_list.append(go)
+        if force_balance_go_list is None:
+            self.balanced_go_list = []
+            for go in self.go_count_map:
+                if (self.ont == "all") or (ns_map[self.go_terms[go]["namespace"]] == self.ont):
+                    if self.go_count_map[go] >= go_min_count and self.go_count_map[go] <= len(self.data_info)*go_max_percent:
+                        self.balanced_go_list.append(go)
+        else:
+            self.balanced_go_list = force_balance_go_list
         self.balanced_go_list = sorted(self.balanced_go_list)
         self.balanced_go_map_inv = {go:i for i,go in enumerate(self.balanced_go_list)}
         
@@ -191,6 +198,10 @@ class MyDataset(Dataset):
     
     def valid_mode(self):
         self.train_flag = False
+        
+    def get_pid_list(self):
+        pid_list = [pinfo[0] for pinfo in self.data_info]
+        return pid_list
     
     def __getitem__(self, idx):
         info = self.data_info[idx]

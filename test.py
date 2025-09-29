@@ -106,28 +106,20 @@ def main(ont, species_name, model_name, model_type, thresh):
     logger.info("Start Testing!")
 
     ds.valid_mode()
-    for ablation_feature in ablation_list:
-        logger.info("ablation_feature: "+str(ablation_feature))
-        total = 0
-        correct = 0
-        actual = []
-        pred = []
-        with torch.no_grad():
-            for idxs, pids, seq_embs, batched_graph, domain_info, labels in tqdm(test_loader):
-                
-                predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=ablation_feature)
-                # predict_matrix: [batch_size, go_nums]
-                predict_matrix = predict_matrix.transpose(1,0)
-                predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order, ds.balanced_go_map_inv)
-                predict_matrix = predict_matrix.transpose(1,0)
-                pred += predict_matrix.tolist()
-                actual += labels.tolist()
-        if ablation_feature == []:
-            auc_score, aupr_score, f1_score, _ = cal_metrics(pred, actual, thresh)
-            logger.info("AUC: {:.4f} AUPR: {:.4f} F1_score: {:.4f}".format(auc_score, aupr_score, f1_score))
-        else:
-            auc_score, aupr_score, fmax, tmp_thresh = cal_metrics(pred, actual)
-            logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, fmax, tmp_thresh))
+    actual = []
+    pred = []
+    with torch.no_grad():
+        for idxs, pids, seq_embs, batched_graph, domain_info, labels in tqdm(test_loader):
+            
+            predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx)
+            # predict_matrix: [batch_size, go_nums]
+            predict_matrix = predict_matrix.transpose(1,0)
+            predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order, ds.balanced_go_map_inv)
+            predict_matrix = predict_matrix.transpose(1,0)
+            pred += predict_matrix.tolist()
+            actual += labels.tolist()
+    auc_score, aupr_score, fmax, tmp_thresh = cal_metrics(pred, actual)
+    logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, fmax, tmp_thresh))
 
 if __name__ == '__main__':
     main()
