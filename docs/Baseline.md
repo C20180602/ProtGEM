@@ -4,7 +4,7 @@
 ## 数据下载
 - 首先可以使用alphafold_pdb_downloader.py读取pid列表下载PDB文件
 
-- interpro_domain_downloader.py通过pid列表下载interpro文件
+- interpro_domain_downloader.py通过pid列表下载interpro文件（可同时进行）
 
 - 根据pid列表，使用uniprot的id_mapping功能，完成映射后，下载tsv文件，里面勾选只勾选GO标签编号，将下载的tsv文件命名为go.tsv，放置在raw_data/species_name/go文件夹下
 
@@ -13,8 +13,8 @@
 
 顺序可任意
 
-# 运行流程（该流程已弃用）
-## 数据下载
+# 运行流程
+## 数据下载（该流程已弃用）
 ### 序列数据：
 
 [Uniprot](https://www.uniprot.org/)
@@ -81,7 +81,7 @@ raw_data的文件夹结构：
 其余文件均为调试文件，不用下载
 
 
-## 数据处理
+## 数据处理（该流程已弃用）
 
 总数据流：raw_data -> processed_data -> dataset
 

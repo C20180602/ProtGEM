@@ -7,6 +7,10 @@ from time import sleep
 @click.command()
 @click.option('-s', '--species-name', type=click.STRING)
 def main(species_name):
+    # 设置工作路径为项目文件夹
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir("..")
+    # 先读取之前已经完成的进度
     st = set()
     file_list = os.listdir(os.path.join("raw_data",species_name,"pdb"))
     for filename in file_list:

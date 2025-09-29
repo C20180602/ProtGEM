@@ -118,13 +118,12 @@ def main(species_name):
         if file.endswith(".tsv"):
             exist_file_list.add(file.split(".")[0])
 
+    # 读取需要处理的pid列表
+    with open(os.path.join("raw_data",species_name,"pid_list.json"),"r") as f:
+        pid_list = json.load(f)
     # 先收集所有需要下载的任务
     download_tasks = []
-    for pdb_file in tqdm(os.listdir(os.path.join("raw_data",species_name,"pdb"))):
-        if "AF-" in pdb_file:
-            pid = pdb_file.split("-")[1]
-        else:
-            pid = pdb_file.split(".")[0]
+    for pid in tqdm(pid_list):
         if pid not in exist_file_list:
             url = f"https://www.ebi.ac.uk:443/interpro/api/entry/InterPro/protein/reviewed/{pid}/?page_size=200"
             file_path = os.path.join("raw_data",species_name,"domain", pid+'.tsv')
