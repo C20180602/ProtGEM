@@ -52,11 +52,10 @@ def main(ont, species_name, model_name, model_type, thresh):
     if model_type == "v1.1":
         pg_model = ProteinGoModel(pm_param, gm_param, **pred_param)
         local_collate_fn = my_collate_fn
-        ablation_list = [[],["seq"],["struct"],["domain"],["glob"],["part"]]
     else:
         pg_model = ProteinGoModelv2(pm_param, gm_param)
         local_collate_fn = my_collate_fn_v2
-        ablation_list = [[],["seq"],["struct"],["domain"]]
+    ablation_list = [[]]
     pg_model.load_model(Path(model_param_dir,"{}_model.pt".format(ont)))
     pg_model.to(device)
     for p in pg_model.parameters():

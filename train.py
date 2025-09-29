@@ -126,7 +126,7 @@ def main(ont, species_name, model_name, model_type):
         logger.error("Model type not supported!")
         return
     if model_type not in ["enhanced_v1","enhanced_v2"]:
-        pg_model.gm.load_model(Path("model_params","go_pretrain_model.pth"))
+        pg_model.gm.load_model(Path("model_params","go_pretrain_model_1024.pth"))
     pg_model.to(device)
         
     # 读取训练参数
@@ -174,7 +174,7 @@ def main(ont, species_name, model_name, model_type):
 
     ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=False)
     ds.show_dataset_info(logger)
-    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger,train_proportion,valid_proportion,use_cache=True)
+    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger,train_proportion,valid_proportion,use_cache=False)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=local_collate_fn)
     val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)

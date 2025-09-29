@@ -121,6 +121,11 @@ class MyDataset(Dataset):
         self.data_info = []
         for pname in tqdm(protein_list):
             seq_path = Path(species_path,pname,"seq_emb.pkl")
+            # 因为某些愚蠢的原因，有些蛋白质的序列嵌入文件是损坏的
+            with open(seq_path,"rb") as f:
+                seq_emb = pickle.load(f)
+            if len(seq_emb.shape) != 2:
+                continue
             struct_path = os.path.join(species_path,pname,"struct_gvp.dgl")
             
             # 当一个数据在序列, 结构, GO标签都存在时, 将其加入数据集

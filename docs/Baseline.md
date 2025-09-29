@@ -1,4 +1,19 @@
-# 运行流程
+# 2025.9.26 数据Pipeline优化
+- 可以只根据蛋白质的uniprot_id（后文简称pid）进行数据集构建，不依赖物种分类（物种名称可视为数据集名称）
+- 下载流程进行了多线程优化
+## 数据下载
+- 首先可以使用alphafold_pdb_downloader.py读取pid列表下载PDB文件
+
+- interpro_domain_downloader.py通过pid列表下载interpro文件
+
+- 根据pid列表，使用uniprot的id_mapping功能，完成映射后，下载tsv文件，里面勾选只勾选GO标签编号，将下载的tsv文件命名为go.tsv，放置在raw_data/species_name/go文件夹下
+
+## 数据处理
+运行process_go_basic.py、process_protein_new.py、build_pdb_graph_new.py
+
+顺序可任意
+
+# 运行流程（该流程已弃用）
 ## 数据下载
 ### 序列数据：
 

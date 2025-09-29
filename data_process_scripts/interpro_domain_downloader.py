@@ -4,13 +4,12 @@
 '''
 # standard library modules
 import sys, errno, re, json, ssl, os
+import click
 from urllib import request
 from urllib.error import HTTPError
 from time import sleep
-
-# 设置工作路径为项目文件夹
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-os.chdir("..")
+from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def parse_items(items):
     if type(items)==list:
@@ -106,34 +105,36 @@ def download_to_file(url, file_path):
     # Don't overload the server, give it time before asking for more
     sleep(1)
 
-# 设置物种名称，大写
-with open("config/global.conf","r") as f:
-    global_var = json.load(f)
-species_name = global_var["species_name"]
-# 先读取之前已经完成的进度
-exist_file_list = set()
-already_exist_file = os.listdir(os.path.join("raw_data",species_name,"domain"))
-for file in already_exist_file:
-    if file.endswith(".tsv"):
-        exist_file_list.add(file.split(".")[0])
+@click.command()
+@click.option('-s', '--species-name', type=click.STRING)
+def main(species_name):
+    # 设置工作路径为项目文件夹
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir("..")
+    # 先读取之前已经完成的进度
+    exist_file_list = set()
+    already_exist_file = os.listdir(os.path.join("raw_data",species_name,"domain"))
+    for file in already_exist_file:
+        if file.endswith(".tsv"):
+            exist_file_list.add(file.split(".")[0])
 
-with open(os.path.join("raw_data",species_name,"seq","seq.fasta")) as f:
-    line = f.readline()
-    cnt = 0
-    while line:
-        if line.startswith(">"):
-            line = line.strip()
-            cnt += 1
-            print(cnt)
-            if cnt<=62579:
-                line = f.readline()
-                continue 
-            protein_id = line.split(">")[1]
-            # 如果之前完成了，就跳过该条信息
-            if protein_id in exist_file_list:
-                print(protein_id, " exists")
-                line = f.readline()
-                continue
-            url = f"https://www.ebi.ac.uk:443/interpro/api/entry/InterPro/protein/reviewed/{protein_id}/?page_size=200"
-            download_to_file(url,os.path.join("raw_data",species_name,"domain", protein_id+'.tsv'))
-        line = f.readline()
+    # 先收集所有需要下载的任务
+    download_tasks = []
+    for pdb_file in tqdm(os.listdir(os.path.join("raw_data",species_name,"pdb"))):
+        if "AF-" in pdb_file:
+            pid = pdb_file.split("-")[1]
+        else:
+            pid = pdb_file.split(".")[0]
+        if pid not in exist_file_list:
+            url = f"https://www.ebi.ac.uk:443/interpro/api/entry/InterPro/protein/reviewed/{pid}/?page_size=200"
+            file_path = os.path.join("raw_data",species_name,"domain", pid+'.tsv')
+            download_tasks.append((url, file_path))
+
+    # 使用线程池并发下载
+    with ThreadPoolExecutor(max_workers=16) as executor:
+        futures = [executor.submit(download_to_file, url, file_path) for url, file_path in download_tasks]
+        for _ in tqdm(as_completed(futures), total=len(futures), desc="Downloading domains"):
+            pass
+
+if __name__ == "__main__":
+    main()
