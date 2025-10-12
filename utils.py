@@ -49,6 +49,14 @@ def load_config_clone(default_conf_path, clone_dir_path):
         param = json.load(f)
     return param
 
+def generate_mask(batch_size, seq_len, rate):
+    mask = ((torch.rand([batch_size,seq_len])) > rate).float()
+    return mask
+
+def generate_graph_mask(node_num, rate):
+    mask = ((torch.rand([node_num])) > rate).float()
+    return mask
+
 def get_split_dataset(idx_dir, ont, ds, logger, train_p=0.9, valid_p=0.05, use_cache=True):
     train_idx_path = Path(idx_dir,f"{ont}_train_indices.npy")
     valid_idx_path = Path(idx_dir,f"{ont}_valid_indices.npy")

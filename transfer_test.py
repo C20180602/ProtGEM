@@ -65,7 +65,6 @@ def main(ont, species_name, model_name, model_type, thresh, dest_species):
     else:
         pg_model = ProteinGoModelv2(pm_param, gm_param)
         local_collate_fn = my_collate_fn_v2
-    ablation_list = [[]]
     pg_model.load_model(Path(model_param_dir,"{}_model.pt".format(ont)))
     pg_model.to(device)
     for p in pg_model.parameters():
@@ -86,12 +85,6 @@ def main(ont, species_name, model_name, model_type, thresh, dest_species):
     # 读取必要的数据
     with open(Path("dataset","go_graph_nx.pkl"),"rb") as f:
         go_graph_nx = pickle.load(f)
-    with open(Path("processed_data","go_id.json"),"r") as f:
-        go_id = json.load(f)
-    with open(Path("processed_data","interpro2go.json"),"r") as f:
-        interpro2go = json.load(f)
-    with open(Path("processed_data","interpro_id.json"),"r") as f:
-        interpro_id = json.load(f)
     topo_order = list(nx.topological_sort(go_graph_nx))
     
     # 读取测试集

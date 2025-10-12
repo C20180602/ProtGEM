@@ -72,7 +72,7 @@ def probablity_propagate(prob_vector, go_graph:nx.DiGraph, topo_order, balanced_
 
 class MyDataset(Dataset):
     def __init__(self, species_name, ont, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"),
-                 go_max_percent=1.0, go_min_count=0, inference_flag = False, force_balance_go_list = None, exclude_pid_list = None, use_cache = False):
+                 go_max_percent=1.0, go_min_count=0, inference_flag = False, force_balance_go_list = None, exclude_pid_list = [], use_cache = False):
         # GO数据与interpro数据, 较小直接读入
         # seq_emb, struct较大, 采用懒加载
         
@@ -84,7 +84,7 @@ class MyDataset(Dataset):
         self.ont = ont
         self.cache_dir = cache_dir
         self.device = target_device
-        self.train_flag = True
+        self.train_flag = not inference_flag
         
         # 读取各类文件
         print("loading all kinds of files...")
@@ -156,7 +156,7 @@ class MyDataset(Dataset):
                             domain_list.append([self.vocab_interpro[domain[0]],domain[1],domain[2]])
                     
                     # 保存数据为: (蛋白质名, 序列长度, 序列嵌入路径, 结构图路径, interpro标签, 传递后的GO标签)
-                    if propagated_go_list != [] and (inference_flag or ((not inference_flag) and len(domain_list)>0)):
+                    if propagated_go_list != []:
                         self.data_info.append((pname,plen,
                                             seq_path.resolve(), os.path.abspath(struct_path),
                                             domain_list, propagated_go_list))

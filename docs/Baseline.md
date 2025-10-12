@@ -1,8 +1,19 @@
+# 2025.9.30 新增功能：微调+迁移测试
+- 运行fine_tuning_test.py即可测试
+- 使用基于PRETRAIN_DATASET训练的模型，对TARGET_DATASET进行预测
+- fn参数表示从TARGET_DATASET中选用于微调的数据组数
+- 测试日志与微调后模型保存在原模型的相应文件夹中
+
+```
+python fine_tuning_test.py -o bp -s PRETRAIN_DATASET -n model_v1.1_back -t v1.1 -ds TARGET_DATASET -fn 20
+```
+
 # 2025.9.29 新增功能：迁移预测
 - 运行transer_test.py即可测试
 - 使用基于PRETRAIN_DATASET训练的模型，对TARGET_DATASET进行预测
 - 使用的GO标签集合来自于训练集筛选后的标签
 - 会剔除掉已经处于PRETRAIN_DATASET中的蛋白质（可优化为只剔除PRETRAIN_DATASET训练集中的蛋白质）
+- 测试日志保存在原模型的log文件夹中
 
 ```
 python transfer_test.py -o cc -s PRETRAIN_DATASET -n model_v1.1 -t v1.1 -ds TARGET_DATASET
