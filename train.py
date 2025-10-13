@@ -27,7 +27,9 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-s', '--species-name', type=click.STRING, default='HUMAN')
 @click.option('-n', '--model-name', type=click.STRING, default='model_v1.1')
 @click.option('-t', '--model-type', type=click.Choice(['v1.1','v2','seq_abl','struct_abl','domain_abl','enhanced_v1','enhanced_v2']), default='v1.1')
-def main(ont, species_name, model_name, model_type):
+@click.option('-f', '--freeze', type=click.BOOL, default=False) # freeze the pretrained go model
+@click.option('-preg', '--pretrain_model_path', type=click.STRING, default=Path("model_params","go_pretrain_model_1024.pth"))
+def main(ont, species_name, model_name, model_type, freeze, pretrain_model_path):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
     os.makedirs(Path("workspace",species_name),exist_ok=True)
@@ -59,7 +61,15 @@ def main(ont, species_name, model_name, model_type):
         logger.error("Model type not supported!")
         return
     if model_type not in ["enhanced_v1","enhanced_v2"]:
-        pg_model.gm.load_model(Path("model_params","go_pretrain_model_1024.pth"))
+        if pretrain_model_path is not None:
+            if not os.path.exists(pretrain_model_path):
+                logger.error("Pretrained protein model path doesn't exist! "+pretrain_model_path)
+            else:
+                pg_model.gm.load_model(pretrain_model_path)
+                # 冻结GO模型
+                if freeze:
+                    for param in pg_model.gm.parameters():
+                        param.requires_grad = False
     pg_model.to(device)
         
     # 读取训练参数

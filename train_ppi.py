@@ -24,8 +24,9 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-s', '--species-name', type=click.STRING, default='HUMAN')
 @click.option('-n', '--model-name', type=click.STRING, default='model_ppi_v1')
 @click.option('-t', '--model-type', type=click.Choice(['ppi_v1']), default='ppi_v1')
+@click.option('-f', '--freeze', type=click.BOOL, default=False) # freeze the pretrained protein model
 @click.option('-prep', '--pretrain-model-path', type=click.STRING, default=None)
-def main(species_name, model_name, model_type, pretrain_model_path):
+def main(species_name, model_name, model_type, freeze, pretrain_model_path):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
     os.makedirs(Path("workspace",species_name),exist_ok=True)
@@ -61,8 +62,9 @@ def main(species_name, model_name, model_type, pretrain_model_path):
         else:
             ppi_model.pm.load_model(pretrain_model_path)
             # 冻结参数
-            # for param in ppi_model.pm.parameters():
-            #     param.requires_grad = False
+            if freeze:
+                for param in ppi_model.pm.parameters():
+                    param.requires_grad = False
     ppi_model.to(device)
         
     # 读取训练参数

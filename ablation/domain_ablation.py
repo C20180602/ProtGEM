@@ -1,4 +1,4 @@
-# only sequence feature
+# only domain feature
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
