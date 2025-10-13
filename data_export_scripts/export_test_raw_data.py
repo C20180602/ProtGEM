@@ -1,7 +1,6 @@
 import os
-import logging
+import sys
 import json
-import pickle
 
 import torch
 import torch.utils.data
@@ -10,6 +9,8 @@ import torch.functional as F
 from torch import nn
 from torch.utils.data import Dataset, DataLoader, Subset
 from tqdm import tqdm
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model.dataset import MyDataset, my_collate_fn
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))

@@ -46,7 +46,7 @@ class ProteinEncoder(nn.Module):
         batch_size = seq_embs.shape[0]
         max_len = seq_embs.shape[1]
         
-        # Ablation Study 消融实验
+        # Ablation Study 消融实验（已废弃）
         if "seq" not in ablation_feat:
             seq_glob, seq_part = self.seq_enc(seq_embs, mask)
         else:
@@ -103,7 +103,7 @@ class ProteinEncoder(nn.Module):
         part_emb = F.relu(part_emb)
         # part_emb: [batch_size, final_hid_dim]
         
-        # Ablation Study 消融实验
+        # Ablation Study 消融实验（已废弃）
         if "glob" in ablation_feat:
             glob_emb = torch.zeros(batch_size, self.final_hid_dim, device=glob_emb.device)
         if "part" in ablation_feat:
@@ -149,7 +149,7 @@ class ProteinEncoderv2(nn.Module):
     def forward(self, seq_embs, batched_graph, domain_info, mask=None, ablation_feat = []):
         batch_size = batched_graph.batch_num_nodes().shape[0]
         
-        # Ablation Study 消融实验
+        # Ablation Study 消融实验（已废弃）
         if "seq" in ablation_feat:
             batched_graph.ndata["esm"] = torch.zeros((batched_graph.ndata["esm"].shape), device=seq_embs.device)
         

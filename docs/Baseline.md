@@ -1,3 +1,13 @@
+# 2025.10.12 新增功能：PPI预测
+- 运行data_export_scripts/export_pm_model.py，导出任意一个模型的protein model部分
+```
+python data_export_scripts/export_pm_model.py -o all -s AF2DB -n model_v1.1_back -t v1.1
+```
+- 运行train_ppi.py，可选择以刚才导出的protein model模型为基础进行训练+测试
+```
+python train_ppi.py -s 7120 -prep workspace/AF2DB/model_v1.1_back/model_param/all_pm_model.pt
+```
+
 # 2025.9.30 新增功能：微调+迁移测试
 - 运行fine_tuning_test.py即可测试
 - 使用基于PRETRAIN_DATASET训练的模型，对TARGET_DATASET进行预测

@@ -99,3 +99,43 @@ class ProteinGoModelv2(nn.Module):
     
     def load_model(self, path):
         self.load_state_dict(torch.load(path))
+
+class PPIModel(nn.Module):
+    '''
+    PPI预测模型
+    '''
+    def __init__(self, pm_param, layer_cnt=1, hid_dim=256):
+        super(PPIModel, self).__init__()
+        self.pm = ProteinEncoder(**pm_param)
+        
+        self.in_dim = pm_param['final_out_dim']
+        self.hid_dim = hid_dim
+        self.MLP = nn.Sequential()
+        for i in range(layer_cnt):
+            if i==0:
+                self.MLP.append(nn.Linear(self.in_dim*2, self.hid_dim))
+            else:
+                self.MLP.append(nn.Linear(self.hid_dim, self.hid_dim))
+            self.MLP.append(nn.LayerNorm(self.hid_dim))
+            self.MLP.append(nn.ELU())
+        self.MLP.append(nn.Linear(self.hid_dim, 1))
+        self.MLP.append(nn.Sigmoid())
+        
+    def forward(self, seq_embs1, batched_graph1, domain_info1,
+                      seq_embs2, batched_graph2, domain_info2,
+                      mask1=None, graph_mask1=None, mask2=None, graph_mask2=None, ablation_feat = []):
+        
+        protein_emb1 = self.pm(seq_embs1, batched_graph1, domain_info1, mask1, graph_mask1, ablation_feat)
+        protein_emb2 = self.pm(seq_embs2, batched_graph2, domain_info2, mask2, graph_mask2, ablation_feat)
+        # protein_emb: [batch_size, hid_dim]
+        protein_emb = torch.cat([protein_emb1 , protein_emb2],dim=1)
+        predict_matrix = self.MLP(protein_emb)
+        predict_matrix = predict_matrix.squeeze(-1)
+        return predict_matrix
+        # predict_matrix: [batch_size]
+    
+    def save_model(self, path):
+        torch.save(self.state_dict(), path)
+    
+    def load_model(self, path):
+        self.load_state_dict(torch.load(path))

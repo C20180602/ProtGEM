@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import pickle as pkl
 import click
@@ -13,6 +14,8 @@ from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model.dataset import MyDataset, my_collate_fn, my_collate_fn_v2
 from model.predictor import ProteinGoModel, ProteinGoModelv2, ContrastLoss
 from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset

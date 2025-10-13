@@ -14,15 +14,11 @@ from torch import nn
 from torchinfo import summary
 from torch.utils.data import Dataset, DataLoader, Subset
 from tqdm import tqdm
-from model.dataset import MyDataset, my_collate_fn, my_collate_fn_v2, probablity_propagate
+
+from register import *
+from model.dataset import MyDataset, probablity_propagate
 from model.predictor import ContrastLoss, ProteinGoModel, ProteinGoModelv2
-
 from utils import init_logger, cal_metrics, load_config_clone
-
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-default_pm_conf = {"v1.1":Path("config","ProteinEncoder.conf"), "v2":Path("config","ProteinEncoder2.conf")}
-default_gm_conf = {"v1.1":Path("config","GoEncoder.conf"), "v2":Path("config","GoEncoder2.conf")}
-default_pred_conf = {"v1.1":Path("config","Predictor.conf"), "v2":Path("config","Predictor.conf")}
 
 @click.command()
 @click.option('-o', '--ont', type=click.Choice(['bp', 'cc', 'mf', 'all']), default='mf')
@@ -48,13 +44,7 @@ def main(ont, species_name, model_name, model_type, thresh):
     pm_param = load_config_clone(default_pm_conf[model_type], config_dir)
     gm_param = load_config_clone(default_gm_conf[model_type], config_dir)
     pred_param = load_config_clone(default_pred_conf[model_type], config_dir)
-    # 初始化模型
-    if model_type == "v1.1":
-        pg_model = ProteinGoModel(pm_param, gm_param, **pred_param)
-        local_collate_fn = my_collate_fn
-    else:
-        pg_model = ProteinGoModelv2(pm_param, gm_param)
-        local_collate_fn = my_collate_fn_v2
+    pg_model, _ = model_init(model_type, pm_param, gm_param, pred_param)
     pg_model.load_model(Path(model_param_dir,"{}_model.pt".format(ont)))
     pg_model.to(device)
     for p in pg_model.parameters():
@@ -121,4 +111,5 @@ def main(ont, species_name, model_name, model_type, thresh):
     logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, fmax, tmp_thresh))
 
 if __name__ == '__main__':
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     main()
