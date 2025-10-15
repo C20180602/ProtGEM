@@ -1,5 +1,5 @@
 from pathlib import Path
-from model.predictor import ProteinGoModel, ProteinGoModelv2, PPIModel, ContrastLoss
+from model.predictor import ProteinGoModel, ProteinGoModelv2, ProteinGoModelv3, PPIModel, ContrastLoss
 from model.enhanced_predictor import EnhancedProteinGoModel, EnhancedProteinGoModelv2
 from ablation.seq_ablation import ProteinGoModel_seq_abl
 from ablation.struct_ablation import ProteinGoModel_struct_abl
@@ -11,6 +11,7 @@ default_pm_conf = {
     "v1.1":Path("config","ProteinEncoder.conf"),
     "ppi_v1":Path("config","ProteinEncoder.conf"),
     "v2":Path("config","ProteinEncoder2.conf"),
+    "v3":Path("config","ProteinEncoder3.conf"),
     "seq_abl":Path("config","ProteinEncoder.conf"),
     "struct_abl":Path("config","ProteinEncoder.conf"),
     "domain_abl":Path("config","ProteinEncoder.conf"),
@@ -20,6 +21,7 @@ default_pm_conf = {
 default_gm_conf = {
     "v1.1":Path("config","GoEncoder.conf"),
     "v2":Path("config","GoEncoder2.conf"),
+    "v3":Path("config","GoEncoder.conf"),
     "seq_abl":Path("config","GoEncoder.conf"),
     "struct_abl":Path("config","GoEncoder.conf"),
     "domain_abl":Path("config","GoEncoder.conf"),
@@ -30,6 +32,7 @@ default_pred_conf = {
     "v1.1":Path("config","Predictor.conf"),
     "ppi_v1":Path("config","Predictor_ppi.conf"),
     "v2":Path("config","Predictor.conf"),
+    "v3":Path("config","Predictor.conf"),
     "seq_abl":Path("config","Predictor.conf"),
     "struct_abl":Path("config","Predictor.conf"),
     "domain_abl":Path("config","Predictor.conf"),
@@ -48,6 +51,9 @@ def model_init(model_type, pm_param, gm_param, pred_param):
     elif model_type == "v2":
         pg_model = ProteinGoModelv2(pm_param, gm_param)
         local_collate_fn = my_collate_fn_v2
+    elif model_type == "v3":
+        pg_model = ProteinGoModelv3(pm_param, gm_param)
+        local_collate_fn = my_collate_fn
     elif model_type == "seq_abl":
         pg_model = ProteinGoModel_seq_abl(pm_param, gm_param)
         local_collate_fn = my_collate_fn

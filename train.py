@@ -26,9 +26,9 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-o', '--ont', type=click.Choice(['bp', 'cc', 'mf', 'all']), default='mf')
 @click.option('-s', '--species-name', type=click.STRING, default='HUMAN')
 @click.option('-n', '--model-name', type=click.STRING, default='model_v1.1')
-@click.option('-t', '--model-type', type=click.Choice(['v1.1','v2','seq_abl','struct_abl','domain_abl','enhanced_v1','enhanced_v2']), default='v1.1')
-@click.option('-f', '--freeze', type=click.BOOL, default=False) # freeze the pretrained go model
-@click.option('-preg', '--pretrain_model_path', type=click.STRING, default=Path("model_params","go_pretrain_model_1024.pth"))
+@click.option('-t', '--model-type', type=click.Choice(['v1.1','v2','v3','seq_abl','struct_abl','domain_abl','enhanced_v1','enhanced_v2']), default='v1.1')
+@click.option('-f', '--freeze', type=click.BOOL, default=False) # freeze the pretrained go model (only active while preg exist)
+@click.option('-preg', '--pretrain_model_path', type=click.STRING, default=None) # model_params/go_pretrain_model_1024.pth
 def main(ont, species_name, model_name, model_type, freeze, pretrain_model_path):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
@@ -204,8 +204,6 @@ def main(ont, species_name, model_name, model_type, freeze, pretrain_model_path)
         # validate
         ds.valid_mode()
         pg_model.eval()
-        total = 0
-        correct = 0
         actual = []
         pred = []
         with torch.no_grad():
