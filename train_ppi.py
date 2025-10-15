@@ -24,9 +24,10 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-s', '--species-name', type=click.STRING, default='HUMAN')
 @click.option('-n', '--model-name', type=click.STRING, default='model_ppi_v1')
 @click.option('-t', '--model-type', type=click.Choice(['ppi_v1']), default='ppi_v1')
+@click.option('-c', '--continue-flag', type=click.BOOL, default=False) # whether to use the previous param to train
 @click.option('-f', '--freeze', type=click.BOOL, default=False) # freeze the pretrained protein model
 @click.option('-prep', '--pretrain-model-path', type=click.STRING, default=None)
-def main(species_name, model_name, model_type, freeze, pretrain_model_path):
+def main(species_name, model_name, model_type, continue_flag, freeze, pretrain_model_path):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
     os.makedirs(Path("workspace",species_name),exist_ok=True)
@@ -61,10 +62,18 @@ def main(species_name, model_name, model_type, freeze, pretrain_model_path):
             logger.error("Pretrained protein model path doesn't exist! "+pretrain_model_path)
         else:
             ppi_model.pm.load_model(pretrain_model_path)
-            # 冻结参数
-            if freeze:
-                for param in ppi_model.pm.parameters():
-                    param.requires_grad = False
+    # 在原模型基础上继续训练（用于欠拟合的情况）
+    if continue_flag:
+        if os.path.exists(Path(model_param_dir,"ppi_model.pt")):
+            ppi_model.load_model(Path(model_param_dir,"ppi_model.pt"))
+            logger.info("Continue training with previous model parameters!")
+        else:
+            logger.error("Previous model parameters not found!")
+            return
+    # 冻结参数
+    if freeze:
+        for param in ppi_model.pm.parameters():
+            param.requires_grad = False
     ppi_model.to(device)
         
     # 读取训练参数
@@ -79,7 +88,8 @@ def main(species_name, model_name, model_type, freeze, pretrain_model_path):
     go_diff_weight = train_param["go_diff_weight"]
     ppi_weight = train_param["ppi_weight"]
     go_weight = train_param["go_weight"]
-    neg_rate = train_param["neg_rate"]
+    pick_neg_rate = train_param["pick_neg_rate"]
+    random_neg_rate = train_param["random_neg_rate"]
     alpha1 = train_param["alpha1"]
     alpha2 = train_param["alpha2"]
     log_batch_count = train_param["log_batch_count"]
@@ -103,7 +113,8 @@ def main(species_name, model_name, model_type, freeze, pretrain_model_path):
 
     # 初始化数据集并进行划分
     ds = PPIDataset(species_name, cache_dir, target_device=device,
-                    go_diff_weight=go_diff_weight, ppi_weight=ppi_weight, go_weight=go_weight, neg_rate=neg_rate,
+                    go_diff_weight=go_diff_weight, ppi_weight=ppi_weight, go_weight=go_weight,
+                    pick_neg_rate=pick_neg_rate, random_neg_rate=random_neg_rate,
                     use_cache=False)
     ds.show_dataset_info(logger)
     train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,"ppi",ds,logger,train_proportion,valid_proportion,use_cache=False)

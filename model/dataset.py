@@ -304,7 +304,7 @@ class MyDataset(Dataset):
         
 class PPIDataset(Dataset):
     def __init__(self, species_name, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"),
-                 go_diff_weight = {'bp':0.4, 'cc':0.4, 'mf':0.2}, ppi_weight = 0.7, go_weight = 0.3, neg_rate = 4.0,
+                 go_diff_weight = {'bp':0.4, 'cc':0.4, 'mf':0.2}, ppi_weight = 0.7, go_weight = 0.3, pick_neg_rate = 4.0, random_neg_rate = 1.0,
                  inference_flag = False, exclude_pid_list = [], use_cache = False):
         # GO数据与interpro数据, 较小直接读入
         # seq_emb, struct较大, 采用懒加载
@@ -422,6 +422,8 @@ class PPIDataset(Dataset):
                     continue
                 ns_max = {'bp':0, 'cc':0, 'mf':0}
                 ns_max_cnt = {'bp':0, 'cc':0, 'mf':0}
+                # 求两个GO集合交集
+                # 将三大类的GO标签中，分别统计出GO交集中所在的最大标签深度，以及处于该深度的标签个数
                 intersection = pid2go_est[u] & pid2go_est[v]
                 for go in intersection:
                     ns = ns_map[self.go_terms[go]["namespace"]]
@@ -438,11 +440,26 @@ class PPIDataset(Dataset):
                 if ppi_dis == -1:
                     ppi_dis = max_ppi_dis + 1
                 final_dis_list.append((-ppi_weight*ppi_dis+go_weight*go_diff_dis, v))
+                
+            # 采取筛选的高可能性负样本:
             final_dis_list.sort()
-            for i in range(min(int(neg_rate*len(pos_ppi_dict[u])),len(final_dis_list))):
+            for i in range(min(int(pick_neg_rate*len(pos_ppi_dict[u])),len(final_dis_list))):
                 v = final_dis_list[i][1]
                 if v not in pos_ppi_dict[u]:
                     neg_ppi_dict[u].add(v)
+            # 采取随机负样本:
+            shuffle_pid_list = pid_list.copy()
+            np.random.shuffle(shuffle_pid_list)
+            random_neg_num = min(int(random_neg_rate*len(pos_ppi_dict[u])),
+                                 len(pid_list)-1 - len(neg_ppi_dict[u]) - len(pos_ppi_dict[u]))
+            if random_neg_num > 0:
+                for v in shuffle_pid_list:
+                    if v!=u and (v not in neg_ppi_dict[u]) and (v not in pos_ppi_dict[u]):
+                        if random_neg_num > 0:
+                            random_neg_num -= 1
+                            neg_ppi_dict[u].add(v)
+                        else:
+                            break
             
         # 转为序列中编号
         self.pid_id_map = {d[0]:i for i,d in enumerate(self.data_info)}
