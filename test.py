@@ -24,7 +24,7 @@ from utils import init_logger, cal_metrics, load_config_clone
 @click.option('-o', '--ont', type=click.Choice(['bp', 'cc', 'mf', 'all']), default='mf')
 @click.option('-s', '--species-name', type=click.STRING, default='HUMAN')
 @click.option('-n', '--model-name', type=click.STRING, default='model_v1.1')
-@click.option('-t', '--model-type', type=click.Choice(['v1.1','v2']), default='v1.1')
+@click.option('-t', '--model-type', type=click.Choice(['v1.1','v2','v3']), default='v1.1')
 @click.option('-thresh', '--thresh', type=click.FLOAT, default=None)
 def main(ont, species_name, model_name, model_type, thresh):
     workspace_dir = Path("workspace",species_name,model_name)
@@ -44,7 +44,7 @@ def main(ont, species_name, model_name, model_type, thresh):
     pm_param = load_config_clone(default_pm_conf[model_type], config_dir)
     gm_param = load_config_clone(default_gm_conf[model_type], config_dir)
     pred_param = load_config_clone(default_pred_conf[model_type], config_dir)
-    pg_model, _ = model_init(model_type, pm_param, gm_param, pred_param)
+    pg_model, local_collate_fn = model_init(model_type, pm_param, gm_param, pred_param)
     pg_model.load_model(Path(model_param_dir,"{}_model.pt".format(ont)))
     pg_model.to(device)
     for p in pg_model.parameters():

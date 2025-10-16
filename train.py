@@ -51,6 +51,18 @@ def main(ont, species_name, model_name, model_type, continue_flag, freeze, pretr
 
     # 初始化日志
     logger = init_logger(Path(log_dir, 'train_{}.log'.format(ont)))
+    
+    # 输出输入的参数信息
+    logger.info("----------------------------A new train process----------------------------")
+    logger.info("Input args:")
+    logger.info("GO type: {}".format(ont))
+    logger.info("species_name: {}".format(species_name))
+    logger.info("model_name: {}".format(model_name))
+    logger.info("model_type: {}".format(model_type))
+    logger.info("continue_flag: {}".format(continue_flag))
+    logger.info("freeze: {}".format(freeze))
+    logger.info("pretrain_model_path: {}".format(pretrain_model_path))
+    logger.info("----------------------------")
 
     # 读取模型配置参数
     pm_param = load_config_clone(default_pm_conf[model_type], config_dir)
@@ -125,9 +137,9 @@ def main(ont, species_name, model_name, model_type, continue_flag, freeze, pretr
     corr_thresh = 0.0
 
     # 初始化数据集并进行划分
-    ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=False)
+    ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=continue_flag)
     ds.show_dataset_info(logger)
-    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger,train_proportion,valid_proportion,use_cache=False)
+    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger,train_proportion,valid_proportion,use_cache=continue_flag)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=local_collate_fn)
     val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)
@@ -147,6 +159,7 @@ def main(ont, species_name, model_name, model_type, continue_flag, freeze, pretr
     logger.info(pm_param)
     logger.info(gm_param)
     logger.info(pred_param)
+    logger.info("----------------------------")
     logger.info("Start Training!")
     go_idx = torch.tensor(ds.balanced_go_list).to(device)
     for epoch in range(epoch_num):

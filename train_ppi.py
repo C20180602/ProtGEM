@@ -48,6 +48,17 @@ def main(species_name, model_name, model_type, continue_flag, freeze, pretrain_m
 
     # 初始化日志
     logger = init_logger(Path(log_dir, 'train_ppi.log'))
+    
+    # 输出输入的参数信息
+    logger.info("----------------------------A new train process----------------------------")
+    logger.info("Input args:")
+    logger.info("species_name: {}".format(species_name))
+    logger.info("model_name: {}".format(model_name))
+    logger.info("model_type: {}".format(model_type))
+    logger.info("continue_flag: {}".format(continue_flag))
+    logger.info("freeze: {}".format(freeze))
+    logger.info("pretrain_model_path: {}".format(pretrain_model_path))
+    logger.info("----------------------------")
 
     # 读取模型配置参数
     pm_param = load_config_clone(default_pm_conf[model_type], config_dir)
@@ -115,9 +126,9 @@ def main(species_name, model_name, model_type, continue_flag, freeze, pretrain_m
     ds = PPIDataset(species_name, cache_dir, target_device=device,
                     go_diff_weight=go_diff_weight, ppi_weight=ppi_weight, go_weight=go_weight,
                     pick_neg_rate=pick_neg_rate, random_neg_rate=random_neg_rate,
-                    use_cache=False)
+                    use_cache=continue_flag)
     ds.show_dataset_info(logger)
-    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,"ppi",ds,logger,train_proportion,valid_proportion,use_cache=False)
+    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,"ppi",ds,logger,train_proportion,valid_proportion,use_cache=continue_flag)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=local_collate_fn)
     val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)

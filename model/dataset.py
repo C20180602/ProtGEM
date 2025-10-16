@@ -301,6 +301,7 @@ class MyDataset(Dataset):
         logger.info("Domain Num: Max: %d, Min: %d, Avg: %.2f"%(domain_max, domain_min, domain_sum/len(self.data_info)))
         logger.info("GO Terms: Max: %d, Min: %d, Avg: %.2f"%(go_max, go_min, go_sum/len(self.data_info)))
         logger.info("Balanced GO List length: %d"%(len(self.balanced_go_list)))
+        logger.info("----------------------------")
         
 class PPIDataset(Dataset):
     def __init__(self, species_name, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"),
