@@ -39,7 +39,17 @@ def main(ont, species_name, model_name, model_type, thresh):
     
     # 初始化日志
     logger = init_logger(Path(log_dir, 'test_{}.log'.format(ont)))
-
+    
+    # 输出输入的参数信息
+    logger.info("----------------------------A new test process----------------------------")
+    logger.info("Input args:")
+    logger.info("GO type: {}".format(ont))
+    logger.info("species_name: {}".format(species_name))
+    logger.info("model_name: {}".format(model_name))
+    logger.info("model_type: {}".format(model_type))
+    logger.info("thresh: {}".format(thresh))
+    logger.info("----------------------------")
+    
     # 读取模型配置参数
     pm_param = load_config_clone(default_pm_conf[model_type], config_dir)
     gm_param = load_config_clone(default_gm_conf[model_type], config_dir)
@@ -107,7 +117,7 @@ def main(ont, species_name, model_name, model_type, thresh):
             predict_matrix = predict_matrix.transpose(1,0)
             pred += predict_matrix.tolist()
             actual += labels.tolist()
-    auc_score, aupr_score, fmax, tmp_thresh = cal_metrics(pred, actual)
+    auc_score, aupr_score, fmax, tmp_thresh = cal_metrics(pred, actual, thresh)
     logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, fmax, tmp_thresh))
 
 if __name__ == '__main__':

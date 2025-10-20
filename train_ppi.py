@@ -79,8 +79,8 @@ def main(species_name, model_name, model_type, continue_flag, freeze, pretrain_m
             ppi_model.load_model(Path(model_param_dir,"ppi_model.pt"))
             logger.info("Continue training with previous model parameters!")
         else:
-            logger.error("Previous model parameters not found!")
-            return
+            # 如果不存在, 则使用新模型训练, 不改变原有数据集cache
+            logger.warning("Previous model parameters not found!")
     # 冻结参数
     if freeze:
         for param in ppi_model.pm.parameters():
