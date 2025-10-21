@@ -18,7 +18,7 @@ from register import *
 from model.dataset import MyDataset
 from model.go_dataset import GoDataset
 from model.go_model import GoContrastLoss
-from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask
+from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask, set_seeds
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -52,8 +52,13 @@ def main(ont, species_name, model_name, model_type, continue_flag, freeze, pretr
     # 初始化日志
     logger = init_logger(Path(log_dir, 'train_{}.log'.format(ont)))
     
+    # 初始化随机种子以便复现
+    seed = np.random.randint(1e9)
+    set_seeds(seed)
+    
     # 输出输入的参数信息
     logger.info("----------------------------A new train process----------------------------")
+    logger.info("random seed: {}".format(seed))
     logger.info("Input args:")
     logger.info("GO type: {}".format(ont))
     logger.info("species_name: {}".format(species_name))

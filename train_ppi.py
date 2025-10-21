@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from register import *
 from model.dataset import PPIDataset
-from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask
+from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask, set_seeds
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -26,8 +26,9 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-t', '--model-type', type=click.Choice(['ppi_v1']), default='ppi_v1')
 @click.option('-c', '--continue-flag', type=click.BOOL, default=False) # whether to use the previous param to train
 @click.option('-f', '--freeze', type=click.BOOL, default=False) # freeze the pretrained protein model
+@click.option('-test', '--test_flag', type=click.BOOL, default=False) # only test
 @click.option('-prep', '--pretrain-model-path', type=click.STRING, default=None)
-def main(species_name, model_name, model_type, continue_flag, freeze, pretrain_model_path):
+def main(species_name, model_name, model_type, continue_flag, freeze, test_flag, pretrain_model_path):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
     os.makedirs(Path("workspace",species_name),exist_ok=True)
@@ -49,14 +50,20 @@ def main(species_name, model_name, model_type, continue_flag, freeze, pretrain_m
     # 初始化日志
     logger = init_logger(Path(log_dir, 'train_ppi.log'))
     
+    # 初始化随机种子以便复现
+    seed = np.random.randint(1e9)
+    set_seeds(seed)
+    
     # 输出输入的参数信息
     logger.info("----------------------------A new train process----------------------------")
+    logger.info("random seed: {}".format(seed))
     logger.info("Input args:")
     logger.info("species_name: {}".format(species_name))
     logger.info("model_name: {}".format(model_name))
     logger.info("model_type: {}".format(model_type))
     logger.info("continue_flag: {}".format(continue_flag))
     logger.info("freeze: {}".format(freeze))
+    logger.info("test_flag: {}".format(test_flag))
     logger.info("pretrain_model_path: {}".format(pretrain_model_path))
     logger.info("----------------------------")
 
@@ -123,12 +130,13 @@ def main(species_name, model_name, model_type, continue_flag, freeze, pretrain_m
     corr_thresh = 0.0
 
     # 初始化数据集并进行划分
+    cache_flag = continue_flag or test_flag
     ds = PPIDataset(species_name, cache_dir, target_device=device,
                     go_diff_weight=go_diff_weight, ppi_weight=ppi_weight, go_weight=go_weight,
                     pick_neg_rate=pick_neg_rate, random_neg_rate=random_neg_rate,
-                    use_cache=continue_flag)
+                    use_cache=cache_flag)
     ds.show_dataset_info(logger)
-    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,"ppi",ds,logger,train_proportion,valid_proportion,use_cache=continue_flag)
+    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,"ppi",ds,logger,train_proportion,valid_proportion,use_cache=cache_flag)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=local_collate_fn)
     val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)
@@ -146,93 +154,95 @@ def main(species_name, model_name, model_type, continue_flag, freeze, pretrain_m
     logger.info(train_param)
     logger.info(pm_param)
     logger.info(pred_param)
-    logger.info("Start Training!")
-    for epoch in range(epoch_num):
-        # train
-        if epoch==0 or dropout_feat_list[epoch] != dropout_feat_list[epoch-1]:
-            logger.info(f"Dropout_feat: {dropout_feat_list[epoch]}")
-        ds.train_mode()
-        mean_loss = 0.0
-        mean_loss1 = 0.0
-        mean_loss2 = 0.0
-        pred = []
-        actual = []
-        for i, (idxs,
-                (pids1, seq_embs1, batched_graph1, domain_info1),
-                (pids2, seq_embs2, batched_graph2, domain_info2),
-                labels) in enumerate(train_loader):
-            optimizer.zero_grad()
-            
-            mask1 = generate_mask(seq_embs1.shape[0], seq_embs1.shape[1], mask_rate)
-            graph_mask1 = generate_graph_mask(batched_graph1.num_nodes(), mask_rate)
-            mask1 = mask1.to(device)
-            graph_mask1 = graph_mask1.to(device)
-            
-            mask2 = generate_mask(seq_embs2.shape[0], seq_embs2.shape[1], mask_rate)
-            graph_mask2 = generate_graph_mask(batched_graph2.num_nodes(), mask_rate)
-            mask2 = mask2.to(device)
-            graph_mask2 = graph_mask2.to(device)
-            
-            predict_matrix = ppi_model(seq_embs1, batched_graph1, domain_info1,
-                                       seq_embs2, batched_graph2, domain_info2,
-                                       mask1, graph_mask1, mask2, graph_mask2)
-            if int(torch.sum(labels).item()) != 0:
-                loss1 = criterion1(predict_matrix, labels, contrast_temp)
-            else:
-                loss1 = torch.tensor([0.0], device=device)
-            loss2 = criterion2(predict_matrix, labels)
-            loss = alpha1 * loss1 + alpha2 * loss2
-            loss.backward()
-            optimizer.step()
-            lr_scheduler.step()
-            mean_loss += loss.item()
-            mean_loss1 += loss1.item()
-            mean_loss2 += loss2.item()
-            if i % log_batch_count == log_batch_count-1:
-                logger.info(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/log_batch_count}, Loss1: {mean_loss1/log_batch_count}, Loss2: {mean_loss2/log_batch_count}')
-                mean_loss = 0.0
-                mean_loss1 = 0.0
-                mean_loss2 = 0.0
-            
-            # 对于训练集预测结果，采样进行指标计算，节省时间
-            if i % 50 == 49:
-                pred += predict_matrix.tolist()
-                actual += labels.tolist()
-        logger.info("train set:")
-        auc_score, aupr_score, fmax, thresh = cal_metrics(pred, actual)
-        logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} thresh: {:.4f}".format(auc_score, aupr_score, fmax, thresh))
-                
-        # validate
-        ds.valid_mode()
-        ppi_model.eval()
-        actual = []
-        pred = []
-        with torch.no_grad():
+    if not test_flag:
+        logger.info("Start Training!")
+        for epoch in range(epoch_num):
+            # train
+            if epoch==0 or dropout_feat_list[epoch] != dropout_feat_list[epoch-1]:
+                logger.info(f"Dropout_feat: {dropout_feat_list[epoch]}")
+            ds.train_mode()
+            mean_loss = 0.0
+            mean_loss1 = 0.0
+            mean_loss2 = 0.0
+            pred = []
+            actual = []
             for i, (idxs,
-                (pids1, seq_embs1, batched_graph1, domain_info1),
-                (pids2, seq_embs2, batched_graph2, domain_info2),
-                labels) in enumerate(val_loader):
+                    (pids1, seq_embs1, batched_graph1, domain_info1),
+                    (pids2, seq_embs2, batched_graph2, domain_info2),
+                    labels) in enumerate(train_loader):
+                optimizer.zero_grad()
+                
+                mask1 = generate_mask(seq_embs1.shape[0], seq_embs1.shape[1], mask_rate)
+                graph_mask1 = generate_graph_mask(batched_graph1.num_nodes(), mask_rate)
+                mask1 = mask1.to(device)
+                graph_mask1 = graph_mask1.to(device)
+                
+                mask2 = generate_mask(seq_embs2.shape[0], seq_embs2.shape[1], mask_rate)
+                graph_mask2 = generate_graph_mask(batched_graph2.num_nodes(), mask_rate)
+                mask2 = mask2.to(device)
+                graph_mask2 = graph_mask2.to(device)
                 
                 predict_matrix = ppi_model(seq_embs1, batched_graph1, domain_info1,
-                                           seq_embs2, batched_graph2, domain_info2)
-                pred += predict_matrix.tolist()
-                actual += labels.tolist()
-        logger.info("valid set:")
-        auc_score, aupr_score, fmax, thresh = cal_metrics(pred, actual)
-        logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} thresh: {:.4f}".format(auc_score, aupr_score, fmax, thresh))
-        if fmax > best_fmax:
-            best_fmax = fmax
-            best_epoch = epoch
-            corr_auc = auc_score
-            corr_aupr = aupr_score
-            corr_thresh = thresh
-            ppi_model.save_model(Path(model_param_dir,"ppi_model.pt"))
-        ppi_model.train()
-    
-    logger.info(f"{species_name} {model_name} ppi dataset training result: Valid")
-    logger.info(f"best_epoch:{best_epoch} AUC:{corr_auc} best_Fmax:{best_fmax} AUPR:{corr_aupr} thresh:{corr_thresh}")
+                                        seq_embs2, batched_graph2, domain_info2,
+                                        mask1, graph_mask1, mask2, graph_mask2)
+                if int(torch.sum(labels).item()) != 0:
+                    loss1 = criterion1(predict_matrix, labels, contrast_temp)
+                else:
+                    loss1 = torch.tensor([0.0], device=device)
+                loss2 = criterion2(predict_matrix, labels)
+                loss = alpha1 * loss1 + alpha2 * loss2
+                loss.backward()
+                optimizer.step()
+                lr_scheduler.step()
+                mean_loss += loss.item()
+                mean_loss1 += loss1.item()
+                mean_loss2 += loss2.item()
+                if i % log_batch_count == log_batch_count-1:
+                    logger.info(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/log_batch_count}, Loss1: {mean_loss1/log_batch_count}, Loss2: {mean_loss2/log_batch_count}')
+                    mean_loss = 0.0
+                    mean_loss1 = 0.0
+                    mean_loss2 = 0.0
+                
+                # 对于训练集预测结果，采样进行指标计算，节省时间
+                if i % 50 == 49:
+                    pred += predict_matrix.tolist()
+                    actual += labels.tolist()
+            logger.info("train set:")
+            auc_score, aupr_score, fmax, thresh = cal_metrics(pred, actual)
+            logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} thresh: {:.4f}".format(auc_score, aupr_score, fmax, thresh))
+                    
+            # validate
+            ds.valid_mode()
+            ppi_model.eval()
+            actual = []
+            pred = []
+            with torch.no_grad():
+                for i, (idxs,
+                    (pids1, seq_embs1, batched_graph1, domain_info1),
+                    (pids2, seq_embs2, batched_graph2, domain_info2),
+                    labels) in enumerate(val_loader):
+                    
+                    predict_matrix = ppi_model(seq_embs1, batched_graph1, domain_info1,
+                                            seq_embs2, batched_graph2, domain_info2)
+                    pred += predict_matrix.tolist()
+                    actual += labels.tolist()
+            logger.info("valid set:")
+            auc_score, aupr_score, fmax, thresh = cal_metrics(pred, actual)
+            logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} thresh: {:.4f}".format(auc_score, aupr_score, fmax, thresh))
+            if fmax > best_fmax:
+                best_fmax = fmax
+                best_epoch = epoch
+                corr_auc = auc_score
+                corr_aupr = aupr_score
+                corr_thresh = thresh
+                ppi_model.save_model(Path(model_param_dir,"ppi_model.pt"))
+            ppi_model.train()
+        
+        logger.info(f"{species_name} {model_name} ppi dataset training result: Valid")
+        logger.info(f"best_epoch:{best_epoch} AUC:{corr_auc} best_Fmax:{best_fmax} AUPR:{corr_aupr} thresh:{corr_thresh}")
     
     # test
+    logger.info("Start Testing!")
     ds.valid_mode()
     ppi_model.eval()
     actual = []

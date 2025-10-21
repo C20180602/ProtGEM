@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import numpy as np
+import random
 from pathlib import Path
 
 import torch
@@ -56,6 +57,16 @@ def generate_mask(batch_size, seq_len, rate):
 def generate_graph_mask(node_num, rate):
     mask = ((torch.rand([node_num])) > rate).float()
     return mask
+
+def set_seeds(seed):
+    """Sets random seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 def get_split_dataset(idx_dir, ont, ds, logger, train_p=0.9, valid_p=0.05, use_cache=True):
     train_idx_path = Path(idx_dir,f"{ont}_train_indices.npy")
