@@ -132,3 +132,26 @@ bp: AUC: 0.9148 AUPR: 0.4151 F1_score: 0.4281
 cc: AUC: 0.9495 AUPR: 0.6866 F1_score: 0.6624
 mf: AUC: 0.9742 AUPR: 0.8253 F1_score: 0.8060
 有微弱提升，但消融测试结果局部特征和结构特征无用
+
+GO:
+AF2DB v1.1 20 GVP建图+节点特征blosum62+对输出进行LayerNorm，KNN=30
+all:AUC: 0.9812 AUPR: 0.6400 F1_score: 0.6016
+bp: AUC: 0.9719 AUPR: 0.5055 F1_score: 0.4957
+cc: AUC: 0.9894 AUPR: 0.8204 F1_score: 0.7554
+mf: AUC: 0.9922 AUPR: 0.8881 F1_score: 0.8427
+
+AF2DB v3 20 GVP建图+节点特征blosum62+对输出进行LayerNorm，KNN=30
+all:AUC: 0.9803 AUPR: 0.6382 Fmax: 0.5991 tmp_thresh: 0.8093
+bp: AUC: 0.9708 AUPR: 0.5025 Fmax: 0.4919 tmp_thresh: 0.7926
+cc: AUC: 0.9883 AUPR: 0.8178 Fmax: 0.7538 tmp_thresh: 0.8738
+mf: AUC: 0.9924 AUPR: 0.8871 Fmax: 0.8413 tmp_thresh: 0.8671
+
+
+PPI测试集:
+pneg=0.0 rneg=1.0 alpha1=0.5 alpha2=0.5
+AUC: 0.9138 AUPR: 0.9065 Fmax: 0.8418 thresh: 0.4198
+pneg=0.8 rneg=0.2 alpha1=0.5 alpha2=0.5
+AUC: 0.9606 AUPR: 0.9491 Fmax: 0.9236 thresh: 0.3307
+
+pneg=5.0 rneg=0.0 alpha1=0.5 alpha2=0.5
+AUC: 0.9887 AUPR: 0.9740 Fmax: 0.9356 thresh: 0.7435

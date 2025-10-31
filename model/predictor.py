@@ -176,6 +176,16 @@ class PPIModel(nn.Module):
         return predict_matrix
         # predict_matrix: [batch_size]
     
+    def upstream_infer(self, seq_embs, batched_graph, domain_info, ablation_feat = []):
+        protein_emb = self.pm(seq_embs, batched_graph, domain_info, ablation_feat=ablation_feat)
+        return protein_emb
+    
+    def downstream_infer(self, emb1, emb2):
+        protein_emb = torch.cat([emb1 , emb2],dim=1)
+        predict_matrix = self.MLP(protein_emb)
+        predict_matrix = predict_matrix.squeeze(-1)
+        return predict_matrix
+    
     def save_model(self, path):
         torch.save(self.state_dict(), path)
     

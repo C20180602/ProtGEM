@@ -16,12 +16,14 @@ def main(species_name):
     for filename in file_list:
         if filename.startswith("AF"):
             st.add(filename.split("-")[1])
+        else:
+            st.add(filename.split(".")[0])
 
     urls = []
     with open(os.path.join("raw_data",species_name,"pid_list.json"),"r") as f:
         pid_list = json.load(f)
         for pid in pid_list:
-            url = "https://alphafold.ebi.ac.uk/files/AF-"+pid+"-F1-model_v4.pdb\n"
+            url = "https://alphafold.ebi.ac.uk/files/AF-"+pid+"-F1-model_v6.pdb\n"
             urls.append(url)
 
     for i,url in enumerate(urls):

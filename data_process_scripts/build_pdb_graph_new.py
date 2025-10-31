@@ -205,7 +205,8 @@ class PDB_Builder:
 
 @click.command()
 @click.option('-s', '--species-name', type=click.STRING)
-def main(species_name):
+@click.option('-pp', '--protein_list_file_path', type=click.STRING, default=None)
+def main(species_name, protein_list_file_path):
     # 忽略使用DGLGraph建立空图的警告
     warnings.filterwarnings("ignore")
     # 设置工作目录为项目文件夹
@@ -215,8 +216,16 @@ def main(species_name):
     
     pdb_data_dir = os.path.join('raw_data',species_name,'pdb')
     save_dir = os.path.join('dataset',species_name)
-    model_fnum_log = {}
-    for pdb_file in tqdm(os.listdir(pdb_data_dir)):
+    if protein_list_file_path is None:
+        pdb_file_list = os.listdir(pdb_data_dir)
+    else: # 指定了只对某几个蛋白质文件重新建图
+        pdb_file_list = []
+        with open(protein_list_file_path,"r") as f:
+            line = f.readline()
+            while line:
+                pdb_file_list.append(line.strip())
+                line = f.readline()
+    for pdb_file in tqdm(pdb_file_list):
         if "AF-" in pdb_file:
             pid = pdb_file.split("-")[1]
         else:
@@ -227,8 +236,6 @@ def main(species_name):
         print(graph)
         dgl.save_graphs(os.path.join(save_dir,pid,'struct_gvp.dgl'),graph)
         # break
-
-    print(len(model_fnum_log))
     
 if __name__ == "__main__":
     main()

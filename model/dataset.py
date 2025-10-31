@@ -29,6 +29,28 @@ def propagate(go_list, go_graph:nx.DiGraph):
                 q.put(v)
     return vis.keys()
 
+def bfs_get_dis_go(go_list, go_graph:nx.DiGraph):
+    vis = set()
+    dis = {}
+    q = queue.Queue()
+    all_nodes = go_graph.nodes()
+    for go in all_nodes:
+        dis[go] = -1
+    for go in go_list:
+        if go in all_nodes:
+            q.put(go)
+            dis[go]=0
+            vis.add(go)
+    while not q.empty():
+        u = q.get()
+        for edge in go_graph.in_edges(u):
+            v = edge[1]
+            if v not in vis:
+                vis.add(v)
+                dis[v] = dis[u] + 1
+                q.put(v)
+    return dis
+
 def bfs_get_dis(start_pid, ppi_dict):
     vis = set()
     dis = {}
@@ -88,6 +110,156 @@ def probablity_propagate(prob_vector, go_graph:nx.DiGraph, topo_order, balanced_
             prob_vector[b_u] = torch.max(prob_vector[b_u],prob_vector[b_v])
     return prob_vector
 
+class UpstreamDataset(Dataset):
+    def __init__(self, species_name, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"),
+                 inference_flag = False, exclude_pid_list = [], use_cache = False):
+        # GO数据与interpro数据, 较小直接读入
+        # seq_emb, struct较大, 采用懒加载
+        
+        # 设置工作目录为项目文件夹
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
+        os.chdir("..")
+        
+        self.species_name = species_name
+        self.cache_dir = cache_dir
+        self.device = target_device
+        self.train_flag = not inference_flag
+        
+        # 读取各类文件
+        print("loading all kinds of files...")
+        ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_function":"mf"}
+        with open(Path("processed_data",species_name+"_protein_info.json"), 'r') as f:
+            self.protein_info = json.load(f)
+        with open(Path("processed_data","interpro_id.json"), 'r') as f:
+            interpro_list = json.load(f)
+            self.vocab_interpro = {interpro:i for i,interpro in enumerate(interpro_list)}
+        
+        # 初始化随机旋转矩阵
+        print("initializing random rotation matrix...")
+        self.mat_R_list = []
+        for i in range(1000):
+            self.mat_R_list.append(torch.tensor(random_rotation_matrix(), dtype=torch.float, device=self.device))
+        
+        # 是否使用缓存
+        if self.has_cache() and use_cache:
+            print("Using Cached Dataset!")
+            self.load_dataset()
+            return
+        
+        print("processing dataset...")
+        species_path = Path("dataset",species_name)
+        protein_list = list(self.protein_info.keys())
+        self.data_info = []
+        ex_set = set(exclude_pid_list)
+        for pname in tqdm(protein_list):
+            if pname in ex_set:
+                continue
+            seq_path = Path(species_path,pname,"seq_emb.pkl")
+            # 因为某些愚蠢的原因，有些蛋白质的序列嵌入文件是损坏的
+            with open(seq_path,"rb") as f:
+                seq_emb = pickle.load(f)
+            if len(seq_emb.shape) != 2:
+                continue
+            struct_path = os.path.join(species_path,pname,"struct_gvp.dgl")
+            
+            # 当一个数据在序列, 结构, GO标签都存在时, 将其加入数据集
+            if Path.exists(seq_path) and os.path.exists(struct_path) and pname in self.protein_info:
+                struct_graph,_ = dgl.load_graphs(struct_path)
+                struct_graph = struct_graph[0]
+                plen = len(self.protein_info[pname]["seq"])
+                # pdb文件与序列长度相等
+                if len(struct_graph.nodes()) == plen:
+                    domain_list = []
+                    for domain in self.protein_info[pname]["domain"]:
+                        if domain[0] in self.vocab_interpro:
+                            domain_list.append([self.vocab_interpro[domain[0]],domain[1],domain[2]])
+                    
+                    # 保存数据为: (蛋白质名, 序列长度, 序列嵌入路径, 结构图路径, interpro标签)
+                    self.data_info.append((pname,plen, seq_path.resolve(), os.path.abspath(struct_path),domain_list))
+        self.save_dataset()
+        
+    def __len__(self):
+        return len(self.data_info)
+    
+    def structure_data_enhance(self, g: dgl.DGLGraph):
+        # spin
+        mat_R = self.mat_R_list[np.random.randint(0, 1000)]
+        g.ndata['v'] = g.ndata['v'] @ mat_R
+        return g
+
+    def train_mode(self):
+        self.train_flag = True
+    
+    def valid_mode(self):
+        self.train_flag = False
+        
+    def get_pid_list(self):
+        pid_list = [pinfo[0] for pinfo in self.data_info]
+        return pid_list
+    
+    def __getitem__(self, idx):
+        info = self.data_info[idx]
+        pname = info[0]
+        plen = info[1]
+        
+        # 数据集在访问时才读取大型文件
+        # sequence
+        with open(info[2],"rb") as f:
+            seq_emb = torch.tensor(pickle.load(f))
+        seq_emb = seq_emb[1:-1]
+        seq_emb = seq_emb.to(self.device)
+        
+        # structure
+        struct_graph,_ = dgl.load_graphs(info[3])
+        struct_graph = struct_graph[0]
+        assert len(struct_graph.nodes()) == plen
+        struct_graph = struct_graph.to(self.device)
+        # if self.train_flag:
+        #     struct_graph = self.structure_data_enhance(struct_graph)
+        
+        # domain
+        domain_list = info[4]
+        domain_id_list = torch.tensor([domain[0] for domain in domain_list], dtype=torch.long, device=self.device)
+        
+        return idx, pname,plen, seq_emb,struct_graph, domain_list, domain_id_list
+
+    def save_dataset(self):
+        dataset_path = Path(self.cache_dir,f"upstream_dataset.pkl")
+        with open(dataset_path,"wb") as f:
+            pickle.dump(self.data_info,f)
+            
+    def load_dataset(self):
+        dataset_path = Path(self.cache_dir,f"upstream_dataset.pkl")
+        with open(dataset_path,"rb") as f:
+            self.data_info = pickle.load(f)
+    
+    def has_cache(self):
+        dataset_path = Path(self.cache_dir,f"upstream_dataset.pkl")
+        if Path.exists(dataset_path):
+            return True
+        return False
+    
+    def show_dataset_info(self, logger):
+        len_max = 0
+        len_min = 100000
+        len_sum = 0
+        domain_max = 0
+        domain_min = 100000
+        domain_sum = 0
+        for info in self.data_info:
+            len_max = max(len_max, info[1])
+            len_min = min(len_min, info[1])
+            len_sum += info[1]
+            domain_max = max(domain_max, len(info[4]))
+            domain_min = min(domain_min, len(info[4]))
+            domain_sum += len(info[4])
+        logger.info("Dataset Info:")
+        logger.info("Species:{}".format(self.species_name))
+        logger.info("Protein Num: %d"%(len(self.data_info)))
+        logger.info("Protein Length: Max: %d, Min: %d, Avg: %.2f"%(len_max, len_min, len_sum/len(self.data_info)))
+        logger.info("Domain Num: Max: %d, Min: %d, Avg: %.2f"%(domain_max, domain_min, domain_sum/len(self.data_info)))
+        logger.info("----------------------------")
+
 class MyDataset(Dataset):
     def __init__(self, species_name, ont, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"),
                  go_max_percent=1.0, go_min_count=0, inference_flag = False, force_balance_go_list = None, exclude_pid_list = [], use_cache = False):
@@ -138,6 +310,7 @@ class MyDataset(Dataset):
         species_path = Path("dataset",species_name)
         protein_list = list(self.protein_info.keys())
         self.data_info = []
+        self.propagated_go = {}
         ex_set = set(exclude_pid_list)
         for pname in tqdm(protein_list):
             if pname in ex_set:
@@ -151,7 +324,7 @@ class MyDataset(Dataset):
             struct_path = os.path.join(species_path,pname,"struct_gvp.dgl")
             
             # 当一个数据在序列, 结构, GO标签都存在时, 将其加入数据集
-            if Path.exists(seq_path) and os.path.exists(struct_path) and pname in self.protein_info and self.protein_info[pname]["go"] != []:
+            if Path.exists(seq_path) and os.path.exists(struct_path) and pname in self.protein_info and (self.protein_info[pname]["go"] != [] or inference_flag):
                 struct_graph,_ = dgl.load_graphs(struct_path)
                 struct_graph = struct_graph[0]
                 plen = len(self.protein_info[pname]["seq"])
@@ -163,7 +336,10 @@ class MyDataset(Dataset):
                         if go in self.vocab_go:
                             go_id_list.append(self.vocab_go[go])
                     propagated_go_list = list(propagate(go_id_list,self.go_graph_nx))
+                    self.propagated_go[pname] = []
                     for go in propagated_go_list:
+                        if (self.ont == "all") or (ns_map[self.go_terms[go]["namespace"]] == self.ont):
+                            self.propagated_go[pname].append(self.go_terms[go]['id'])
                         if go not in self.go_count_map:
                             self.go_count_map[go] = 0
                         self.go_count_map[go] += 1
@@ -174,7 +350,7 @@ class MyDataset(Dataset):
                             domain_list.append([self.vocab_interpro[domain[0]],domain[1],domain[2]])
                     
                     # 保存数据为: (蛋白质名, 序列长度, 序列嵌入路径, 结构图路径, interpro标签, 传递后的GO标签)
-                    if propagated_go_list != []:
+                    if propagated_go_list != [] or inference_flag:
                         self.data_info.append((pname,plen,
                                             seq_path.resolve(), os.path.abspath(struct_path),
                                             domain_list, propagated_go_list))
@@ -195,6 +371,9 @@ class MyDataset(Dataset):
         balanced_go_set = set(self.balanced_go_list)
         for info in self.data_info:
             go_list = info[5]
+            if inference_flag:
+                new_data_info.append(info)
+                continue
             for go in go_list:
                 if go in balanced_go_set:
                     new_data_info.append(info)
@@ -208,7 +387,7 @@ class MyDataset(Dataset):
     def structure_data_enhance(self, g: dgl.DGLGraph):
         # spin
         mat_R = self.mat_R_list[np.random.randint(0, 1000)]
-        g.ndata['pos'] = g.ndata['pos'] @ mat_R
+        g.ndata['v'] = g.ndata['v'] @ mat_R
         return g
 
     def train_mode(self):
@@ -254,10 +433,13 @@ class MyDataset(Dataset):
     def save_dataset(self):
         dataset_path = Path(self.cache_dir,f"{self.ont}_dataset.pkl")
         balanced_go_list_path = Path(self.cache_dir,f"{self.ont}_balanced_go_list.json")
+        propagated_go_path = Path(self.cache_dir,f"{self.ont}_propagated_go.json")
         with open(dataset_path,"wb") as f:
             pickle.dump(self.data_info,f)
         with open(balanced_go_list_path,"w") as f:
             json.dump(self.balanced_go_list,f,indent=4)
+        with open(propagated_go_path,"w") as f:
+            json.dump(self.propagated_go,f,indent=4)
     
     def load_dataset(self):
         dataset_path = Path(self.cache_dir,f"{self.ont}_dataset.pkl")
@@ -306,7 +488,7 @@ class MyDataset(Dataset):
 class PPIDataset(Dataset):
     def __init__(self, species_name, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"),
                  go_diff_weight = {'bp':0.4, 'cc':0.4, 'mf':0.2}, ppi_weight = 0.7, go_weight = 0.3, pick_neg_rate = 4.0, random_neg_rate = 1.0,
-                 inference_flag = False, exclude_pid_list = [], use_cache = False):
+                 inference_flag = False, exclude_pid_list = [], ignore_go = False, use_cache = False):
         # GO数据与interpro数据, 较小直接读入
         # seq_emb, struct较大, 采用懒加载
         
@@ -324,21 +506,22 @@ class PPIDataset(Dataset):
         ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_function":"mf"}
         with open(Path("processed_data",species_name+"_protein_info.json"), 'r') as f:
             self.protein_info = json.load(f)
-        with open(Path("processed_data","go_id.json"), 'r') as f:
-            self.vocab_go = json.load(f)
-        with open(Path("processed_data","go_terms.json"), 'r') as f:
-            self.go_terms = json.load(f)
         with open(Path("raw_data",species_name,"ppi","ppi_list.json"), 'r') as f:
             self.ppi_list = json.load(f)
         with open(Path("processed_data","interpro_id.json"), 'r') as f:
             interpro_list = json.load(f)
             self.vocab_interpro = {interpro:i for i,interpro in enumerate(interpro_list)}
+
+        if not ignore_go:
+            with open(Path("processed_data","go_id.json"), 'r') as f:
+                self.vocab_go = json.load(f)
+            with open(Path("processed_data","go_terms.json"), 'r') as f:
+                self.go_terms = json.load(f)
+            with open(Path("dataset","go_graph_nx.pkl"),"rb") as f:
+                self.go_graph_nx = pickle.load(f)
+            with open(Path("dataset","go_term_dis.json"), 'r') as f:
+                self.go_term_dis = json.load(f)
             
-        with open(Path("dataset","go_graph_nx.pkl"),"rb") as f:
-            self.go_graph_nx = pickle.load(f)
-        with open(Path("dataset","go_term_dis.json"), 'r') as f:
-            self.go_term_dis = json.load(f)
-        
         # 初始化随机旋转矩阵
         print("initializing random rotation matrix...")
         self.mat_R_list = []
@@ -375,11 +558,14 @@ class PPIDataset(Dataset):
                 # pdb文件与序列长度相等
                 if len(struct_graph.nodes()) == plen:
                     # go数据统计
-                    go_id_list = []
-                    for go in self.protein_info[pname]["go"]:
-                        if go in self.vocab_go:
-                            go_id_list.append(self.vocab_go[go])
-                    propagated_go_list = list(propagate(go_id_list,self.go_graph_nx))
+                    if not ignore_go:
+                        go_id_list = []
+                        for go in self.protein_info[pname]["go"]:
+                            if go in self.vocab_go:
+                                go_id_list.append(self.vocab_go[go])
+                        propagated_go_list = list(propagate(go_id_list,self.go_graph_nx))
+                    else:
+                        propagated_go_list = []
                     
                     domain_list = []
                     for domain in self.protein_info[pname]["domain"]:
@@ -421,26 +607,30 @@ class PPIDataset(Dataset):
             for v in pid_list:
                 if v == u:
                     continue
-                ns_max = {'bp':0, 'cc':0, 'mf':0}
-                ns_max_cnt = {'bp':0, 'cc':0, 'mf':0}
-                # 求两个GO集合交集
-                # 将三大类的GO标签中，分别统计出GO交集中所在的最大标签深度，以及处于该深度的标签个数
-                intersection = pid2go_est[u] & pid2go_est[v]
-                for go in intersection:
-                    ns = ns_map[self.go_terms[go]["namespace"]]
-                    go = str(go)
-                    if ns_max[ns] < self.go_term_dis[go]:
-                        ns_max[ns] = self.go_term_dis[go]
-                        ns_max_cnt[ns] = 1
-                    elif ns_max[ns] == self.go_term_dis[go]:
-                        ns_max_cnt[ns] += 1
                 go_diff_dis = 0
-                for ns in ns_max:
-                    go_diff_dis += go_diff_weight[ns]*ns_max[ns]*np.sqrt(1.0*ns_max_cnt[ns]+2)
+                if not ignore_go:
+                    ns_max = {'bp':0, 'cc':0, 'mf':0}
+                    ns_max_cnt = {'bp':0, 'cc':0, 'mf':0}
+                    # 求两个GO集合交集
+                    # 将三大类的GO标签中，分别统计出GO交集中所在的最大标签深度，以及处于该深度的标签个数
+                    intersection = pid2go_est[u] & pid2go_est[v]
+                    for go in intersection:
+                        ns = ns_map[self.go_terms[go]["namespace"]]
+                        go = str(go)
+                        if ns_max[ns] < self.go_term_dis[go]:
+                            ns_max[ns] = self.go_term_dis[go]
+                            ns_max_cnt[ns] = 1
+                        elif ns_max[ns] == self.go_term_dis[go]:
+                            ns_max_cnt[ns] += 1
+                    for ns in ns_max:
+                        go_diff_dis += go_diff_weight[ns]*ns_max[ns]*np.sqrt(1.0*ns_max_cnt[ns]+2)
                 ppi_dis = ppi_dis_dict[v]
                 if ppi_dis == -1:
                     ppi_dis = max_ppi_dis + 1
-                final_dis_list.append((-ppi_weight*ppi_dis+go_weight*go_diff_dis, v))
+                if not ignore_go:
+                    final_dis_list.append((-ppi_weight*ppi_dis+go_weight*go_diff_dis, v))
+                else:
+                    final_dis_list.append((-ppi_dis, v))
                 
             # 采取筛选的高可能性负样本:
             final_dis_list.sort()
@@ -479,7 +669,7 @@ class PPIDataset(Dataset):
     def structure_data_enhance(self, g: dgl.DGLGraph):
         # spin
         mat_R = self.mat_R_list[np.random.randint(0, 1000)]
-        g.ndata['pos'] = g.ndata['pos'] @ mat_R
+        g.ndata['v'] = g.ndata['v'] @ mat_R
         return g
 
     def train_mode(self):
@@ -526,6 +716,30 @@ class PPIDataset(Dataset):
         
         return idx, p1, p2, label
 
+    def export_all_pairs(self, save_path=None):
+        pair_list = []
+        for info in self.pair_info:
+            p1 = self.data_info[info[0]][0]
+            p2 = self.data_info[info[1]][0]
+            pair_list.append((p1,p2))
+        return pair_list
+
+
+    def export_all_posivite_pairs(self, save_path=None):
+        pair_set_dict = {}
+        for info in self.pair_info:
+            if info[2] < 1.0:
+                continue
+            p1 = self.data_info[info[0]][0]
+            p2 = self.data_info[info[1]][0]
+            if p1 not in pair_set_dict:
+                pair_set_dict[p1] = set()
+            pair_set_dict[p1].add(p2)
+        if save_path is not None:
+            with open(save_path, "w") as f:
+                json.dump(pair_set_dict,f,indent=4)
+        return pair_set_dict
+    
     def save_dataset(self):
         data_info_path = Path(self.cache_dir,f"ppi_dataset_data.pkl")
         pair_info_path = Path(self.cache_dir,f"ppi_dataset_pair.pkl")
@@ -577,6 +791,32 @@ class PPIDataset(Dataset):
         logger.info("Domain Num: Max: %d, Min: %d, Avg: %.2f"%(domain_max, domain_min, domain_sum/len(self.data_info)))
         logger.info("pos_pair: %d, neg_pair: %d"%(pos_num, neg_num))
         logger.info("----------Dataset Info End----------")
+
+def upstream_collate_fn(batch):
+    idxs, pnames, plens, seq_embs, struct_graphs, domain_lists, domain_id_lists = zip(*batch)
+    
+    # 处理seq_emb，使用padding
+    max_length = max([seq_emb.shape[0] for seq_emb in seq_embs])
+    padded_seq_embs = []
+    for seq_emb in seq_embs:
+        padding = torch.zeros(max_length - seq_emb.shape[0], seq_emb.shape[1], device=seq_emb.device)
+        padded_seq_embs.append(torch.cat([seq_emb, padding],dim=0))
+    
+    padded_seq_embs = torch.stack(padded_seq_embs)
+    
+    # 结构图处理为batch_graph
+    batched_graph = dgl.batch(struct_graphs)
+    
+    # domain处理
+    glob_dm_id = torch.cat(domain_id_lists)
+    glob_dm_offset = []
+    offset = 0
+    for domain_id_list in domain_id_lists:
+        glob_dm_offset.append(offset)
+        offset += domain_id_list.shape[0]
+    glob_dm_offset = torch.tensor(glob_dm_offset, dtype=torch.long, device=glob_dm_id.device)
+
+    return idxs, pnames, padded_seq_embs, batched_graph, [glob_dm_id, glob_dm_offset, plens, domain_lists]
 
 def my_collate_fn(batch):
     idxs, pnames, plens, seq_embs, struct_graphs, domain_lists, domain_id_lists, labels = zip(*batch)

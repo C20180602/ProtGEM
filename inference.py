@@ -1,3 +1,11 @@
+'''
+本地GO预测网页demo, 但版本较老, 不一定能运行
+仅使用PDB数据, 通过InterproScan获取Interpro标签
+只对单个蛋白质进行预测
+若需要批量GO预测, 请构建数据集, 并使用batch_inference_go.py
+若需要批量PPI预测, 请构建数据集, 先用tran_ppi.py训练模型, 再使用batch_inference_ppi.py
+'''
+
 import gradio as gr
 import pickle as pkl
 import networkx as nx
@@ -74,12 +82,12 @@ def predict_go_pdb(dataset_name, model_name, model, filepath, progress=gr.Progre
     # --------------------------------------------------------
     progress(0.2, "calling interproscan API (usually takes about 3 minutes)")
     task_id = str(Path(filepath).parent.name)[:8]
-    # iprscan_task_fasta_path = Path("tmp_data", task_id+".fasta")
-    # iprscan_result = Path("tmp_data",task_id)
-    # with open(iprscan_task_fasta_path, "w") as f:
-    #     f.write(">test\n")
-    #     f.write(seq+"\n")
-    # os.system(f'python iprscan5.py --email zendskia@gmail.com --sequence {str(iprscan_task_fasta_path)} --outfile {str(iprscan_result)} --outformat tsv --quiet')
+    iprscan_task_fasta_path = Path("tmp_data", task_id+".fasta")
+    iprscan_result = Path("tmp_data",task_id)
+    with open(iprscan_task_fasta_path, "w") as f:
+        f.write(">test\n")
+        f.write(seq+"\n")
+    os.system(f'python iprscan5.py --email zendskia@gmail.com --sequence {str(iprscan_task_fasta_path)} --outfile {str(iprscan_result)} --outformat tsv --quiet')
     
     # --------------------------------------------------------
     progress(0.3, "processing InterPro information")

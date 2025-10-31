@@ -28,7 +28,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-f', '--freeze', type=click.BOOL, default=False) # freeze the pretrained protein model
 @click.option('-test', '--test_flag', type=click.BOOL, default=False) # only test
 @click.option('-prep', '--pretrain-model-path', type=click.STRING, default=None)
-def main(species_name, model_name, model_type, continue_flag, freeze, test_flag, pretrain_model_path):
+@click.option('-thresh', '--thresh', type=click.FLOAT, default=None) # only test
+def main(species_name, model_name, model_type, continue_flag, freeze, test_flag, pretrain_model_path, thresh):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
     os.makedirs(Path("workspace",species_name),exist_ok=True)
@@ -208,8 +209,8 @@ def main(species_name, model_name, model_type, continue_flag, freeze, test_flag,
                     pred += predict_matrix.tolist()
                     actual += labels.tolist()
             logger.info("train set:")
-            auc_score, aupr_score, fmax, thresh = cal_metrics(pred, actual)
-            logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} thresh: {:.4f}".format(auc_score, aupr_score, fmax, thresh))
+            auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual)
+            logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
                     
             # validate
             ds.valid_mode()
@@ -227,14 +228,14 @@ def main(species_name, model_name, model_type, continue_flag, freeze, test_flag,
                     pred += predict_matrix.tolist()
                     actual += labels.tolist()
             logger.info("valid set:")
-            auc_score, aupr_score, fmax, thresh = cal_metrics(pred, actual)
-            logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} thresh: {:.4f}".format(auc_score, aupr_score, fmax, thresh))
+            auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual)
+            logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
             if fmax > best_fmax:
                 best_fmax = fmax
                 best_epoch = epoch
                 corr_auc = auc_score
                 corr_aupr = aupr_score
-                corr_thresh = thresh
+                corr_thresh = tmp_thresh
                 ppi_model.save_model(Path(model_param_dir,"ppi_model.pt"))
             ppi_model.train()
         
@@ -259,8 +260,11 @@ def main(species_name, model_name, model_type, continue_flag, freeze, test_flag,
             pred += predict_matrix.tolist()
             actual += labels.tolist()
     logger.info("test set:")
-    auc_score, aupr_score, fmax, thresh = cal_metrics(pred, actual)
-    logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} thresh: {:.4f}".format(auc_score, aupr_score, fmax, thresh))
+    if test_flag:
+        auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual, thresh)
+    else:
+        auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual, corr_thresh)
+    logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
 
 if __name__ == '__main__':
     main()

@@ -1,3 +1,7 @@
+# 2025.10.27 新增功能：批量预测
+- python batch_inference_go.py -o bp -s AF2DB -n model_v1.1 -t v1.1 -thresh 0.75 -ds TARGET_DATASET
+- python batch_inference_ppi.py -s DATASET -n model_ppi_v1 -t ppi_v1 -thresh 0.9
+
 # 2025.10.12 新增功能：PPI预测
 - 运行data_export_scripts/export_pm_model.py，导出任意一个模型的protein model部分
 ```
@@ -5,7 +9,7 @@ python data_export_scripts/export_pm_model.py -o all -s AF2DB -n model_v1.1_back
 ```
 - 运行train_ppi.py，可选择以刚才导出的protein model模型为基础进行训练+测试
 ```
-python train_ppi.py -s 7120 -prep workspace/AF2DB/model_v1.1_back/model_param/all_pm_model.pt
+python train_ppi.py -s TARGET_DATASET -prep workspace/AF2DB/model_v1.1/model_param/all_pm_model.pt
 ```
 
 # 2025.9.30 新增功能：微调+迁移测试
@@ -15,7 +19,7 @@ python train_ppi.py -s 7120 -prep workspace/AF2DB/model_v1.1_back/model_param/al
 - 测试日志与微调后模型保存在原模型的相应文件夹中
 
 ```
-python fine_tuning_test.py -o bp -s PRETRAIN_DATASET -n model_v1.1_back -t v1.1 -ds TARGET_DATASET -fn 20
+CUDA_VISIBLE_DEVICES=0 python fine_tuning_test.py -o bp -s PRETRAIN_DATASET -n model_v1.1 -t v1.1 -ds TARGET_DATASET -fn 200
 ```
 
 # 2025.9.29 新增功能：迁移预测

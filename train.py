@@ -225,8 +225,8 @@ def main(ont, species_name, model_name, model_type, continue_flag, freeze, pretr
                 pred += predict_matrix.tolist()
                 actual += labels.tolist()
         logger.info("train set:")
-        auc_score, aupr_score, fmax, thresh = cal_metrics(pred, actual)
-        logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} thresh: {:.4f}".format(auc_score, aupr_score, fmax, thresh))
+        auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual)
+        logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
                 
         # validate
         ds.valid_mode()
@@ -240,14 +240,14 @@ def main(ont, species_name, model_name, model_type, continue_flag, freeze, pretr
                 pred += predict_matrix.tolist()
                 actual += labels.tolist()
         logger.info("valid set:")
-        auc_score, aupr_score, fmax, thresh = cal_metrics(pred, actual)
-        logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} thresh: {:.4f}".format(auc_score, aupr_score, fmax, thresh))
+        auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual)
+        logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
         if fmax > best_fmax:
             best_fmax = fmax
             best_epoch = epoch
             corr_auc = auc_score
             corr_aupr = aupr_score
-            corr_thresh = thresh
+            corr_thresh = tmp_thresh
             pg_model.save_model(Path(model_param_dir,"{}_model.pt".format(ont)))
         pg_model.train()
     

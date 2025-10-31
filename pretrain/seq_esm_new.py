@@ -44,12 +44,22 @@ model.eval()
 
 @click.command()
 @click.option('-s', '--species-name', type=click.STRING, default='HUMAN')
-def main(species_name):
+@click.option('-pp', '--protein_list_file_path', type=click.STRING, default=None)
+def main(species_name, protein_list_file_path):
     # 设置工作目录为项目文件夹
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     os.chdir("..")
     pdb_dir_path = Path("raw_data",species_name,"pdb")
-    for pdb_file in tqdm(os.listdir(pdb_dir_path)):
+    if protein_list_file_path is None:
+        pdb_file_list = os.listdir(pdb_dir_path)
+    else: # 指定了只对某几个蛋白质文件重新建图
+        pdb_file_list = []
+        with open(protein_list_file_path,"r") as f:
+            line = f.readline()
+            while line:
+                pdb_file_list.append(line.strip())
+                line = f.readline()
+    for pdb_file in tqdm(pdb_file_list):
         if not pdb_file.endswith(".pdb"):
             continue
         if "AF-" in pdb_file:

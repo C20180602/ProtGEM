@@ -35,11 +35,15 @@ def cal_metrics(pred, actual, thresh=None):
     f1 = 2*precision*recall/(precision+recall+1e-8)
     if thresh is None:
         thresh = pr_thresh[np.argmax(f1)]
+        precision = precision[np.argmax(f1)]
+        recall = recall[np.argmax(f1)]
         fmax = np.max(f1)
     else:
         index = np.searchsorted(pr_thresh, thresh)
+        precision = precision[index]
+        recall = recall[index]
         fmax = f1[index]
-    return auc_score, aupr_score, fmax, thresh
+    return auc_score, aupr_score, precision, recall, fmax, thresh
 
 # 克隆config之后，只读取workspace中本地的config，便于记录每次的参数以单独调试
 def load_config_clone(default_conf_path, clone_dir_path):

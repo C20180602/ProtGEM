@@ -101,7 +101,7 @@ def main(ont, species_name, model_name, model_type, thresh, dest_species, fine_t
     # 读取数据集
     ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=True)
     dest_ds = MyDataset(dest_species, ont, dest_cache_dir, target_device=device,
-                        force_balance_go_list=ds.balanced_go_list, exclude_pid_list=ds.get_pid_list(), use_cache=False)
+                        force_balance_go_list=ds.balanced_go_list, use_cache=False)
     dest_ds.show_dataset_info(logger)
     go_idx = torch.tensor(ds.balanced_go_list).to(device)
     balanced_go_map_inv = ds.balanced_go_map_inv
@@ -119,9 +119,8 @@ def main(ont, species_name, model_name, model_type, thresh, dest_species, fine_t
     test_ds = Subset(dest_ds, test_indices)
     train_loader = DataLoader(fine_tuning_ds, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)
+    logger.info("fine-tuning train size:{} , fine-tuning test size:{}".format(len(train_loader),len(test_loader)))
 
-
-    summary(pg_model)
     logger.info("Parameters INFO:")
     logger.info(pm_param)
     logger.info(gm_param)
@@ -175,16 +174,16 @@ def main(ont, species_name, model_name, model_type, thresh, dest_species, fine_t
             mean_loss += loss.item()
             mean_loss1 += loss1.item()
             mean_loss2 += loss2.item()
+            pred += predict_matrix.tolist()
+            actual += labels.tolist()
         logger.info(f'Epoch: {epoch} / {epoch_num}, Loss: {mean_loss/len(train_loader)}, Loss1: {mean_loss1/len(train_loader)}, Loss2: {mean_loss2/len(train_loader)}')
         mean_loss = 0.0
         mean_loss1 = 0.0
         mean_loss2 = 0.0
             
-        pred += predict_matrix.tolist()
-        actual += labels.tolist()
         logger.info("fine-tuning set:")
-        auc_score, aupr_score, fmax, thresh = cal_metrics(pred, actual)
-        logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} thresh: {:.4f}".format(auc_score, aupr_score, fmax, thresh))
+        auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual)
+        logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
     
         # 测试   
         logger.info("Start Testing!")
@@ -201,15 +200,15 @@ def main(ont, species_name, model_name, model_type, thresh, dest_species, fine_t
                 predict_matrix = predict_matrix.transpose(1,0)
                 pred += predict_matrix.tolist()
                 actual += labels.tolist()
-        auc_score, aupr_score, fmax, tmp_thresh = cal_metrics(pred, actual)
-        logger.info("AUC: {:.4f} AUPR: {:.4f} Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, fmax, tmp_thresh))
+        auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual)
+        logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
         
         if fmax > best_fmax:
             best_fmax = fmax
             best_epoch = epoch
             corr_auc = auc_score
             corr_aupr = aupr_score
-            corr_thresh = thresh
+            corr_thresh = tmp_thresh
             pg_model.save_model(Path(model_param_dir,"{}_model_FTon_{}.pt".format(ont, dest_species)))
         pg_model.train()
     
