@@ -140,6 +140,8 @@ def main(ont, species_name, model_name, precise_model_name, model_type, thresh, 
             
             predict_matrix = predict_matrix.cpu().numpy()
             filtered_go = np.argwhere(predict_matrix > thresh)
+            if len(filtered_go) == 0:
+                continue
             assert len(filtered_go[0]) == 2
             for pos in filtered_go:
                 i,j = pos

@@ -52,7 +52,7 @@ def main(species_name, protein_list_file_path):
     pdb_dir_path = Path("raw_data",species_name,"pdb")
     if protein_list_file_path is None:
         pdb_file_list = os.listdir(pdb_dir_path)
-    else: # 指定了只对某几个蛋白质文件重新建图
+    else: # 指定了只对某几个蛋白质文件重新求ESM embedding
         pdb_file_list = []
         with open(protein_list_file_path,"r") as f:
             line = f.readline()

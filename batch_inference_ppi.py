@@ -122,6 +122,8 @@ def main(species_name, model_name, precise_model_name, model_type, thresh):
             
             predict_matrix = predict_matrix.cpu().numpy()
             filtered_ppi = np.argwhere(predict_matrix > thresh)
+            if len(filtered_ppi) == 0:
+                continue
             assert len(filtered_ppi[0]) == 1
             predict_result[pid] = []
             for pos in filtered_ppi:
@@ -149,9 +151,10 @@ def main(species_name, model_name, precise_model_name, model_type, thresh):
     real_recall_score = 0
     real_recall_cnt = 0
     Ave_new_cnt = 0
-    recommend_cnt = 100
+    recommend_cnt = 500
     recommended_result = {}
     for pid1 in tqdm(predict_result,desc="calculating recommended ppi"):
+        predict_result[pid1].sort(reverse=True)
         if pid1 in existed_result:
             A_ppi = existed_result[pid1]
         else:
@@ -177,9 +180,9 @@ def main(species_name, model_name, precise_model_name, model_type, thresh):
         
     with open(Path(result_dir,"ppi_all_result.pkl"),"wb") as f:
         pickle.dump(predict_result,f)
-    # predict_result = {pid1:[pid2 for score,pid2 in ppis] for pid1,ppis in predict_result.items()}
-    # with open(Path(result_dir,"ppi_all_result.json"),"w") as f:
-    #     json.dump(predict_result,f,indent=4)
+    predict_result = {pid1:[pid2 for score,pid2 in ppis] for pid1,ppis in predict_result.items()}
+    with open(Path(result_dir,"ppi_all_result.json"),"w") as f:
+        json.dump(predict_result,f,indent=4)
     with open(Path(result_dir,"ppi_recommand_result.pkl"),"wb") as f:
         pickle.dump(recommended_result,f)
 

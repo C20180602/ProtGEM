@@ -78,17 +78,26 @@ def main(species_name, max_length):
     go_data_cnt = 0
     # 统计没有任何GO标签的蛋白质数量
     zero_go_protein_cnt = 0
-    with open(os.path.join("go","go.tsv"),'r') as f:
-        line = f.readline()
-        line = f.readline()
-        while line:
-            pid = line.split('\t')[0]
-            if pid not in protein_info:
-                line = f.readline()
-                continue
-            for go in line.split('\t')[2].split("; "):
-                protein_info[pid]["go"].append(go.strip())
+    # 优先使用已经处理好的GO json文件，格式为:{"Uniprot ID":["GO:xxxxxxx", "GO:xxxxxxx", ...], ...}
+    if os.path.exists(os.path.join("go","pgo_dict.json")):
+        with open(os.path.join("go","pgo_dict.json"), "r") as f:
+            pgo_dict = json.load(f)
+        for pid, go_ids in pgo_dict.items():
+            for go_id in go_ids:
+                if pid in protein_info:
+                    protein_info[pid]["go"].append(go_id)
+    else:
+        with open(os.path.join("go","go.tsv"),'r') as f:
             line = f.readline()
+            line = f.readline()
+            while line:
+                pid = line.split('\t')[0]
+                if pid not in protein_info:
+                    line = f.readline()
+                    continue
+                for go in line.split('\t')[2].split("; "):
+                    protein_info[pid]["go"].append(go.strip())
+                line = f.readline()
 
     for p in protein_info.values():
         if len(p["go"]) == 0:

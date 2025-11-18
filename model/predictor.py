@@ -156,6 +156,7 @@ class PPIModel(nn.Module):
         for i in range(layer_cnt):
             if i==0:
                 self.MLP.append(nn.Linear(self.in_dim*2, self.hid_dim))
+                # self.MLP.append(nn.Linear(self.in_dim, self.hid_dim))
             else:
                 self.MLP.append(nn.Linear(self.hid_dim, self.hid_dim))
             self.MLP.append(nn.LayerNorm(self.hid_dim))
@@ -171,6 +172,7 @@ class PPIModel(nn.Module):
         protein_emb2 = self.pm(seq_embs2, batched_graph2, domain_info2, mask2, graph_mask2, ablation_feat)
         # protein_emb: [batch_size, hid_dim]
         protein_emb = torch.cat([protein_emb1 , protein_emb2],dim=1)
+        # protein_emb = protein_emb1 * protein_emb2
         predict_matrix = self.MLP(protein_emb)
         predict_matrix = predict_matrix.squeeze(-1)
         return predict_matrix
@@ -182,6 +184,7 @@ class PPIModel(nn.Module):
     
     def downstream_infer(self, emb1, emb2):
         protein_emb = torch.cat([emb1 , emb2],dim=1)
+        # protein_emb = emb1 * emb2
         predict_matrix = self.MLP(protein_emb)
         predict_matrix = predict_matrix.squeeze(-1)
         return predict_matrix
