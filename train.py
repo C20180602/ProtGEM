@@ -29,8 +29,9 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-t', '--model-type', type=click.Choice(['v1.1','v2','v3','seq_abl','struct_abl','domain_abl','enhanced_v1','enhanced_v2']), default='v1.1')
 @click.option('-c', '--continue-flag', type=click.BOOL, default=False) # whether to use the previous param to train
 @click.option('-f', '--freeze', type=click.BOOL, default=False) # freeze the pretrained go model (only active while preg exist)
+@click.option('-li', '--light-mode', type=click.BOOL, default=False) # ESM preprocess free, but costs longer time and larger dedicated memory
 @click.option('-preg', '--pretrain_model_path', type=click.STRING, default=None) # model_params/go_pretrain_model_1024.pth
-def main(ont, species_name, model_name, model_type, continue_flag, freeze, pretrain_model_path):
+def main(ont, species_name, model_name, model_type, continue_flag, freeze, light_mode, pretrain_model_path):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
     os.makedirs(Path("workspace",species_name),exist_ok=True)
@@ -66,6 +67,7 @@ def main(ont, species_name, model_name, model_type, continue_flag, freeze, pretr
     logger.info("model_type: {}".format(model_type))
     logger.info("continue_flag: {}".format(continue_flag))
     logger.info("freeze: {}".format(freeze))
+    logger.info("light_mode: {}".format(light_mode))
     logger.info("pretrain_model_path: {}".format(pretrain_model_path))
     logger.info("----------------------------")
 
@@ -142,7 +144,9 @@ def main(ont, species_name, model_name, model_type, continue_flag, freeze, pretr
     corr_thresh = 0.0
 
     # 初始化数据集并进行划分
-    ds = MyDataset(species_name, ont, cache_dir, target_device=device, go_max_percent=go_max_percent, go_min_count=go_min_count, use_cache=continue_flag)
+    ds = MyDataset(species_name, ont, cache_dir, target_device=device,
+                   go_max_percent=go_max_percent, go_min_count=go_min_count,
+                   use_cache=continue_flag, light_mode=light_mode)
     ds.show_dataset_info(logger)
     train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger,train_proportion,valid_proportion,use_cache=continue_flag)
 
@@ -221,13 +225,13 @@ def main(ont, species_name, model_name, model_type, continue_flag, freeze, pretr
                 mean_loss3 = 0.0
             
             # 对于训练集预测结果，采样进行指标计算，节省时间
-            if i % 50 == 49:
+            if i % 30 == 29:
                 pred += predict_matrix.tolist()
                 actual += labels.tolist()
         logger.info("train set:")
         auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual)
         logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
-                
+        
         # validate
         ds.valid_mode()
         pg_model.eval()

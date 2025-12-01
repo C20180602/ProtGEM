@@ -8,6 +8,7 @@ from tqdm import tqdm
 import networkx as nx
 import torch
 import dgl
+import esm
 import numpy as np
 from torch.utils.data import Dataset
 
@@ -262,7 +263,8 @@ class UpstreamDataset(Dataset):
 
 class MyDataset(Dataset):
     def __init__(self, species_name, ont, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"),
-                 go_max_percent=1.0, go_min_count=0, inference_flag = False, force_balance_go_list = None, exclude_pid_list = [], use_cache = False):
+                 go_max_percent=1.0, go_min_count=0, inference_flag = False, force_balance_go_list = None, exclude_pid_list = [], 
+                 use_cache = False, light_mode = False):
         # GO数据与interpro数据, 较小直接读入
         # seq_emb, struct较大, 采用懒加载
         
@@ -275,6 +277,17 @@ class MyDataset(Dataset):
         self.cache_dir = cache_dir
         self.device = target_device
         self.train_flag = not inference_flag
+        self.light_mode = light_mode
+        
+        # 磁盘存储节省模式，需要在线ESM推理
+        if light_mode:
+            print("loading ESM model...")
+            self.esm_model, alphabet = esm.pretrained.esm2_t33_650M_UR50D()
+            self.converter = alphabet.get_batch_converter()
+            self.esm_model.to(self.device)
+            for p in self.esm_model.parameters():
+                p.requires_grad = False
+            self.esm_model.eval()
         
         # 读取各类文件
         print("loading all kinds of files...")
@@ -315,19 +328,24 @@ class MyDataset(Dataset):
         for pname in tqdm(protein_list):
             if pname in ex_set:
                 continue
-            seq_path = Path(species_path,pname,"seq_emb.pkl")
-            # 因为某些愚蠢的原因，有些蛋白质的序列嵌入文件是损坏的
-            with open(seq_path,"rb") as f:
-                seq_emb = pickle.load(f)
-            if len(seq_emb.shape) != 2:
-                continue
+            if not light_mode:
+                seq_path = Path(species_path,pname,"seq_emb.pkl")
+                # 因为某些愚蠢的原因，有些蛋白质的序列嵌入文件是损坏的
+                with open(seq_path,"rb") as f:
+                    seq_emb = pickle.load(f)
+                if len(seq_emb.shape) != 2:
+                    continue
             struct_path = os.path.join(species_path,pname,"struct_gvp.dgl")
             
             # 当一个数据在序列, 结构, GO标签都存在时, 将其加入数据集
-            if Path.exists(seq_path) and os.path.exists(struct_path) and pname in self.protein_info and (self.protein_info[pname]["go"] != [] or inference_flag):
+            if  (light_mode or Path.exists(seq_path)) \
+                and os.path.exists(struct_path) and pname in self.protein_info \
+                and (self.protein_info[pname]["go"] != [] or inference_flag):
+                
+                seq = self.protein_info[pname]["seq"]
                 struct_graph,_ = dgl.load_graphs(struct_path)
                 struct_graph = struct_graph[0]
-                plen = len(self.protein_info[pname]["seq"])
+                plen = len(seq)
                 # pdb文件与序列长度相等
                 if len(struct_graph.nodes()) == plen:
                     # go数据统计
@@ -351,7 +369,12 @@ class MyDataset(Dataset):
                     
                     # 保存数据为: (蛋白质名, 序列长度, 序列嵌入路径, 结构图路径, interpro标签, 传递后的GO标签)
                     if propagated_go_list != [] or inference_flag:
-                        self.data_info.append((pname,plen,
+                        if light_mode:
+                            self.data_info.append((pname,plen,
+                                            seq, os.path.abspath(struct_path),
+                                            domain_list, propagated_go_list))
+                        else:
+                            self.data_info.append((pname,plen,
                                             seq_path.resolve(), os.path.abspath(struct_path),
                                             domain_list, propagated_go_list))
         # balance of posivite/negative samples
@@ -407,10 +430,17 @@ class MyDataset(Dataset):
         
         # 数据集在访问时才读取大型文件
         # sequence
-        with open(info[2],"rb") as f:
-            seq_emb = torch.tensor(pickle.load(f))
-        seq_emb = seq_emb[1:-1]
-        seq_emb = seq_emb.to(self.device)
+        if self.light_mode:
+            labels, strs, tokens = self.converter([(pname,info[2])])
+            tokens = tokens.to(self.device)
+            seq_emb = self.esm_model(tokens, repr_layers=[33])['representations'][33]
+            seq_emb = seq_emb.squeeze(0)
+            seq_emb = seq_emb[1:-1]
+        else:
+            with open(info[2],"rb") as f:
+                seq_emb = torch.tensor(pickle.load(f))
+            seq_emb = seq_emb[1:-1]
+            seq_emb = seq_emb.to(self.device)
         
         # structure
         struct_graph,_ = dgl.load_graphs(info[3])

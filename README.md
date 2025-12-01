@@ -36,6 +36,16 @@ gradio==5.29.0
 
 gradio_molecule3d==0.0.7
 
+若需使用PPI迁移推理，还需安装ncbi-blast：(最好在项目文件夹外进行)
+
+``` bash
+mkdir blast
+cd blast
+wget -c ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ncbi-blast-2.17.0+-x64-linux.tar.gz
+tar -zxvf ncbi-blast-2.17.0+-x64-linux.tar.gz    // if failed to execute, try downloading files on https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/
+echo 'export PATH=$PATH:~/blast/ncbi-blast-2.17.0+/bin' >> ~/.bashrc
+source ~/.bashrc
+```
 # 配置流程
 
 python环境配置：

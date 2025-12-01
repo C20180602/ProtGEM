@@ -77,7 +77,7 @@ def main(species_name, model_name, precise_model_name, model_type, thresh):
     ppi_model.eval()
     
     # 读取测试集
-    ds = UpstreamDataset(species_name, cache_dir, target_device=device, inference_flag=True, use_cache=True)
+    ds = UpstreamDataset(species_name, cache_dir, target_device=device, inference_flag=True, use_cache=False)
     ppi_ds = PPIDataset(species_name, cache_dir, target_device=device, ignore_go=True, use_cache=True)
     ds.show_dataset_info(logger)
     test_loader = DataLoader(ds, batch_size=1, shuffle=False, collate_fn=upstream_collate_fn)
