@@ -225,17 +225,33 @@ def main(species_name, protein_list_file_path):
             while line:
                 pdb_file_list.append(line.strip())
                 line = f.readline()
+    
+    # 获取已处理的PDB文件，跳过这些文件
+    processed_pdb_set = set()
+    for subdir in os.listdir(save_dir):
+        struct_gvp_path = os.path.join(save_dir,subdir,'struct_gvp.dgl')
+        if os.path.exists(struct_gvp_path):
+            processed_pdb_set.add(subdir)
+
+    error_pdb_list = []
     for pdb_file in tqdm(pdb_file_list):
         if "AF-" in pdb_file:
             pid = pdb_file.split("-")[1]
         else:
             pid = pdb_file.split(".")[0]
-        
-        graph = builder.get_graph_info(os.path.join(pdb_data_dir, pdb_file))
-        print(pid)
-        print(graph)
-        dgl.save_graphs(os.path.join(save_dir,pid,'struct_gvp.dgl'),graph)
+        try:
+            graph = builder.get_graph_info(os.path.join(pdb_data_dir, pdb_file))
+            print(pid)
+            print(graph)
+            dgl.save_graphs(os.path.join(save_dir,pid,'struct_gvp.dgl'),graph)
+        except Exception as e:
+            print(f"Error processing {pdb_file}: {e}")
+            error_pdb_list.append([pdb_file])
         # break
+    # 保存处理失败的PDB文件列表
+    with open(os.path.join('data_process_scripts','error_pdb_list.txt'),'w') as f:
+        for pdb_file in error_pdb_list:
+            f.write(pdb_file+'\n')
     
 if __name__ == "__main__":
     main()
