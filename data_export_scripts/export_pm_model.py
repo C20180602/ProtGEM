@@ -11,7 +11,7 @@ from utils import load_config_clone
 @click.option('-o', '--ont', type=click.Choice(['bp', 'cc', 'mf', 'all']), default='mf')
 @click.option('-s', '--species-name', type=click.STRING, default='HUMAN')
 @click.option('-n', '--model-name', type=click.STRING, default='model_v1.1')
-@click.option('-t', '--model-type', type=click.Choice(['v1.1','v2']), default='v1.1')
+@click.option('-t', '--model-type', type=click.Choice(['v1.1','v2','v3']), default='v1.1')
 def main(ont, species_name, model_name, model_type):
     workspace_dir = Path("workspace",species_name,model_name)
     log_dir = Path(workspace_dir,"log")

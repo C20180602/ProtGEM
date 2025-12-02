@@ -5,4 +5,5 @@ esm-embedding、PDB、interpro文件池设计, 避免重复下载与运算
 选取PPI的模型的对比实验
 使用标签切片, 只选出其中一部分作为负样本加入loss的计算, 避免正负样本过度不平衡
 添加Global和Local的消融实验
+对比三种GO embedding初始化方式对GO的实验影响
 添加Smin的计算

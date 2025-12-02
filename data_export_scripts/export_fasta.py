@@ -6,11 +6,7 @@ import os
 import click
 from pathlib import Path
 
-@click.command()
-@click.option('-s', '--species-name', type=click.STRING, required=True, help='物种名称')
 def export_fasta(species_name):
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    os.chdir('..')
     input_file = Path(f"processed_data/{species_name}_protein_info.json")
     output_file = Path(f"processed_data/{species_name}.fasta")
     
@@ -31,5 +27,12 @@ def export_fasta(species_name):
 
     print(f"FASTA file exported to {output_file}")
 
+@click.command()
+@click.option('-s', '--species-name', type=click.STRING, required=True, help='物种名称')
+def main(species_name):
+    export_fasta(species_name)
+
 if __name__ == '__main__':
-    export_fasta()
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir('..')
+    main()
