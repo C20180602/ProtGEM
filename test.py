@@ -25,7 +25,7 @@ from utils import init_logger, cal_metrics, load_config_clone
 @click.option('-s', '--species-name', type=click.STRING, default='HUMAN')
 @click.option('-n', '--model-name', type=click.STRING, default='model_v1.1')
 @click.option('-t', '--model-type', type=click.Choice(['v1.1','v2','v3']), default='v1.1')
-@click.option('-thresh', '--thresh', type=click.FLOAT, default=None)
+@click.option('-th', '--thresh', type=click.FLOAT, default=None)
 def main(ont, species_name, model_name, model_type, thresh):
     workspace_dir = Path("workspace",species_name,model_name)
     log_dir = Path(workspace_dir,"log")

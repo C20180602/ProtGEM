@@ -1,3 +1,9 @@
+'''
+GO预测模型训练
+e.g.
+python train.py -o bp -s xxx -tpl raw_data/xxx/exclude_pid_list.json
+'''
+
 import os
 import json
 import pickle
@@ -30,8 +36,10 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-c', '--continue-flag', type=click.BOOL, default=False) # whether to use the previous param to train
 @click.option('-f', '--freeze', type=click.BOOL, default=False) # freeze the pretrained go model (only active while preg exist)
 @click.option('-li', '--light-mode', type=click.BOOL, default=False) # ESM preprocess free, but costs longer time and larger dedicated memory
-@click.option('-preg', '--pretrain_model_path', type=click.STRING, default=None) # model_params/go_pretrain_model_1024.pth
-def main(ont, species_name, model_name, model_type, continue_flag, freeze, light_mode, pretrain_model_path):
+@click.option('-tpl', '--forced-test-pid-list-path', type=click.STRING, default=None) # set the forced_test_pid_list in dataset, to specify the test set
+@click.option('-preg', '--pretrain-model-path', type=click.STRING, default=None) # model_params/go_pretrain_model_1024.pth
+def main(ont, species_name, model_name, model_type,
+         continue_flag, freeze, light_mode, forced_test_pid_list_path, pretrain_model_path):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
     os.makedirs(Path("workspace",species_name),exist_ok=True)
@@ -68,6 +76,7 @@ def main(ont, species_name, model_name, model_type, continue_flag, freeze, light
     logger.info("continue_flag: {}".format(continue_flag))
     logger.info("freeze: {}".format(freeze))
     logger.info("light_mode: {}".format(light_mode))
+    logger.info("forced_test_pid_list_path: {}".format(forced_test_pid_list_path))
     logger.info("pretrain_model_path: {}".format(pretrain_model_path))
     logger.info("----------------------------")
 
@@ -99,6 +108,11 @@ def main(ont, species_name, model_name, model_type, continue_flag, freeze, light
         for param in pg_model.gm.parameters():
             param.requires_grad = False
     pg_model.to(device)
+    # 读取要求的test蛋白质列表
+    forced_test_pid_list = []
+    if forced_test_pid_list_path is not None:
+        with open(forced_test_pid_list_path,'r') as f:
+            forced_test_pid_list = json.load(f)
         
     # 读取训练参数
     train_default_conf_path = Path("config","train.conf")
@@ -148,7 +162,8 @@ def main(ont, species_name, model_name, model_type, continue_flag, freeze, light
                    go_max_percent=go_max_percent, go_min_count=go_min_count,
                    use_cache=continue_flag, light_mode=light_mode)
     ds.show_dataset_info(logger)
-    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger,train_proportion,valid_proportion,use_cache=continue_flag)
+    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger, forced_test_pid_list=forced_test_pid_list,
+                                                                   train_p=train_proportion, valid_p=valid_proportion, use_cache=continue_flag)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=local_collate_fn)
     val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)

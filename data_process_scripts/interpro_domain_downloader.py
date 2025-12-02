@@ -134,6 +134,7 @@ def main(species_name):
         futures = [executor.submit(download_to_file, url, file_path) for url, file_path in download_tasks]
         for _ in tqdm(as_completed(futures), total=len(futures), desc="Downloading domains"):
             pass
+    sleep(10.0)
 
 if __name__ == "__main__":
     main()

@@ -1,3 +1,9 @@
+'''
+PPI预测模型训练
+e.g.
+python train_ppi.py -s xxx -prep workspace/Pretrain_dataset/xxx_model/model_param/all_pm_model.pt
+'''
+
 import os
 import json
 import pickle
@@ -27,9 +33,11 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-c', '--continue-flag', type=click.BOOL, default=False) # whether to use the previous param to train
 @click.option('-f', '--freeze', type=click.BOOL, default=False) # freeze the pretrained protein model
 @click.option('-test', '--test_flag', type=click.BOOL, default=False) # only test
+@click.option('-tpl', '--forced-test-pid-list-path', type=click.STRING, default=None) # set the forced_test_pid_list in dataset, to specify the test set
 @click.option('-prep', '--pretrain-model-path', type=click.STRING, default=None)
-@click.option('-thresh', '--thresh', type=click.FLOAT, default=None) # only test
-def main(species_name, model_name, model_type, continue_flag, freeze, test_flag, pretrain_model_path, thresh):
+@click.option('-th', '--thresh', type=click.FLOAT, default=None) # only test
+def main(species_name, model_name, model_type,
+         continue_flag, freeze, test_flag, forced_test_pid_list_path, pretrain_model_path, thresh):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
     os.makedirs(Path("workspace",species_name),exist_ok=True)
@@ -65,7 +73,9 @@ def main(species_name, model_name, model_type, continue_flag, freeze, test_flag,
     logger.info("continue_flag: {}".format(continue_flag))
     logger.info("freeze: {}".format(freeze))
     logger.info("test_flag: {}".format(test_flag))
+    logger.info("forced_test_pid_list_path: {}".format(forced_test_pid_list_path))
     logger.info("pretrain_model_path: {}".format(pretrain_model_path))
+    logger.info("thresh: {}".format(thresh))
     logger.info("----------------------------")
 
     # 读取模型配置参数
@@ -94,6 +104,11 @@ def main(species_name, model_name, model_type, continue_flag, freeze, test_flag,
         for param in ppi_model.pm.parameters():
             param.requires_grad = False
     ppi_model.to(device)
+    # 读取要求的test蛋白质列表
+    forced_test_pid_list = []
+    if forced_test_pid_list_path is not None:
+        with open(forced_test_pid_list_path,'r') as f:
+            forced_test_pid_list = json.load(f)
         
     # 读取训练参数
     train_default_conf_path = Path("config","train_ppi.conf")
@@ -137,7 +152,9 @@ def main(species_name, model_name, model_type, continue_flag, freeze, test_flag,
                     pick_neg_rate=pick_neg_rate, random_neg_rate=random_neg_rate,
                     use_cache=cache_flag)
     ds.show_dataset_info(logger)
-    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,"ppi",ds,logger,train_proportion,valid_proportion,use_cache=cache_flag)
+    # 对forced test的蛋白质，先驱逐出整个数据集,cold start
+    train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,"ppi",ds,logger, forced_test_pid_list=forced_test_pid_list,
+                                                                   train_p=train_proportion,valid_p=valid_proportion,use_cache=cache_flag)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=local_collate_fn)
     val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)

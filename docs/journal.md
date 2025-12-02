@@ -1,3 +1,57 @@
+# 2025.12.2 新增功能：PPI迁移学习
+- 对原物种A建库，在新物种B上查询
+```
+
+```
+
+# 2025.11.21 新增功能：GO训练磁盘空间节省模式
+- 使用ESM在线推理获取ESM embedding，但训练时间会更长，显存占用更高
+- 由于PPI训练规模远大于GO训练，最好还是提前预处理ESM嵌入，故不支持磁盘节省模式。
+- 使用"-li True"参数开启该模式
+```
+CUDA_VISIBLE_DEVICES=0 python train.py -o bp -t v1.1 -n model_v1.1 -s 7120 -li True
+```
+
+# 2025.10.27 新增功能：GO、PPI批量预测
+- python batch_inference_go.py -o bp -s AF2DB -n model_v1.1 -t v1.1 -thresh 0.75 -ds TARGET_DATASET
+- python batch_inference_ppi.py -s DATASET -n model_ppi_v1 -t ppi_v1 -thresh 0.9
+
+# 2025.10.12 新增功能：PPI预测
+- 运行data_export_scripts/export_pm_model.py，导出任意一个模型的protein model部分
+```
+python data_export_scripts/export_pm_model.py -o all -s AF2DB -n model_v1.1_back -t v1.1
+```
+- 运行train_ppi.py，可选择以刚才导出的protein model模型为基础进行训练+测试
+```
+python train_ppi.py -s TARGET_DATASET -prep workspace/AF2DB/model_v1.1/model_param/all_pm_model.pt
+```
+
+# 2025.9.30 新增功能：GO微调+迁移测试
+- 运行fine_tuning_test.py即可测试
+- 使用基于PRETRAIN_DATASET训练的模型，对TARGET_DATASET进行预测
+- fn参数表示从TARGET_DATASET中选用于微调的数据组数
+- 测试日志与微调后模型保存在原模型的相应文件夹中
+
+```
+CUDA_VISIBLE_DEVICES=0 python fine_tuning_test.py -o bp -s PRETRAIN_DATASET -n model_v1.1 -t v1.1 -ds TARGET_DATASET -fn 200
+```
+
+# 2025.9.29 新增功能：GO迁移预测
+- 运行transer_test.py即可测试
+- 使用基于PRETRAIN_DATASET训练的模型，对TARGET_DATASET进行预测
+- 使用的GO标签集合来自于训练集筛选后的标签
+- 会剔除掉已经处于PRETRAIN_DATASET中的蛋白质（可优化为只剔除PRETRAIN_DATASET训练集中的蛋白质）
+- 测试日志保存在原模型的log文件夹中
+
+```
+python transfer_test.py -o cc -s PRETRAIN_DATASET -n model_v1.1 -t v1.1 -ds TARGET_DATASET
+```
+
+# 2025.9.26 数据Pipeline优化
+- 可以只根据蛋白质的uniprot_id（后文简称pid）进行数据集构建，不依赖物种分类（物种名称可视为数据集名称）
+
+- 下载流程进行了多线程优化
+
 ......
 
 2025.6.3:

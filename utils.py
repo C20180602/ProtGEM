@@ -72,19 +72,53 @@ def set_seeds(seed):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-def get_split_dataset(idx_dir, ont, ds, logger, train_p=0.9, valid_p=0.05, use_cache=True):
+def get_split_dataset(idx_dir, ont, ds, logger, forced_test_pid_list=[], train_p=0.9, valid_p=0.05, use_cache=True):
     train_idx_path = Path(idx_dir,f"{ont}_train_indices.npy")
     valid_idx_path = Path(idx_dir,f"{ont}_valid_indices.npy")
     test_idx_path = Path(idx_dir,f"{ont}_test_indices.npy")
     if (not Path.exists(train_idx_path)) or (not Path.exists(valid_idx_path)) or (not Path.exists(test_idx_path)) or use_cache==False:
         logger.warning("resplit the dataset")
-        train_size = int(train_p*len(ds))
-        valid_size = int(valid_p*len(ds))
-        test_size = len(ds) - train_size - valid_size
-        train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(ds, [train_size, valid_size, test_size])
-        np.save(train_idx_path, train_dataset.indices)
-        np.save(valid_idx_path, valid_dataset.indices)
-        np.save(test_idx_path, test_dataset.indices)
+        # 先将强制测试的样本先划分到测试集中，在按照比例划分剩余样本
+        if len(forced_test_pid_list) > 0:
+            forced_test_set = set(forced_test_pid_list)
+            forced_test_indices = []
+            remaining_indices = []
+            if ont == "ppi":
+                # 对ppi数据集划分(cold start) 
+                for i, data in enumerate(ds):
+                    if data[1][0] in forced_test_set or data[2][0] in forced_test_set:
+                        forced_test_indices.append(i)
+                    else:
+                        remaining_indices.append(i)
+            else:
+                for i, data in enumerate(ds):
+                    if data[1] in forced_test_set:
+                        forced_test_indices.append(i)
+                    else:
+                        remaining_indices.append(i)
+
+            remaining_size = len(remaining_indices)
+            adjusted_train_size = int(train_p * remaining_size)
+            adjusted_valid_size = int(valid_p * remaining_size)
+            adjusted_test_size = remaining_size - adjusted_train_size - adjusted_valid_size
+            random.shuffle(remaining_indices)
+            train_indices = remaining_indices[:adjusted_train_size]
+            valid_indices = remaining_indices[adjusted_train_size : adjusted_train_size+adjusted_valid_size]
+            test_indices = remaining_indices[adjusted_train_size+adjusted_valid_size : ] + forced_test_indices
+            train_dataset = Subset(ds, train_indices)
+            valid_dataset = Subset(ds, valid_indices)
+            test_dataset = Subset(ds, test_indices)
+            np.save(train_idx_path, train_indices)
+            np.save(valid_idx_path, valid_indices)
+            np.save(test_idx_path, test_indices)
+        else:
+            train_size = int(train_p*len(ds))
+            valid_size = int(valid_p*len(ds))
+            test_size = len(ds) - train_size - valid_size
+            train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(ds, [train_size, valid_size, test_size])
+            np.save(train_idx_path, train_dataset.indices)
+            np.save(valid_idx_path, valid_dataset.indices)
+            np.save(test_idx_path, test_dataset.indices)
     else:
         train_indices = np.load(train_idx_path).tolist()
         valid_indices = np.load(valid_idx_path).tolist()

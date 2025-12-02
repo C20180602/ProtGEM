@@ -631,11 +631,16 @@ class PPIDataset(Dataset):
             go_list = data[5]
             pid2go_est[pid] = set(go_list)
         for u in tqdm(neg_ppi_dict, desc="negative sampling"):
+            # 不存在正样本的蛋白质不进行负采样
+            if u not in pos_ppi_dict or len(pos_ppi_dict[u])==0:
+                continue
             ppi_dis_dict = bfs_get_dis(u, pos_ppi_dict)
             max_ppi_dis = max(ppi_dis_dict.values())
             final_dis_list = []
             for v in pid_list:
                 if v == u:
+                    continue
+                if v not in pos_ppi_dict or len(pos_ppi_dict[v])==0:
                     continue
                 go_diff_dis = 0
                 if not ignore_go:
@@ -675,6 +680,8 @@ class PPIDataset(Dataset):
                                  len(pid_list)-1 - len(neg_ppi_dict[u]) - len(pos_ppi_dict[u]))
             if random_neg_num > 0:
                 for v in shuffle_pid_list:
+                    if v not in pos_ppi_dict or len(pos_ppi_dict[v])==0:
+                        continue
                     if v!=u and (v not in neg_ppi_dict[u]) and (v not in pos_ppi_dict[u]):
                         if random_neg_num > 0:
                             random_neg_num -= 1
