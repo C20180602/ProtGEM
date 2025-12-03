@@ -1,9 +1,10 @@
 # 2025.12.2 新增功能：PPI迁移学习
 - 在目标物种D上出现PPI较少，孤立点较多的情况，建议采用gen_ppi_transfer.py丰富PPI
-- 将物种A的PPI通过转移到B上
+- 将物种A的PPI通过blast比对，将高相似的ppi转移到B上
 ```
 python gen_ppi_transfer.py -s A_species -d B_species
 ```
+- 使用train_ppi.py训练时添加 -trs True选项，使用转移后的ppi数据进行训练
 
 # 2025.11.21 新增功能：GO训练磁盘空间节省模式
 - 使用ESM在线推理获取ESM embedding，但训练时间会更长，显存占用更高

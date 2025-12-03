@@ -73,6 +73,8 @@
 1、运行train_go_emb.py，预训练go的初始嵌入，得到go_pretrain_model模型，保存在model_params文件夹中
 
 2、运行train.py，训练protein_model模型和go_model模型，输出内容在workspace_{species_name}_{model_name}中
+
+可选参数 -preg model_params/go_pretrain_model_1024.pth，使用预训练的go初始嵌入
 ```
 CUDA_VISIBLE_DEVICES=0 python train.py -o bp -s HUMAN
 CUDA_VISIBLE_DEVICES=1 python train.py -o cc -s HUMAN
@@ -84,3 +86,20 @@ CUDA_VISIBLE_DEVICES=0 python test.py -o bp -s HUMAN
 CUDA_VISIBLE_DEVICES=1 python test.py -o cc -s HUMAN
 CUDA_VISIBLE_DEVICES=2 python test.py -o mf -s HUMAN
 ```
+
+4、消融实验
+
+通过 -t seq_abl 传入消融的模型类型（seq_abl表示只有序列特征，其他同理）
+
+重新训练模型并测试
+
+5、迁移测试、模型微调、批量预测
+
+具体方法见journal.md
+
+6、本地GO预测网页
+
+启动inference.py即可
+
+### PPI模型训练与测试
+

@@ -516,7 +516,7 @@ class MyDataset(Dataset):
         logger.info("----------------------------")
         
 class PPIDataset(Dataset):
-    def __init__(self, species_name, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"),
+    def __init__(self, species_name, cache_dir=Path("dataset"), specified_ppi_file_name="ppi_list.json", target_device=torch.device("cuda:0"),
                  go_diff_weight = {'bp':0.4, 'cc':0.4, 'mf':0.2}, ppi_weight = 0.7, go_weight = 0.3, pick_neg_rate = 4.0, random_neg_rate = 1.0,
                  inference_flag = False, exclude_pid_list = [], ignore_go = False, use_cache = False):
         # GO数据与interpro数据, 较小直接读入
@@ -536,7 +536,7 @@ class PPIDataset(Dataset):
         ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_function":"mf"}
         with open(Path("processed_data",species_name+"_protein_info.json"), 'r') as f:
             self.protein_info = json.load(f)
-        with open(Path("raw_data",species_name,"ppi","ppi_list.json"), 'r') as f:
+        with open(Path("raw_data",species_name,"ppi",specified_ppi_file_name), 'r') as f:
             self.ppi_list = json.load(f)
         with open(Path("processed_data","interpro_id.json"), 'r') as f:
             interpro_list = json.load(f)
