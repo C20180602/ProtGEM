@@ -31,7 +31,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-n', '--model-name', type=click.STRING, default='model_ppi_v1')
 @click.option('-pn', '--precise-model-name', type=click.STRING, default=None)
 @click.option('-t', '--model-type', type=click.Choice(['ppi_v1']), default='ppi_v1')
-@click.option('-thresh', '--thresh', type=click.FLOAT, default=None)
+@click.option('-th', '--thresh', type=click.FLOAT, default=None)
 def main(species_name, model_name, precise_model_name, model_type, thresh):
     workspace_dir = Path("workspace",species_name,model_name)
     log_dir = Path(workspace_dir,"log")
@@ -153,6 +153,15 @@ def main(species_name, model_name, precise_model_name, model_type, thresh):
     Ave_new_cnt = 0
     recommend_cnt = 500
     recommended_result = {}
+    existed_result = {}
+    with open(Path("raw_data",species_name,"ppi","ppi_list.json"), "r") as f:
+        pair_info = json.load(f)
+    for info in pair_info:
+        p1 = info[0]
+        p2 = info[1]
+        if p1 not in existed_result:
+            existed_result[p1] = set()
+        existed_result[p1].add(p2)
     for pid1 in tqdm(predict_result,desc="calculating recommended ppi"):
         predict_result[pid1].sort(reverse=True)
         if pid1 in existed_result:

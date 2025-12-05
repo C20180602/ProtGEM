@@ -1,6 +1,8 @@
 '''
 将某数据集中某模型运用到另一数据集测试准确率
 只包含GO的微调测试
+e.g.
+CUDA_VISIBLE_DEVICES=? python fine_tuning_test.py -o mf -s xxx -n model_v1.1_back -ds yyy -fn 1000
 '''
 
 import os

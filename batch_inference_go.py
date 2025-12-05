@@ -1,6 +1,9 @@
 '''
 将某数据集中某GO模型运用到另一数据集
 预测所有标签并导出为json文件
+e.g.
+CUDA_VISIBLE_DEVICES=? python batch_inference_go.py -o bp -s xxx -ds yyy -th 0.68
+CUDA_VISIBLE_DEVICES=? python batch_inference_go.py -o bp -s xxx -n model_v1.1_back -pn ??_model_FTon_yyy.pt -ds yyy -th 0.68
 '''
 
 import os
@@ -33,8 +36,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-n', '--model-name', type=click.STRING, default='model_v1.1')
 @click.option('-pn', '--precise-model-name', type=click.STRING, default=None)
 @click.option('-t', '--model-type', type=click.Choice(['v1.1','v2','v3']), default='v1.1')
-@click.option('-thresh', '--thresh', type=click.FLOAT, default=None)
-@click.option('-ds', '--dest-species', type=click.STRING)
+@click.option('-th', '--thresh', type=click.FLOAT, default=None)
+@click.option('-ds', '--dest-species', type=click.STRING, default=None)
 def main(ont, species_name, model_name, precise_model_name, model_type, thresh, dest_species):
     workspace_dir = Path("workspace",species_name,model_name)
     log_dir = Path(workspace_dir,"log")

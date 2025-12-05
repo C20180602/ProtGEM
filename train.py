@@ -1,7 +1,7 @@
 '''
 GO预测模型训练
 e.g.
-python train.py -o bp -s xxx -tpl raw_data/xxx/exclude_pid_list.json
+python train.py -o bp -s xxx
 '''
 
 import os
@@ -108,6 +108,10 @@ def main(ont, species_name, model_name, model_type,
         for param in pg_model.gm.parameters():
             param.requires_grad = False
     pg_model.to(device)
+
+    # 初始化重构损失计算模型（解码器+损失计算）
+    
+
     # 读取要求的test蛋白质列表
     forced_test_pid_list = []
     if forced_test_pid_list_path is not None:
@@ -204,6 +208,9 @@ def main(ont, species_name, model_name, model_type,
             graph_mask = generate_graph_mask(batched_graph.num_nodes(), mask_rate)
             mask = mask.to(device)
             graph_mask = graph_mask.to(device)
+
+            # ds.generate_re_seq(idxs)
+            # ds.generate_re_struct(idxs)
             
             predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask)
             

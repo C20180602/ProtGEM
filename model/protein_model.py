@@ -12,7 +12,7 @@ class ProteinEncoder(nn.Module):
     蛋白质进行编码
     每个蛋白质最终对应一个1024维的向量
     '''
-    def __init__(self, final_out_dim=1024, final_hid_dim = 768, fusion_layers=2, fusion_att_heads=2, fusion_hid_dim=256, fusion_dropout=0.5, model_args = None):
+    def __init__(self, final_out_dim=1024, final_hid_dim = 768,fusion_layers=2, fusion_att_heads=2, fusion_hid_dim=256, fusion_dropout=0.5, model_args = None):
         super(ProteinEncoder, self).__init__()
         # 没有给定参数文件则使用默认参数
         if model_args is None:
@@ -41,7 +41,7 @@ class ProteinEncoder(nn.Module):
         self.part_scale = nn.Linear(self.part_dims, self.final_hid_dim)
         self.final_out = nn.Linear(2 * self.final_hid_dim, final_out_dim)
         
-    def forward(self, seq_embs, batched_graph, domain_info, mask=None, graph_mask=None, ablation_feat = []):
+    def forward(self, seq_embs, batched_graph, domain_info, mask=None, graph_mask=None, ablation_feat = [], get_token_feat=False):
         # seq_embs: [batch_size, seq_len, seq_dim]
         # mask [batch_size, seq_len]
         batch_size = seq_embs.shape[0]
@@ -115,6 +115,8 @@ class ProteinEncoder(nn.Module):
         emb = self.dropout(emb)
         emb = self.final_out(emb)
         emb = emb / emb.norm(p=2, dim=1, keepdim=True)
+        if get_token_feat:
+            return emb, part_emb
         return emb
     
     def save_model(self, path):

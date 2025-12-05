@@ -43,8 +43,11 @@ class ProteinGoModel(nn.Module):
         self.MLP.append(nn.Linear(self.hid_dim, 1))
         self.MLP.append(nn.Sigmoid())
         
-    def forward(self, seq_embs, batched_graph, domain_info, go_idx, mask=None, graph_mask=None, ablation_feat = []):
-        protein_emb = self.pm(seq_embs, batched_graph, domain_info, mask, graph_mask, ablation_feat)
+    def forward(self, seq_embs, batched_graph, domain_info, go_idx, mask=None, graph_mask=None, ablation_feat = [], get_token_feat=False):
+        if get_token_feat:
+            protein_emb, protein_emb_token = self.pm(seq_embs, batched_graph, domain_info, mask, graph_mask, ablation_feat, get_token_feat)
+        else:
+            protein_emb = self.pm(seq_embs, batched_graph, domain_info, mask, graph_mask, ablation_feat)
         go_emb = self.gm(go_idx)
         # protein_emb: [batch_size, hid_dim]
         # go_emb: [go_nums, hid_dim]
@@ -54,14 +57,106 @@ class ProteinGoModel(nn.Module):
         # predict_matrix: [batch_size, go_nums, hid_dim]
         predict_matrix = self.MLP(predict_matrix)
         predict_matrix = predict_matrix.squeeze(-1)
-        return predict_matrix
+        if get_token_feat:
+            return predict_matrix, protein_emb_token
+        else:
+            return predict_matrix
     
     def save_model(self, path):
         torch.save(self.state_dict(), path)
     
     def load_model(self, path):
         self.load_state_dict(torch.load(path))
+
+class ReconstructDecoder(nn.Module):
+    '''
+    重构器，输入为[batch_size, final_out_dim] 和 [batch_size, seq_len, final_hid_dim]
+    输出重构序列和重构坐标[batch_size, seq_len, seq_vocal_size] 和 [batch_size, seq_len, 3]
+    '''
+    def __init__(self, hidden_dim, num_tokens, **kwargs):
+        super().__init__()
         
+        self.hidden_dim = hidden_dim
+        
+        # 1. 简单的全局特征融合（直接添加到查询）
+        self.global_projection = nn.Linear(hidden_dim, hidden_dim)
+        
+        # 2. 位置感知的查询生成
+        self.query_generator = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim * 2),
+            nn.GELU(),
+            nn.Linear(hidden_dim * 2, hidden_dim)
+        )
+        
+        # 3. 位置编码
+        max_seq_len = kwargs.get('max_seq_len', 512)
+        self.position_embeddings = nn.Embedding(max_seq_len, hidden_dim)
+        
+        # 4. 简化的Transformer解码器（层数较少）
+        decoder_layer = nn.TransformerDecoderLayer(
+            d_model=hidden_dim,
+            nhead=kwargs.get('num_heads', 8),
+            dim_feedforward=hidden_dim * 2,
+            dropout=kwargs.get('dropout', 0.1),
+            batch_first=True
+        )
+        self.transformer_decoder = nn.TransformerDecoder(
+            decoder_layer,
+            num_layers=kwargs.get('num_layers', 3)  # 较少的层数
+        )
+        
+        # 5. 输出头
+        self.token_head = nn.Linear(hidden_dim, num_tokens)
+        self.coord_head = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.GELU(),
+            nn.Linear(hidden_dim // 2, 3),
+            nn.Tanh()
+        )
+        
+        self.dropout = nn.Dropout(0.1)
+    
+    def forward(self, encoder_hidden, global_feature, src_mask=None):
+        batch_size, seq_len, _ = encoder_hidden.shape
+        device = encoder_hidden.device
+        
+        # 1. 投影全局特征
+        global_proj = self.global_projection(global_feature)  # [batch, hidden]
+        
+        # 2. 生成位置编码
+        positions = torch.arange(seq_len, device=device)
+        positions = positions.unsqueeze(0).expand(batch_size, seq_len)
+        pos_embeds = self.position_embeddings(positions)  # [batch, seq, hidden]
+        
+        # 3. 生成查询（融合全局特征和位置信息）
+        global_expanded = global_proj.unsqueeze(1).expand(-1, seq_len, -1)
+        query_input = torch.cat([global_expanded, pos_embeds], dim=-1)
+        tgt_queries = self.query_generator(query_input)
+        tgt_queries = self.dropout(tgt_queries)
+        
+        # 4. Transformer解码器
+        causal_mask = torch.triu(
+            torch.ones(seq_len, seq_len, device=device, dtype=torch.bool),
+            diagonal=1
+        )
+        
+        decoder_output = self.transformer_decoder(
+            tgt=tgt_queries,
+            memory=encoder_hidden,
+            tgt_mask=causal_mask,
+            memory_key_padding_mask=src_mask
+        )
+        
+        # 5. 输出
+        token_logits = self.token_head(decoder_output)
+        coordinates = self.coord_head(decoder_output)
+        
+        return {
+            'token_logits': token_logits,
+            'coordinates': coordinates,
+            'decoder_output': decoder_output
+        }
+
 class ProteinGoModelv2(nn.Module):
     '''
     蛋白质和GO标签的联合模型

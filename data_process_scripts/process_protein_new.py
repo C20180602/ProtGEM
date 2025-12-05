@@ -7,6 +7,8 @@ import Bio.PDB.PDBParser
 import os
 import json
 import click
+import numpy as np
+import pickle as pkl
 from tqdm import tqdm
 
 @click.command()
@@ -19,6 +21,7 @@ def main(species_name, max_length):
 
     protein_cnt = 0
     protein_info = {}
+    protein_coords = {}
 
     os.chdir(os.path.join("raw_data",species_name))
 
@@ -36,22 +39,24 @@ def main(species_name, max_length):
         'L' : 10,'K' : 11,'M' : 12,'F' : 13,'P' : 14,
         'S' : 15,'T' : 16,'W' : 17,'Y' : 18,'V' : 19,
     }
-    def get_seq_info(pdbfilepath):
+    def get_seq_coords_info(pdbfilepath):
         struct = parser.get_structure(0,pdbfilepath)
         # 只取第一个模型
         model = struct.get_models().__next__()
         # i表示当前氨基酸的序号
         seq = ""
+        coords = []
         for res in model.get_residues():
             acid = three2one[res.get_resname()]
             seq = seq + acid
-        return seq
+            coords.append(res['CA'].get_coord())
+        return seq, np.array(coords)
 
     seq_data_cnt = 0
     pdb_data_dir = os.path.join('pdb')
     for filename in tqdm(os.listdir(pdb_data_dir), desc="Read sequences from PDB files"):
         pdbfilepath = os.path.join(pdb_data_dir, filename)
-        seq = get_seq_info(pdbfilepath)
+        seq, coords = get_seq_coords_info(pdbfilepath)
         # 过滤过长的蛋白质
         if len(seq) > max_length:
             print("Warning: Length Limit Exceeded")
@@ -68,6 +73,7 @@ def main(species_name, max_length):
         protein_info[pid]["seq"] = seq
         protein_info[pid]["go"] = []
         protein_info[pid]["domain"] = []
+        protein_coords[pid] = coords
         seq_data_cnt += 1
     print("protein_cnt: ",protein_cnt)
     print("seq_data_cnt: ",seq_data_cnt)
@@ -148,6 +154,8 @@ def main(species_name, max_length):
     os.chdir(os.path.join("..",".."))
     with open(os.path.join("processed_data",species_name+"_protein_info.json"), 'w') as f:
         json.dump(protein_info, f, indent=4)
+    with open(os.path.join("processed_data",species_name+"_protein_coords.pkl"), 'wb') as f:
+        pkl.dump(protein_coords, f)
 
 if __name__ == "__main__":
     main()

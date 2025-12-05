@@ -155,3 +155,49 @@ AUC: 0.9606 AUPR: 0.9491 Fmax: 0.9236 thresh: 0.3307
 
 pneg=5.0 rneg=0.0 alpha1=0.5 alpha2=0.5
 AUC: 0.9887 AUPR: 0.9740 Fmax: 0.9356 thresh: 0.7435
+
+
+
+正式结果：
+直接从7120训练+预测，bp、cc、mf（最好，泛化性也很好）
+AUC: 0.9237 AUPR: 0.5226 PRC: 0.5808 REC: 0.4790  Fmax: 0.5250 tmp_thresh: 0.8200
+Real Average precision: 0.281454 , Real Average recall: 0.703721 , Average New GO: 6.222581
+
+AUC: 0.9557 AUPR: 0.8283 PRC: 0.8677 REC: 0.7005  Fmax: 0.7752 tmp_thresh: 0.9300
+Real Average precision: 0.339481 , Real Average recall: 0.935415 , Average New GO: 3.125489
+
+AUC: 0.9620 AUPR: 0.7425 PRC: 0.8235 REC: 0.6418  Fmax: 0.7213 tmp_thresh: 0.8400
+Real Average precision: 0.441963 , Real Average recall: 0.674027 , Average New GO: 2.565380
+-----------------------------------------
+从AF2DB large训练+7120微调预测，微调数据为1000个蛋白质
+best_epoch:0 AUC:0.9703014214939635 best_Fmax:0.4621064864526877 AUPR:0.4379017678115721 thresh:0.6833388209342957
+Real Average precision: 0.304747 , Real Average recall: 0.276270 , Average New GO: 1.167829
+
+best_epoch:9 AUC:0.9847369600257186 best_Fmax:0.7166738055452239 AUPR:0.7396969797001431 thresh:0.6855855584144592
+Real Average precision: 0.290776 , Real Average recall: 0.786776 , Average New GO: 2.565890
+
+best_epoch:9 AUC:0.9601487448575706 best_Fmax:0.48463003181116354 AUPR:0.48175939490096814 thresh:0.6112263202667236
+Real Average precision: 0.332838 , Real Average recall: 0.433385 , Average New GO: 3.055263
+-----------------------------------------
+从AF2DB 20训练+7120微调预测，微调数据为1000个蛋白质
+best_epoch:8 AUC:0.9728589238208801 best_Fmax:0.4952494013243441 AUPR:0.4866429596140771 thresh:0.608663022518158
+Real Average precision: 0.213495 , Real Average recall: 0.429312 , Average New GO: 5.344499
+
+best_epoch:8 AUC:0.9857218544851157 best_Fmax:0.7165182577764163 AUPR:0.7467417841093973 thresh:0.7595361471176147
+Real Average precision: 0.296260 , Real Average recall: 0.786135 , Average New GO: 2.460976
+
+best_epoch:9 AUC:0.9559251438842952 best_Fmax:0.49866350893247485 AUPR:0.5249193227714437 thresh:0.6502326130867004
+Real Average precision: 0.244985 , Real Average recall: 0.495170 , Average New GO: 5.274613
+
+PPI:
+7120上直接预测：这个结果其实是调大了阈值，在Recall不降太多的情况下，让precision升高一点的，但是没啥用，大部分预测都是趋近1的
+AUC: 0.9786 AUPR: 0.9583 PRC: 0.9255 REC: 0.8944  Fmax: 0.9097 tmp_thresh: 0.6000
+Real Average recall: 0.840337 , Real Average precision: 0.018758 , Average New PPI: 1929.545315
+
+29413转移ppi后7120上预测（最好）
+AUC: 0.9774 AUPR: 0.9521 PRC: 0.8729 REC: 0.9212  Fmax: 0.8964 tmp_thresh: 0.2780
+Real Average recall: 0.858499 , Real Average precision: 0.010990 , Average New PPI: 3138.267812
+
+29413上训练+7120微调2轮：
+AUC: 0.9412 AUPR: 0.8932 PRC: 0.7880 REC: 0.8852  Fmax: 0.8338 tmp_thresh: 0.2500
+Real Average recall: 0.822284 , Real Average precision: 0.009344 , Average New PPI: 2961.675055
