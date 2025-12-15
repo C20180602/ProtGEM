@@ -80,7 +80,7 @@ with open(go_graph_nx_out_path,"wb") as f:
     pickle.dump(go_graph_nx,f)
 
 # DP求最长路作为GO标签的距离值，越大表示标签描述的功能越具体
-# 这里会比较confused，因为go_graph_nx的边是从具体标签指向抽象标签的，所以DP采用的是反向DP，三个根节点bp、cc、mf的dis值为1
+# 这里会比较confusing，因为go_graph_nx的边是从具体标签指向抽象标签的，所以DP采用的是反向DP，三个根节点bp、cc、mf的dis值为1
 def dfs(u,go_graph,dis):
     dis[u]=1
     for edge in go_graph.out_edges(u):

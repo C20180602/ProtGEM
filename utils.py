@@ -7,6 +7,7 @@ from pathlib import Path
 
 import torch
 import torch.utils.data
+import torch.nn.functional as F
 from torch.utils.data import Subset
 from sklearn import metrics
 from sklearn.metrics import roc_curve, auc
@@ -44,6 +45,29 @@ def cal_metrics(pred, actual, thresh=None):
         recall = recall[index]
         fmax = f1[index]
     return auc_score, aupr_score, precision, recall, fmax, thresh
+
+def cal_effect(ori_pred, glob_pred, part_pred):
+    # 计算消除glob后，结果的变化
+    glob_diff = torch.abs(part_pred - ori_pred)
+    # 计算消除part后，结果的变化
+    part_diff = torch.abs(glob_pred - ori_pred)
+    # 计算两者分别的结果的总影响
+    glob_effect = glob_diff.mean().item()
+    part_effect = part_diff.mean().item()
+    # 计算两者对结果的特有影响
+    glob_unique = F.relu(glob_diff - part_diff).mean().item()
+    part_unique = F.relu(part_diff - glob_diff).mean().item()
+    return torch.tensor([glob_effect, glob_unique, part_effect, part_unique])
+
+def cal_pert_effect(ori_pred, glob_pert, part_pert):
+    # 计算扰动glob后，结果的变化
+    glob_diff = glob_pert - ori_pred
+    # 计算扰动part后，结果的变化
+    part_diff = part_pert - ori_pred
+    # 计算两者分别变化的方差
+    glob_effect = glob_diff.var().item()
+    part_effect = part_diff.var().item()
+    return torch.tensor([glob_effect, part_effect])
 
 # 克隆config之后，只读取workspace中本地的config，便于记录每次的参数以单独调试
 def load_config_clone(default_conf_path, clone_dir_path):

@@ -18,7 +18,7 @@ from tqdm import tqdm
 from register import *
 from model.dataset import MyDataset, probablity_propagate
 from model.predictor import ContrastLoss, ProteinGoModel, ProteinGoModelv2
-from utils import init_logger, cal_metrics, load_config_clone
+from utils import init_logger, cal_metrics, cal_effect, cal_pert_effect, load_config_clone
 
 @click.command()
 @click.option('-o', '--ont', type=click.Choice(['bp', 'cc', 'mf', 'all']), default='mf')
@@ -112,13 +112,62 @@ def main(ont, species_name, model_name, model_type, thresh):
             
             predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx)
             # predict_matrix: [batch_size, go_nums]
-            predict_matrix = predict_matrix.transpose(1,0)
             predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order, ds.balanced_go_map_inv)
-            predict_matrix = predict_matrix.transpose(1,0)
             pred += predict_matrix.tolist()
             actual += labels.tolist()
     auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual, thresh)
     logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
+
+    logger.info("-----Global Local Feature Effectivity Study-----")
+    glob_pred_list = []
+    part_pred_list = []
+    sum_effect = torch.zeros(4)
+    sum_pert_effect = torch.zeros(2)
+    with torch.no_grad():
+        for idxs, pids, seq_embs, batched_graph, domain_info, labels in tqdm(test_loader):
+            
+            ori_pred = pg_model(seq_embs, batched_graph, domain_info, go_idx)
+            glob_pred = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=["part"])
+            glob_pert = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=["glob"], pert_mode=True)
+            glob_pred_prop = probablity_propagate(glob_pred, go_graph_nx, topo_order, ds.balanced_go_map_inv)
+            glob_pred_list += glob_pred_prop.tolist()
+
+            part_pred = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=["glob"])
+            part_pert = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=["part"], pert_mode=True)
+            part_pred_prop = probablity_propagate(part_pred, go_graph_nx, topo_order, ds.balanced_go_map_inv)
+            part_pred_list += part_pred_prop.tolist()
+            effect = cal_effect(ori_pred, glob_pred, part_pred)
+            pert_effect = cal_pert_effect(ori_pred, glob_pert, part_pert)
+            sum_effect = sum_effect + effect * len(pids)
+            sum_pert_effect = sum_pert_effect + pert_effect * len(pids)
+    auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(glob_pred_list, actual, thresh)
+    logger.info("Only Global Feature - AUC: {:.6f} AUPR: {:.6f} PRC: {:.6f} REC: {:.6f}  Fmax: {:.6f} tmp_thresh: {:.6f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
+    auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(part_pred_list, actual, thresh)
+    logger.info("Only Local Feature  - AUC: {:.6f} AUPR: {:.6f} PRC: {:.6f} REC: {:.6f}  Fmax: {:.6f} tmp_thresh: {:.6f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
+
+    sum_effect /= len(test_dataset)
+    logger.info("Static Analysis Results")
+    logger.info("Global Effect: {:.6f}, Global Unique Effect: {:.6f}".format(sum_effect[0].item(), sum_effect[1].item()))
+    logger.info(" Local Effect: {:.6f},  Local Unique Effect: {:.6f}".format(sum_effect[2].item(), sum_effect[3].item()))
+
+    sum_pert_effect /= len(test_dataset)
+    logger.info("Perturbation Analysis Results")
+    logger.info("Global Var: {:.6f}".format(sum_effect[0].item()))
+    logger.info(" Local Var: {:.6f}".format(sum_effect[1].item()))
+
+    logger.info("-----Zero Mask Abltion Study-----")
+    for abl_feat in [["seq"],["struct"],["domain"]]:
+        logger.info(f"ablation feature (without): {abl_feat}")
+        pred = []
+        with torch.no_grad():
+            for idxs, pids, seq_embs, batched_graph, domain_info, labels in tqdm(test_loader):
+                
+                predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=abl_feat)
+                # predict_matrix: [batch_size, go_nums]
+                predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order, ds.balanced_go_map_inv)
+                pred += predict_matrix.tolist()
+        auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual, thresh)
+        logger.info("AUC: {:.6f} AUPR: {:.6f} PRC: {:.6f} REC: {:.6f}  Fmax: {:.6f} tmp_thresh: {:.6f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))

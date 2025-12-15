@@ -148,9 +148,7 @@ def predict_go_pdb(dataset_name, model_name, model, filepath, progress=gr.Progre
     # --------------------------------------------------------
     progress(0.6, "predicting GO terms")
     predict_matrix = pg_model(seq_emb, batched_graph, domain_info, go_idx)
-    predict_matrix = predict_matrix.transpose(1,0)
     predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order, balanced_go_map_inv)
-    predict_matrix = predict_matrix.transpose(1,0)
     pred_list = []
     for i, pred_score in enumerate(predict_matrix[0]):
         pred_list.append((pred_score.item(), go_terms[balanced_go_list[i]]['id'], go_terms[balanced_go_list[i]]['name'][:64], go_term_dis[str(balanced_go_list[i])]))

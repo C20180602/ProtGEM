@@ -212,7 +212,7 @@ def main(ont, species_name, model_name, model_type,
             # ds.generate_re_seq(idxs)
             # ds.generate_re_struct(idxs)
             
-            predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask)
+            predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask, ablation_feat=dropout_feat_list[epoch])
             
             loss1 = criterion1(predict_matrix, labels, contrast_temp)
             loss2 = criterion2(predict_matrix, labels)

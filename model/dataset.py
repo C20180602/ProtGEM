@@ -99,6 +99,7 @@ def random_rotation_matrix():
     return rotation_matrix
 
 def probablity_propagate(prob_vector, go_graph:nx.DiGraph, topo_order, balanced_go_map_inv):
+    prob_vector = prob_vector.transpose(1,0)
     # DP
     for u in topo_order:
         if u not in balanced_go_map_inv:
@@ -109,7 +110,7 @@ def probablity_propagate(prob_vector, go_graph:nx.DiGraph, topo_order, balanced_
                 continue
             b_v = balanced_go_map_inv[v]
             prob_vector[b_u] = torch.max(prob_vector[b_u],prob_vector[b_v])
-    return prob_vector
+    return prob_vector.transpose(1,0)
 
 class UpstreamDataset(Dataset):
     def __init__(self, species_name, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"),

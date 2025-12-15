@@ -41,13 +41,13 @@ class ProteinEncoder(nn.Module):
         self.part_scale = nn.Linear(self.part_dims, self.final_hid_dim)
         self.final_out = nn.Linear(2 * self.final_hid_dim, final_out_dim)
         
-    def forward(self, seq_embs, batched_graph, domain_info, mask=None, graph_mask=None, ablation_feat = [], get_token_feat=False):
+    def forward(self, seq_embs, batched_graph, domain_info, mask=None, graph_mask=None, ablation_feat = [], pert_mode=False, get_token_feat=False):
         # seq_embs: [batch_size, seq_len, seq_dim]
         # mask [batch_size, seq_len]
         batch_size = seq_embs.shape[0]
         max_len = seq_embs.shape[1]
         
-        # Ablation Study 消融实验（已废弃）
+        # Ablation Study 消融实验
         if "seq" not in ablation_feat:
             seq_glob, seq_part = self.seq_enc(seq_embs, mask)
         else:
@@ -104,11 +104,17 @@ class ProteinEncoder(nn.Module):
         part_emb = F.relu(part_emb)
         # part_emb: [batch_size, final_hid_dim]
         
-        # Ablation Study 消融实验（已废弃）
+        # Ablation Study 消融实验
         if "glob" in ablation_feat:
-            glob_emb = torch.zeros(batch_size, self.final_hid_dim, device=glob_emb.device)
+            if pert_mode:
+                glob_emb += torch.randn(batch_size, self.final_hid_dim, device=glob_emb.device) * 0.1
+            else:
+                glob_emb = torch.zeros(batch_size, self.final_hid_dim, device=glob_emb.device)
         if "part" in ablation_feat:
-            part_emb = torch.zeros(batch_size, self.final_hid_dim, device=part_emb.device)
+            if pert_mode:
+                part_emb += torch.randn(batch_size, self.final_hid_dim, device=part_emb.device) * 0.1
+            else:
+                part_emb = torch.zeros(batch_size, self.final_hid_dim, device=part_emb.device)
         
         # 最终融合，得到最终的embedding
         emb = torch.cat([glob_emb,part_emb],dim=1)

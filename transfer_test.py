@@ -121,9 +121,7 @@ def main(ont, species_name, model_name, model_type, thresh, dest_species):
         for idxs, pids, seq_embs, batched_graph, domain_info, labels in tqdm(test_loader):
             predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx)
             # predict_matrix: [batch_size, go_nums]
-            predict_matrix = predict_matrix.transpose(1,0)
             predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order, ds.balanced_go_map_inv)
-            predict_matrix = predict_matrix.transpose(1,0)
             pred += predict_matrix.tolist()
             actual += labels.tolist()
     auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual)
