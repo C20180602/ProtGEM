@@ -43,11 +43,11 @@ class ProteinGoModel(nn.Module):
         self.MLP.append(nn.Linear(self.hid_dim, 1))
         self.MLP.append(nn.Sigmoid())
         
-    def forward(self, seq_embs, batched_graph, domain_info, go_idx, mask=None, graph_mask=None, ablation_feat = [], get_token_feat=False):
+    def forward(self, seq_embs, batched_graph, domain_info, go_idx, mask=None, graph_mask=None, ablation_feat = [], pert_mode=False, get_token_feat=False):
         if get_token_feat:
-            protein_emb, protein_emb_token = self.pm(seq_embs, batched_graph, domain_info, mask, graph_mask, ablation_feat, get_token_feat)
+            protein_emb, protein_emb_token = self.pm(seq_embs, batched_graph, domain_info, mask, graph_mask, ablation_feat, pert_mode, get_token_feat)
         else:
-            protein_emb = self.pm(seq_embs, batched_graph, domain_info, mask, graph_mask, ablation_feat)
+            protein_emb = self.pm(seq_embs, batched_graph, domain_info, mask, graph_mask, ablation_feat, pert_mode)
         go_emb = self.gm(go_idx)
         # protein_emb: [batch_size, hid_dim]
         # go_emb: [go_nums, hid_dim]
