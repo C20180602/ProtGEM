@@ -510,8 +510,8 @@ class MyDataset(Dataset):
         logger.info("Species:{} ontology:{}".format(self.species_name,self.ont))
         logger.info("Protein Num: %d"%(len(self.data_info)))
         logger.info("Protein Length: Max: %d, Min: %d, Avg: %.2f"%(len_max, len_min, len_sum/len(self.data_info)))
-        logger.info("Domain Num: Max: %d, Min: %d, Avg: %.2f"%(domain_max, domain_min, domain_sum/len(self.data_info)))
-        logger.info("GO Terms: Max: %d, Min: %d, Avg: %.2f"%(go_max, go_min, go_sum/len(self.data_info)))
+        logger.info("Domain Num: Max: %d, Min: %d, Sum: %d, Avg: %.2f"%(domain_max, domain_min, domain_sum, domain_sum/len(self.data_info)))
+        logger.info("GO Terms: Max: %d, Min: %d, Sum: %d, Avg: %.2f"%(go_max, go_min, go_sum, go_sum/len(self.data_info)))
         logger.info("Balanced GO List length: %d"%(len(self.balanced_go_list)))
         logger.info("----------------------------")
         
@@ -669,14 +669,15 @@ class PPIDataset(Dataset):
                 
             # 采取筛选的高可能性负样本:
             final_dis_list.sort()
-            for i in range(min(int(pick_neg_rate*len(pos_ppi_dict[u])),len(final_dis_list))):
+            pick_neg_num = min(int(pick_neg_rate*len(pos_ppi_dict[u])),len(final_dis_list))
+            for i in range(pick_neg_num):
                 v = final_dis_list[i][1]
                 if v not in pos_ppi_dict[u]:
                     neg_ppi_dict[u].add(v)
             # 采取随机负样本:
             shuffle_pid_list = pid_list.copy()
             np.random.shuffle(shuffle_pid_list)
-            random_neg_num = min(int(random_neg_rate*len(pos_ppi_dict[u])),
+            random_neg_num = min(int((pick_neg_rate+random_neg_rate) * len(pos_ppi_dict[u])) - pick_neg_num,
                                  len(pid_list)-1 - len(neg_ppi_dict[u]) - len(pos_ppi_dict[u]))
             if random_neg_num > 0:
                 for v in shuffle_pid_list:
@@ -816,7 +817,10 @@ class PPIDataset(Dataset):
             domain_sum += len(info[4])
         pos_num = 0
         neg_num = 0
+        cover_pid_set = set()
         for info in self.pair_info:
+            cover_pid_set.add(info[0])
+            cover_pid_set.add(info[1])
             if info[2] == 1:
                 pos_num += 1
             else:
@@ -824,6 +828,7 @@ class PPIDataset(Dataset):
         logger.info("----------Dataset Info----------")
         logger.info("Species:{}".format(self.species_name))
         logger.info("Protein Num: %d"%(len(self.data_info)))
+        logger.info("Covered Protein Num: %d"%(len(cover_pid_set)))
         logger.info("Protein Length: Max: %d, Min: %d, Avg: %.2f"%(len_max, len_min, len_sum/len(self.data_info)))
         logger.info("Domain Num: Max: %d, Min: %d, Avg: %.2f"%(domain_max, domain_min, domain_sum/len(self.data_info)))
         logger.info("pos_pair: %d, neg_pair: %d"%(pos_num, neg_num))

@@ -74,6 +74,7 @@ def main(species_name, model_name, model_type,
     logger.info("continue_flag: {}".format(continue_flag))
     logger.info("freeze: {}".format(freeze))
     logger.info("test_flag: {}".format(test_flag))
+    logger.info("transfer_ppi_flag: {}".format(transfer_ppi_flag))
     logger.info("forced_test_pid_list_path: {}".format(forced_test_pid_list_path))
     logger.info("pretrain_model_path: {}".format(pretrain_model_path))
     logger.info("thresh: {}".format(thresh))

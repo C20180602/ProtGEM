@@ -239,6 +239,8 @@ def main(species_name, protein_list_file_path):
             pid = pdb_file.split("-")[1]
         else:
             pid = pdb_file.split(".")[0]
+        if pid in processed_pdb_set:
+            continue
         try:
             graph = builder.get_graph_info(os.path.join(pdb_data_dir, pdb_file))
             print(pid)

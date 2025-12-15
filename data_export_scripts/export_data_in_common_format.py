@@ -74,7 +74,7 @@ def main(species_name, model_name):
             pid_set = set()
             pid_go_dict = {}
             with open(Path(export_dir,f"{ont}_{tag}_go.txt"),"w") as f:
-                for pids, _, _, _, labels in tqdm(dl[tag]):
+                for _, pids, _, _, _, labels in tqdm(dl[tag]):
                     pid = pids[0]
                     pid_set.add(pid)
                     all_pid_set.add(pid)

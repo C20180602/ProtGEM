@@ -145,9 +145,16 @@ all:AUC: 0.9803 AUPR: 0.6382 Fmax: 0.5991 tmp_thresh: 0.8093
 bp: AUC: 0.9708 AUPR: 0.5025 Fmax: 0.4919 tmp_thresh: 0.7926
 cc: AUC: 0.9883 AUPR: 0.8178 Fmax: 0.7538 tmp_thresh: 0.8738
 mf: AUC: 0.9924 AUPR: 0.8871 Fmax: 0.8413 tmp_thresh: 0.8671
+使用交叉注意力之后，结果略微下降
+
+AF2DB GO正式结果：还是用v1.1， 不筛除标签
+v1.1 1 GVP建图+节点特征blosum62+对输出进行LayerNorm，KNN=30
+bp: AUC: 0.9811 AUPR: 0.5090 PRC: 0.5987 REC: 0.4321  Fmax: 0.5019 tmp_thresh: 0.7454
+cc: AUC: 0.9938 AUPR: 0.8203 PRC: 0.8048 REC: 0.6948  Fmax: 0.7457 tmp_thresh: 0.8053
+mf: AUC: 0.9888 AUPR: 0.8686 PRC: 0.8907 REC: 0.7598  Fmax: 0.8201 tmp_thresh: 0.7632
 
 
-PPI测试集:
+7120 PPI测试集:
 pneg=0.0 rneg=1.0 alpha1=0.5 alpha2=0.5
 AUC: 0.9138 AUPR: 0.9065 Fmax: 0.8418 thresh: 0.4198
 pneg=0.8 rneg=0.2 alpha1=0.5 alpha2=0.5
@@ -158,7 +165,7 @@ AUC: 0.9887 AUPR: 0.9740 Fmax: 0.9356 thresh: 0.7435
 
 
 
-正式结果：
+7120 GO正式结果：
 直接从7120训练+预测，bp、cc、mf（最好，泛化性也很好）
 AUC: 0.9237 AUPR: 0.5226 PRC: 0.5808 REC: 0.4790  Fmax: 0.5250 tmp_thresh: 0.8200
 Real Average precision: 0.281454 , Real Average recall: 0.703721 , Average New GO: 6.222581
@@ -168,6 +175,12 @@ Real Average precision: 0.339481 , Real Average recall: 0.935415 , Average New G
 
 AUC: 0.9620 AUPR: 0.7425 PRC: 0.8235 REC: 0.6418  Fmax: 0.7213 tmp_thresh: 0.8400
 Real Average precision: 0.441963 , Real Average recall: 0.674027 , Average New GO: 2.565380
+
+调整参数，观察具体标签的预测情况：
+bp: Real Average precision: 0.181699 , Real Average recall: 0.817544 , Average New GO: 18.314572
+cc: Real Average precision: 0.316304 , Real Average recall: 0.968716 , Average New GO: 4.406223
+mf: Real Average precision: 0.301699 , Real Average recall: 0.819668 , Average New GO: 7.595137
+
 -----------------------------------------
 从AF2DB large训练+7120微调预测，微调数据为1000个蛋白质
 best_epoch:0 AUC:0.9703014214939635 best_Fmax:0.4621064864526877 AUPR:0.4379017678115721 thresh:0.6833388209342957

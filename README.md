@@ -1,6 +1,8 @@
 # dag-classify
 Multi-tag classification task in which the tags has DAG-like dependencies
 
+**Please use "git checkout v2" to get the newest version.**
+
 # 推荐环境
 Miniconda 或者 Anaconda 均可
 
