@@ -18,7 +18,7 @@ from tqdm import tqdm
 from register import *
 from model.dataset import MyDataset, probablity_propagate
 from model.predictor import ContrastLoss, ProteinGoModel, ProteinGoModelv2
-from utils import init_logger, cal_metrics, cal_effect, cal_pert_effect, load_config_clone
+from utils import init_logger, cal_metrics, cal_metrics_special, cal_Pmin, cal_metrics_all, cal_effect, cal_pert_effect, load_config_clone
 
 @click.command()
 @click.option('-o', '--ont', type=click.Choice(['bp', 'cc', 'mf', 'all']), default='mf')
@@ -75,6 +75,8 @@ def main(ont, species_name, model_name, model_type, thresh):
     # 读取必要的数据
     with open(Path("dataset","go_graph_nx.pkl"),"rb") as f:
         go_graph_nx = pickle.load(f)
+    with open(Path("dataset","go_term_dis.json"),"r") as f:
+        go_dis = json.load(f)
     with open(Path("processed_data","go_id.json"),"r") as f:
         go_id = json.load(f)
     with open(Path("processed_data","interpro2go.json"),"r") as f:
@@ -95,6 +97,16 @@ def main(ont, species_name, model_name, model_type, thresh):
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)
 
     go_idx = torch.tensor(ds.balanced_go_list).to(device)
+    go_idx_special = []
+    for i, go_id in enumerate(ds.balanced_go_list):
+        if go_dis[str(go_id)] >= 5:
+            go_idx_special.append(i)
+
+    go_punish = []
+    for go_id in ds.balanced_go_list:
+        go_punish.append(go_dis[str(go_id)])
+    go_punish = -torch.log(1.0/torch.tensor(go_punish))
+    go_punish = go_punish.tolist()
     balanced_go_map_inv = ds.balanced_go_map_inv
 
     summary(pg_model)
@@ -115,8 +127,7 @@ def main(ont, species_name, model_name, model_type, thresh):
             predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order, ds.balanced_go_map_inv)
             pred += predict_matrix.tolist()
             actual += labels.tolist()
-    auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual, thresh)
-    logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
+    cal_metrics_all(pred, actual, go_idx_special, go_punish, logger, thresh)
 
     logger.info("-----Global Local Feature Effectivity Study-----")
     glob_pred_list = []
@@ -140,10 +151,11 @@ def main(ont, species_name, model_name, model_type, thresh):
             pert_effect = cal_pert_effect(ori_pred, glob_pert, part_pert)
             sum_effect = sum_effect + effect * len(pids)
             sum_pert_effect = sum_pert_effect + pert_effect * len(pids)
-    auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(glob_pred_list, actual, thresh)
-    logger.info("Only Global Feature - AUC: {:.6f} AUPR: {:.6f} PRC: {:.6f} REC: {:.6f}  Fmax: {:.6f} tmp_thresh: {:.6f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
-    auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(part_pred_list, actual, thresh)
-    logger.info("Only Local Feature  - AUC: {:.6f} AUPR: {:.6f} PRC: {:.6f} REC: {:.6f}  Fmax: {:.6f} tmp_thresh: {:.6f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
+    logger.info("Only Global Feature:")
+    cal_metrics_all(glob_pred_list, actual, go_idx_special, go_punish, logger, thresh)
+    
+    logger.info("Only Local Feature:")
+    cal_metrics_all(part_pred_list, actual, go_idx_special, go_punish, logger, thresh)
 
     sum_effect /= len(test_dataset)
     logger.info("Static Analysis Results")
@@ -166,8 +178,7 @@ def main(ont, species_name, model_name, model_type, thresh):
                 # predict_matrix: [batch_size, go_nums]
                 predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order, ds.balanced_go_map_inv)
                 pred += predict_matrix.tolist()
-        auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual, thresh)
-        logger.info("AUC: {:.6f} AUPR: {:.6f} PRC: {:.6f} REC: {:.6f}  Fmax: {:.6f} tmp_thresh: {:.6f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
+        cal_metrics_all(pred, actual, go_idx_special, go_punish, logger, thresh)
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))

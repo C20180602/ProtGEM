@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import random
 from pathlib import Path
+from tqdm import tqdm
 
 import torch
 import torch.utils.data
@@ -45,6 +46,61 @@ def cal_metrics(pred, actual, thresh=None):
         recall = recall[index]
         fmax = f1[index]
     return auc_score, aupr_score, precision, recall, fmax, thresh
+
+def cal_metrics_special(pred, actual, special_idx, thresh=None):
+    pred = np.array(pred)[:,special_idx]
+    actual = np.array(actual)[:,special_idx]
+    return cal_metrics(pred, actual, thresh)
+
+# 注意：需要传入已经进行标签传递后的pred值
+# pred和actual都是二维list，punishment是一维list
+def cal_Pmin(pred, actual, punishment, thresh_num=100):
+
+    thresh_num += 1
+    # 假阳性与假阴性标签的惩罚值之和, 按照thresh统计
+    fp_sum_list = [0] * thresh_num
+    fn_sum_list = [0] * thresh_num
+    for pred_i, actual_i in tqdm(list(zip(pred,actual)),desc="Calculating Pmin..."):
+        tmp_list = list(zip(pred_i,actual_i,punishment))
+        tmp_list.sort()
+        # 初始阈值为 0，此时所有阴性标签均为假阳性, 所有阳性标签都为真阳性
+        fp_sum = 0
+        fn_sum = 0
+        for pred_ij, actual_ij, p_j in tmp_list:
+            if actual_ij <= 0.5:
+                fp_sum += p_j
+        j = 0
+        for t in range(thresh_num):
+            thresh = 1.0*t/thresh_num
+            while j < len(tmp_list) and tmp_list[j][0]<=thresh:
+                # 根据当前阈值，新加入标签到预测阴性集合
+                # 若该标签实际为阳性，则对fn造成贡献
+                # 若该标签实际为阴性，则去除它在fp中的贡献
+                if tmp_list[j][1] <= 0.5:
+                    fp_sum -= tmp_list[j][2]
+                else:
+                    fn_sum += tmp_list[j][2]
+                j += 1
+            fp_sum_list[t] += fp_sum
+            fn_sum_list[t] += fn_sum
+    
+    fp_ave = np.array(fp_sum_list)/len(actual)
+    fn_ave = np.array(fn_sum_list)/len(actual)
+    Pmin = np.min(np.sqrt(fp_ave * fp_ave + fn_ave * fn_ave))
+
+    return Pmin
+
+def cal_metrics_all(pred, actual, go_idx_special, go_punish, logger, thresh=None):
+    auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual, thresh)
+    logger.info("Normal Metrics")
+    logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
+    
+    auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics_special(pred, actual, go_idx_special, thresh)
+    logger.info("Special GO terms Metrics")
+    logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
+    
+    Pmin = cal_Pmin(pred, actual, go_punish)
+    logger.info("Pmin: {:.8f}".format(Pmin))
 
 def cal_effect(ori_pred, glob_pred, part_pred):
     # 计算消除glob后，结果的变化
