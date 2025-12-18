@@ -33,12 +33,6 @@ def main(species_name, max_length):
         'TYR':'Y', 'ARG':'R', 'LYS':'K', 'SER':'S', 'THR':'T', 
         'MET':'M', 'ALA':'A', 'GLY':'G', 'PRO':'P', 'CYS':'C'
     }
-    one2num = {
-        'A' : 0,'R' : 1,'N' : 2,'D' : 3,'C' : 4,
-        'Q' : 5,'E' : 6,'G' : 7,'H' : 8,'I' : 9,
-        'L' : 10,'K' : 11,'M' : 12,'F' : 13,'P' : 14,
-        'S' : 15,'T' : 16,'W' : 17,'Y' : 18,'V' : 19,
-    }
     def get_seq_coords_info(pdbfilepath):
         struct = parser.get_structure(0,pdbfilepath)
         # 只取第一个模型

@@ -13,7 +13,7 @@ from pathlib import Path
 import torch
 import torch.utils.data
 import numpy as np
-import torch.functional as F
+import torch.nn.functional as F
 import dgl
 from torch import nn
 from torch.utils.data import Dataset, DataLoader, Subset
@@ -24,6 +24,7 @@ from register import *
 from model.dataset import MyDataset
 from model.go_dataset import GoDataset
 from model.go_model import GoContrastLoss
+from model.predictor import ReconstructDecoder, SequenceLoss, GeometricStructureLoss
 from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask, set_seeds
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -109,9 +110,6 @@ def main(ont, species_name, model_name, model_type,
             param.requires_grad = False
     pg_model.to(device)
 
-    # 初始化重构损失计算模型（解码器+损失计算）
-    
-
     # 读取要求的test蛋白质列表
     forced_test_pid_list = []
     if forced_test_pid_list_path is not None:
@@ -132,6 +130,7 @@ def main(ont, species_name, model_name, model_type,
     alpha1 = train_param["alpha1"]
     alpha2 = train_param["alpha2"]
     alpha3 = train_param["alpha3"]
+    alpha4 = train_param["alpha4"]
     log_batch_count = train_param["log_batch_count"]
     bce_pos_weight = train_param["bce_pos_weight"]
     seq_epoch_num = train_param["seq_epoch_num"]
@@ -154,6 +153,10 @@ def main(ont, species_name, model_name, model_type,
     pos_rate = train_go_param["pos_rate"]
     contrast_temp_go = train_go_param["contrast_temp"]
     
+    # 初始化重构损失计算模型（解码器+损失计算）
+    if model_type == "v1.1" and alpha4 > 0.0:
+        rd_model = ReconstructDecoder(pg_model.pm.final_out_dim, pg_model.pm.part_dims)
+
     # 各项评估指标初始化
     best_fmax = 0.0
     best_epoch = -1
@@ -181,6 +184,8 @@ def main(ont, species_name, model_name, model_type,
     criterion1 = ContrastLoss()
     criterion2 = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([bce_pos_weight],device=device))
     criterion3 = GoContrastLoss(pos_k, neg_k)
+    criterion4 = SequenceLoss()
+    criterion5 = GeometricStructureLoss()
 
     logger.info("Parameters INFO:")
     logger.info(train_param)
@@ -204,15 +209,15 @@ def main(ont, species_name, model_name, model_type,
         for i, (idxs, pids, seq_embs, batched_graph, domain_info, labels) in enumerate(train_loader):
             optimizer.zero_grad()
             
-            mask = generate_mask(seq_embs.shape[0], seq_embs.shape[1], mask_rate)
+            batch_size = seq_embs.shape[0]
+            max_seq_len = seq_embs.shape[1]
+            mask = generate_mask(batch_size, max_seq_len, mask_rate)
             graph_mask = generate_graph_mask(batched_graph.num_nodes(), mask_rate)
             mask = mask.to(device)
             graph_mask = graph_mask.to(device)
 
-            # ds.generate_re_seq(idxs)
-            # ds.generate_re_struct(idxs)
-            
-            predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask, ablation_feat=dropout_feat_list[epoch])
+            predict_matrix, protein_emb, protein_emb_token = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask,
+                                        ablation_feat=dropout_feat_list[epoch], get_token_feat=True)
             
             loss1 = criterion1(predict_matrix, labels, contrast_temp)
             loss2 = criterion2(predict_matrix, labels)
@@ -232,6 +237,21 @@ def main(ont, species_name, model_name, model_type,
                 loss3 /= len(go_id_set)
             
             loss = alpha1*loss1 + alpha2*loss2 + alpha3*loss3
+
+            if model_type == "v1.1" and alpha4 > 0.0:
+                # 重构任务的目标生成
+                re_seq_tgt = ds.generate_re_seq(pids, max_seq_len, device)
+                re_struct_tgt = ds.generate_re_struct(pids, max_seq_len, device)
+                
+                seq_logits, coords_logits = rd_model(protein_emb_token, protein_emb)
+                # 计算重构损失
+                re_loss_seq = criterion4(seq_logits, re_seq_tgt, mask)
+                re_loss_struct = torch.tensor(0.0, device=device)
+                for coords_logit, coords_real in zip(coords_logits, re_struct_tgt):
+                    re_loss_struct += criterion5(coords_logit, coords_real)
+                loss4 = re_loss_seq + re_loss_struct
+                loss += alpha4 * loss4
+            
             loss.backward()
             optimizer.step()
             lr_scheduler.step()

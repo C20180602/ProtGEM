@@ -31,7 +31,9 @@ class ProteinEncoder(nn.Module):
         self.glob_dims = self.seq_enc.glob_dims + self.struct_enc.glob_dims + self.domain_enc.glob_dims
         self.part_dims = self.seq_enc.part_dims + self.struct_enc.part_dims + self.domain_enc.part_dims
         self.final_hid_dim = final_hid_dim
+        self.final_out_dim = final_out_dim
         
+        self.SOS_emb = nn.Parameter(torch.randn(1,1,self.part_dims))
         self.fusion_layers = nn.Sequential()
         for i in range(fusion_layers):
             self.fusion_layers.add_module("Layer"+str(i),tf.TransformerEncoderLayer(self.part_dims, fusion_att_heads, fusion_hid_dim, fusion_dropout))
@@ -95,8 +97,19 @@ class ProteinEncoder(nn.Module):
         
         # 融合局部特征：
         part_emb = torch.cat([seq_part,padded_struct_part,padded_domain_part],dim=2)
+        # 在局部特征前加入SOS标记
+        SOS_emb = self.SOS_emb.repeat(batch_size,1,1)
+        part_emb = torch.cat([SOS_emb, part_emb], dim=1)
+        if mask is not None:
+            SOS_mask = torch.ones(batch_size,1, device=mask.device)
+            mask = torch.cat([SOS_mask, mask], dim=1)
+        
+        # Transformer Encoder Layers
         for layer in self.fusion_layers:
             part_emb = layer(part_emb, mask)
+
+        if get_token_feat:
+            part_emb_tmp = part_emb.clone()[:,1,:]  # 用于返回token级别的特征
         # part_emb: [batch_size, max_len, part_dims]
         part_emb = part_emb[:,0,:]
         # part_emb: [batch_size, part_dims]
@@ -122,7 +135,7 @@ class ProteinEncoder(nn.Module):
         emb = self.final_out(emb)
         emb = emb / emb.norm(p=2, dim=1, keepdim=True)
         if get_token_feat:
-            return emb, part_emb
+            return emb, part_emb_tmp
         return emb
     
     def save_model(self, path):

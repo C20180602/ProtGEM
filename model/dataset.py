@@ -12,6 +12,13 @@ import esm
 import numpy as np
 from torch.utils.data import Dataset
 
+one2num = {
+    'A' : 0,'R' : 1,'N' : 2,'D' : 3,'C' : 4,
+    'Q' : 5,'E' : 6,'G' : 7,'H' : 8,'I' : 9,
+    'L' : 10,'K' : 11,'M' : 12,'F' : 13,'P' : 14,
+    'S' : 15,'T' : 16,'W' : 17,'Y' : 18,'V' : 19,
+}
+
 # use BFS to propagate goterms O(n)
 def propagate(go_list, go_graph:nx.DiGraph):
     vis={}
@@ -272,13 +279,20 @@ class MyDataset(Dataset):
         # 设置工作目录为项目文件夹
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
         os.chdir("..")
-        
+
+        # 读取输入参数
         self.species_name = species_name
         self.ont = ont
         self.cache_dir = cache_dir
         self.device = target_device
         self.train_flag = not inference_flag
         self.light_mode = light_mode
+
+        # 硬编码缓存相对路径
+        self.dataset_path = Path(self.cache_dir,f"{self.ont}_dataset.pkl")
+        self.balanced_go_list_path = Path(self.cache_dir,f"{self.ont}_balanced_go_list.json")
+        self.propagated_go_path = Path(self.cache_dir,f"{self.ont}_propagated_go.json")
+        self.re_seq_path = Path(self.cache_dir,"re_seq.pkl")
         
         # 磁盘存储节省模式，需要在线ESM推理
         if light_mode:
@@ -295,6 +309,8 @@ class MyDataset(Dataset):
         ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_function":"mf"}
         with open(Path("processed_data",species_name+"_protein_info.json"), 'r') as f:
             self.protein_info = json.load(f)
+        with open(os.path.join("processed_data",species_name+"_protein_coords.pkl"), 'rb') as f:
+            self.protein_coords = pickle.load(f)
         with open(Path("processed_data","go_id.json"), 'r') as f:
             self.vocab_go = json.load(f)
         with open(Path("processed_data","go_terms.json"), 'r') as f:
@@ -320,6 +336,17 @@ class MyDataset(Dataset):
             self.balanced_go_map_inv = {go:b_go for b_go,go in enumerate(self.balanced_go_list)}
             return
         
+        print("Reading Reconstruct targets...")
+        self.re_seq = {}
+        for pid in self.protein_info:
+            info = self.protein_info[pid]
+            seq_tensor_list = []
+            for aa in info['seq']:
+                tmp = [0]*21
+                tmp[one2num[aa]] = 1.0
+                seq_tensor_list.append(tmp)
+            self.re_seq[pid] = np.array(seq_tensor_list)
+
         print("processing dataset...")
         species_path = Path("dataset",species_name)
         protein_list = list(self.protein_info.keys())
@@ -461,29 +488,42 @@ class MyDataset(Dataset):
         
         return idx, pname,plen, seq_emb,struct_graph, domain_list, domain_id_list, label
 
+    def generate_re_seq(self, pids, padded_len, device):
+        re_seq_tgt = []
+        for pid in pids:
+            pad_vec = [0.0]*20 + [1.0]
+            pad_mat = np.array([pad_vec] * (padded_len - len(self.re_seq[pid])))
+            padded_seq = np.vstack([self.re_seq[pid], pad_mat])
+            re_seq_tgt.append(padded_seq)
+        return torch.tensor(re_seq_tgt, device=device)
+
+    def generate_re_struct(self, pids, padded_len, device):
+        re_struct_tgt = []
+        for pid in pids:
+            tmp_tensor = torch.tensor(self.protein_coords[pid], device=device)
+            re_struct_tgt.append(tmp_tensor)
+        return re_struct_tgt
+
     def save_dataset(self):
-        dataset_path = Path(self.cache_dir,f"{self.ont}_dataset.pkl")
-        balanced_go_list_path = Path(self.cache_dir,f"{self.ont}_balanced_go_list.json")
-        propagated_go_path = Path(self.cache_dir,f"{self.ont}_propagated_go.json")
-        with open(dataset_path,"wb") as f:
+        with open(self.dataset_path,"wb") as f:
             pickle.dump(self.data_info,f)
-        with open(balanced_go_list_path,"w") as f:
+        with open(self.balanced_go_list_path,"w") as f:
             json.dump(self.balanced_go_list,f,indent=4)
-        with open(propagated_go_path,"w") as f:
+        with open(self.propagated_go_path,"w") as f:
             json.dump(self.propagated_go,f,indent=4)
+        with open(self.re_seq_path,"wb") as f:
+            pickle.dump(self.re_seq,f)
     
     def load_dataset(self):
-        dataset_path = Path(self.cache_dir,f"{self.ont}_dataset.pkl")
-        balanced_go_list_path = Path(self.cache_dir,f"{self.ont}_balanced_go_list.json")
-        with open(dataset_path,"rb") as f:
+        with open(self.dataset_path,"rb") as f:
             self.data_info = pickle.load(f)
-        with open(balanced_go_list_path,"r") as f:
+        with open(self.balanced_go_list_path,"r") as f:
             self.balanced_go_list = json.load(f)
+        with open(self.re_seq_path,"rb") as f:
+            self.re_seq = pickle.load(f)
     
     def has_cache(self):
-        dataset_path = Path(self.cache_dir,f"{self.ont}_dataset.pkl")
-        balanced_go_list_path = Path(self.cache_dir,f"{self.ont}_balanced_go_list.json")
-        if Path.exists(dataset_path) and Path.exists(balanced_go_list_path):
+        if Path.exists(self.dataset_path) and Path.exists(self.balanced_go_list_path) and Path.exists(self.re_seq_path):
             return True
         return False
     
