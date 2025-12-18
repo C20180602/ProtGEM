@@ -109,7 +109,7 @@ class ProteinEncoder(nn.Module):
             part_emb = layer(part_emb, mask)
 
         if get_token_feat:
-            part_emb_tmp = part_emb.clone()[:,1,:]  # 用于返回token级别的特征
+            part_emb_tmp = part_emb[:,1:,:].clone()  # 用于返回token级别的特征
         # part_emb: [batch_size, max_len, part_dims]
         part_emb = part_emb[:,0,:]
         # part_emb: [batch_size, part_dims]

@@ -491,11 +491,14 @@ class MyDataset(Dataset):
     def generate_re_seq(self, pids, padded_len, device):
         re_seq_tgt = []
         for pid in pids:
-            pad_vec = [0.0]*20 + [1.0]
-            pad_mat = np.array([pad_vec] * (padded_len - len(self.re_seq[pid])))
-            padded_seq = np.vstack([self.re_seq[pid], pad_mat])
-            re_seq_tgt.append(padded_seq)
-        return torch.tensor(re_seq_tgt, device=device)
+            if padded_len - len(self.re_seq[pid]) > 0:
+                pad_vec = [0.0]*20 + [1.0]
+                pad_mat = np.array([pad_vec] * (padded_len - len(self.re_seq[pid])))
+                padded_seq = np.vstack([self.re_seq[pid], pad_mat])
+                re_seq_tgt.append(padded_seq)
+            else:
+                re_seq_tgt.append(self.re_seq[pid])
+        return torch.tensor(np.array(re_seq_tgt), device=device)
 
     def generate_re_struct(self, pids, padded_len, device):
         re_struct_tgt = []

@@ -40,11 +40,12 @@ class SequenceLoss(nn.Module):
         # 如果提供了mask，只计算mask位置的损失
         if mask is not None:
             # 展平
+            mask = mask.long()
             seq_pred_flat = seq_pred[mask].view(-1, 21)
-            seq_target_flat = seq_target[mask].view(-1)
+            seq_target_flat = seq_target[mask].view(-1, 21)
         else:
             seq_pred_flat = seq_pred.view(-1, 21)
-            seq_target_flat = seq_target.view(-1)
+            seq_target_flat = seq_target.view(-1, 21)
         
         # 使用交叉熵损失，可加入标签平滑
         if self.label_smoothing > 0:
@@ -75,24 +76,23 @@ class GeometricStructureLoss(nn.Module):
         
     def compute_pairwise_distances(self, coords):
         """计算所有原子对之间的距离矩阵"""
-        # coords: [batch_size, seq_len, 3]
-        batch_size, seq_len, _ = coords.shape
+        # coords: [seq_len, 3]
         
         # 扩展维度用于广播计算
-        coords_expanded1 = coords.unsqueeze(2)  # [B, L, 1, 3]
-        coords_expanded2 = coords.unsqueeze(1)  # [B, 1, L, 3]
+        coords_expanded1 = coords.unsqueeze(1)  # [L, 1, 3]
+        coords_expanded2 = coords.unsqueeze(0)  # [1, L, 3]
         
         # 计算欧氏距离
         distances = torch.sqrt(
             torch.sum((coords_expanded1 - coords_expanded2) ** 2, dim=-1) + 1e-8
         )
-        return distances  # [B, L, L]
+        return distances  # [L, L]
     
     def compute_bond_angles(self, coords):
         """计算连续三个原子之间的键角"""
         # 连续原子向量
-        vec1 = coords[:, 1:-1] - coords[:, :-2]  # v_i-1,i
-        vec2 = coords[:, 2:] - coords[:, 1:-1]   # v_i,i+1
+        vec1 = coords[1:-1] - coords[:-2]  # v_i-1,i
+        vec2 = coords[2:] - coords[1:-1]   # v_i,i+1
         
         # 归一化
         vec1_norm = F.normalize(vec1, dim=-1)
@@ -106,10 +106,9 @@ class GeometricStructureLoss(nn.Module):
     
     def compute_dihedral_angles(self, coords):
         """计算二面角 (phi, psi, omega)"""
-        batch_size, seq_len, _ = coords.shape
         
         # 计算四个连续原子形成的平面
-        p0, p1, p2, p3 = coords[:, :-3], coords[:, 1:-2], coords[:, 2:-1], coords[:, 3:]
+        p0, p1, p2, p3 = coords[:-3], coords[1:-2], coords[2:-1], coords[3:]
         
         # 计算向量
         b1 = p1 - p0
@@ -239,14 +238,14 @@ class ReconstructDecoder(nn.Module):
         
         decoder_layer = nn.TransformerDecoderLayer(
             d_model=token_hid_dim,
-            nhead=kwargs.get('num_heads', 4),
-            dim_feedforward=token_hid_dim * 2,
+            nhead=kwargs.get('num_heads', 2),
+            dim_feedforward=token_hid_dim,
             dropout=kwargs.get('dropout', 0.1),
             batch_first=True
         )
         self.transformer_decoder = nn.TransformerDecoder(
             decoder_layer,
-            num_layers=kwargs.get('num_layers', 2)  # 较少的层数
+            num_layers=kwargs.get('num_layers', 1)  # 较少的层数
         )
         
         self.token_head = nn.Linear(token_hid_dim, num_tokens)
@@ -259,7 +258,7 @@ class ReconstructDecoder(nn.Module):
         
         self.dropout = nn.Dropout(0.1)
     
-    def forward(self, encoder_hidden, global_feature, lens, src_mask=None):
+    def forward(self, global_feature, encoder_hidden, lens, src_mask=None):
         batch_size, seq_len, _ = encoder_hidden.shape
         device = encoder_hidden.device
         
@@ -272,7 +271,7 @@ class ReconstructDecoder(nn.Module):
         pos_embeds = self.position_embeddings(positions)  # [batch, seq, hidden]
         
         # 3、生成查询（融合全局特征和位置信息）
-        global_expanded = global_proj.unsqueeze(1).expand(-1, seq_len, -1)
+        global_expanded = global_proj.expand(-1, seq_len, -1)
         query_input = torch.cat([global_expanded, pos_embeds], dim=-1)
         tgt_queries = self.query_generator(query_input)
         tgt_queries = self.dropout(tgt_queries)
@@ -293,8 +292,8 @@ class ReconstructDecoder(nn.Module):
         token_logits = self.token_head(decoder_output)
         coordinates = self.coord_head(decoder_output)
         coords_logits = []
-        for len in lens:
-            coords_logits.append(coordinates[len-1])
+        for i, len in enumerate(lens):
+            coords_logits.append(coordinates[i,:len,:])
         
         return token_logits, coords_logits
 

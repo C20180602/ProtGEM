@@ -156,7 +156,7 @@ def main(ont, species_name, model_name, model_type,
     # 初始化重构损失计算模型（解码器+损失计算）
     if model_type == "v1.1" and alpha4 > 0.0:
         rd_model = ReconstructDecoder(pg_model.pm.final_out_dim, pg_model.pm.part_dims)
-
+        rd_model.to(device)
     # 各项评估指标初始化
     best_fmax = 0.0
     best_epoch = -1
@@ -167,10 +167,10 @@ def main(ont, species_name, model_name, model_type,
     # 初始化数据集并进行划分
     ds = MyDataset(species_name, ont, cache_dir, target_device=device,
                    go_max_percent=go_max_percent, go_min_count=go_min_count,
-                   use_cache=continue_flag, light_mode=light_mode)
+                   use_cache=True, light_mode=light_mode)
     ds.show_dataset_info(logger)
     train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger, forced_test_pid_list=forced_test_pid_list,
-                                                                   train_p=train_proportion, valid_p=valid_proportion, use_cache=continue_flag)
+                                                                   train_p=train_proportion, valid_p=valid_proportion, use_cache=True)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=local_collate_fn)
     val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)
@@ -211,13 +211,18 @@ def main(ont, species_name, model_name, model_type,
             
             batch_size = seq_embs.shape[0]
             max_seq_len = seq_embs.shape[1]
+            lens = batched_graph.batch_num_nodes().tolist()
+
             mask = generate_mask(batch_size, max_seq_len, mask_rate)
             graph_mask = generate_graph_mask(batched_graph.num_nodes(), mask_rate)
             mask = mask.to(device)
             graph_mask = graph_mask.to(device)
 
-            predict_matrix, protein_emb, protein_emb_token = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask,
-                                        ablation_feat=dropout_feat_list[epoch], get_token_feat=True)
+            if model_type == "v1.1" and alpha4 > 0.0:
+                predict_matrix, protein_emb, protein_emb_token = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask,
+                                            ablation_feat=dropout_feat_list[epoch], get_protein_feat=True)
+            else:
+                predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask, ablation_feat=dropout_feat_list[epoch])
             
             loss1 = criterion1(predict_matrix, labels, contrast_temp)
             loss2 = criterion2(predict_matrix, labels)
@@ -243,12 +248,14 @@ def main(ont, species_name, model_name, model_type,
                 re_seq_tgt = ds.generate_re_seq(pids, max_seq_len, device)
                 re_struct_tgt = ds.generate_re_struct(pids, max_seq_len, device)
                 
-                seq_logits, coords_logits = rd_model(protein_emb_token, protein_emb)
-                # 计算重构损失
+                seq_logits, coords_logits = rd_model(protein_emb, protein_emb_token, lens)
+                # 计算序列重构损失
                 re_loss_seq = criterion4(seq_logits, re_seq_tgt, mask)
+                # 计算结构重构损失
                 re_loss_struct = torch.tensor(0.0, device=device)
                 for coords_logit, coords_real in zip(coords_logits, re_struct_tgt):
                     re_loss_struct += criterion5(coords_logit, coords_real)
+                
                 loss4 = re_loss_seq + re_loss_struct
                 loss += alpha4 * loss4
             
