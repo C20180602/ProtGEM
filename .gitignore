@@ -8,6 +8,7 @@ dmis-lab/
 *.txt
 *.pth
 *.log
+*.db
 /model_params/v1
 /workspace
 /tmp_data

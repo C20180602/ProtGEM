@@ -24,6 +24,8 @@ from register import *
 from model.dataset import PPIDataset
 from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask, set_seeds
 
+import mlflow
+
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 @click.command()
@@ -59,6 +61,8 @@ def main(species_name, model_name, model_type,
 
     # 初始化日志
     logger = init_logger(Path(log_dir, 'train_ppi.log'))
+    mlflow.set_experiment("PPI_Prediction")
+    mlflow.start_run(run_name=f"ppi_{species_name}_{model_name}")
     
     # 初始化随机种子以便复现
     seed = np.random.randint(1e9)
@@ -66,18 +70,22 @@ def main(species_name, model_name, model_type,
     
     # 输出输入的参数信息
     logger.info("----------------------------A new train process----------------------------")
-    logger.info("random seed: {}".format(seed))
-    logger.info("Input args:")
-    logger.info("species_name: {}".format(species_name))
-    logger.info("model_name: {}".format(model_name))
-    logger.info("model_type: {}".format(model_type))
-    logger.info("continue_flag: {}".format(continue_flag))
-    logger.info("freeze: {}".format(freeze))
-    logger.info("test_flag: {}".format(test_flag))
-    logger.info("transfer_ppi_flag: {}".format(transfer_ppi_flag))
-    logger.info("forced_test_pid_list_path: {}".format(forced_test_pid_list_path))
-    logger.info("pretrain_model_path: {}".format(pretrain_model_path))
-    logger.info("thresh: {}".format(thresh))
+    global_params = {
+        "random seed": seed,
+        "species_name": species_name,
+        "model_name": model_name,
+        "model_type": model_type,
+        "continue_flag": continue_flag,
+        "freeze": freeze,
+        "test_flag": test_flag,
+        "transfer_ppi_flag": transfer_ppi_flag,
+        "forced_test_pid_list_path": forced_test_pid_list_path,
+        "pretrain_model_path": pretrain_model_path,
+        "thresh": thresh
+    }
+    logger.info("Input Parameters:")
+    logger.info(global_params)
+    mlflow.log_params(global_params)
     logger.info("----------------------------")
 
     # 读取模型配置参数
@@ -175,6 +183,9 @@ def main(species_name, model_name, model_type,
     logger.info(train_param)
     logger.info(pm_param)
     logger.info(pred_param)
+    mlflow.log_params(train_param)
+    mlflow.log_params(pm_param)
+    mlflow.log_params(pred_param)
     if not test_flag:
         logger.info("Start Training!")
         for epoch in range(epoch_num):
@@ -220,6 +231,10 @@ def main(species_name, model_name, model_type,
                 mean_loss2 += loss2.item()
                 if i % log_batch_count == log_batch_count-1:
                     logger.info(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/log_batch_count}, Loss1: {mean_loss1/log_batch_count}, Loss2: {mean_loss2/log_batch_count}')
+                    mlflow.log_metric("train_loss", mean_loss/log_batch_count, step=epoch*len(train_loader)+i)
+                    mlflow.log_metric("train_loss1", mean_loss1/log_batch_count, step=epoch*len(train_loader)+i)
+                    mlflow.log_metric("train_loss2", mean_loss2/log_batch_count, step=epoch*len(train_loader)+i)
+                    
                     mean_loss = 0.0
                     mean_loss1 = 0.0
                     mean_loss2 = 0.0
@@ -231,7 +246,10 @@ def main(species_name, model_name, model_type,
             logger.info("train set:")
             auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual)
             logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
-                    
+            mlflow.log_metric("train_AUC", auc_score, step=epoch)
+            mlflow.log_metric("train_AUPR", aupr_score, step=epoch)
+            mlflow.log_metric("train_Fmax", fmax, step=epoch)
+
             # validate
             ds.valid_mode()
             ppi_model.eval()
@@ -250,6 +268,10 @@ def main(species_name, model_name, model_type,
             logger.info("valid set:")
             auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual)
             logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
+            mlflow.log_metric("valid_AUC", auc_score, step=epoch)
+            mlflow.log_metric("valid_AUPR", aupr_score, step=epoch)
+            mlflow.log_metric("valid_Fmax", fmax, step=epoch)
+            
             if fmax > best_fmax:
                 best_fmax = fmax
                 best_epoch = epoch
@@ -285,6 +307,11 @@ def main(species_name, model_name, model_type,
     else:
         auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual, corr_thresh)
     logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
+    mlflow.log_metric("test_AUC", auc_score)
+    mlflow.log_metric("test_AUPR", aupr_score)
+    mlflow.log_metric("test_Fmax", fmax)
+
+    mlflow.end_run()
 
 if __name__ == '__main__':
     main()

@@ -13,6 +13,8 @@ from torch.utils.data import Subset
 from sklearn import metrics
 from sklearn.metrics import roc_curve, auc
 
+import mlflow
+
 def init_logger(log_path):
     logger = logging.getLogger("global")
     handler1 = logging.StreamHandler()
@@ -90,17 +92,24 @@ def cal_Pmin(pred, actual, punishment, thresh_num=100):
 
     return Pmin
 
-def cal_metrics_all(pred, actual, go_idx_special, go_punish, logger, thresh=None):
+def cal_metrics_all(pred, actual, go_idx_special, go_punish, logger, mlf_name, thresh=None):
     auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual, thresh)
     logger.info("Normal Metrics")
     logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
+    mlflow.log_metric(f"{mlf_name}_AUC", auc_score)
+    mlflow.log_metric(f"{mlf_name}_AUPR", aupr_score)
+    mlflow.log_metric(f"{mlf_name}_Fmax", fmax)
     
     auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics_special(pred, actual, go_idx_special, thresh)
     logger.info("Special GO terms Metrics")
     logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
-    
+    mlflow.log_metric(f"{mlf_name}_spec_AUC", auc_score)
+    mlflow.log_metric(f"{mlf_name}_spec_AUPR", aupr_score)
+    mlflow.log_metric(f"{mlf_name}_spec_Fmax", fmax)
+
     Pmin = cal_Pmin(pred, actual, go_punish)
     logger.info("Pmin: {:.8f}".format(Pmin))
+    mlflow.log_metric(f"{mlf_name}_Pmin", Pmin)
 
 def cal_effect(ori_pred, glob_pred, part_pred):
     # 计算消除glob后，结果的变化

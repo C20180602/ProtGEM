@@ -1,7 +1,9 @@
 # dag-classify
 Multi-tag classification task in which the tags has DAG-like dependencies
 
-**Please use "git checkout v2" to get the newest version.**
+**master branch is the newest test version.**
+
+**Use "git checkout v2" to get the newest stable version.**
 
 # 推荐环境
 Miniconda 或者 Anaconda 均可
@@ -30,6 +32,8 @@ h5py==3.12.1
 
 torchinfo==1.8.0
 
+mlflow==3.7.0
+
 如果需要使用在线推理，还需安装：
 
 xmltramp2==3.1.1
@@ -51,7 +55,7 @@ source ~/.bashrc
 # 配置流程
 
 python环境配置：
-```
+``` bash
 conda create -n ev1 python=3.11.7
 
 conda activate ev1
@@ -69,6 +73,15 @@ pip install dgl==2.4.0 -f https://data.dgl.ai/wheels/torch-2.2/cu121/repo.html
 pip install transformers==4.46.3 biopython==1.84 matplotlib==3.9.2 pyyaml==6.0.2 pydantic==2.8.2 fair-esm==2.0.0 h5py==3.12.1 torchinfo==1.8.0
 
 pip install torch-cluster -f https://data.pyg.org/whl/torch-2.2.1+cu121.html
+```
+ML-Flow环境配置:
+``` bash 
+screen -S mlf
+
+mlflow server --host 127.0.0.1 --port 8080
+
+(Ctrl+A+D)
+
 ```
 
 # 复现方法

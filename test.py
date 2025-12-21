@@ -20,6 +20,8 @@ from model.dataset import MyDataset, probablity_propagate
 from model.predictor import ContrastLoss, ProteinGoModel, ProteinGoModelv2
 from utils import init_logger, cal_metrics, cal_metrics_special, cal_Pmin, cal_metrics_all, cal_effect, cal_pert_effect, load_config_clone
 
+import mlflow
+
 @click.command()
 @click.option('-o', '--ont', type=click.Choice(['bp', 'cc', 'mf', 'all']), default='mf')
 @click.option('-s', '--species-name', type=click.STRING, default='HUMAN')
@@ -39,6 +41,8 @@ def main(ont, species_name, model_name, model_type, thresh):
     
     # 初始化日志
     logger = init_logger(Path(log_dir, 'test_{}.log'.format(ont)))
+    mlflow.set_experiment("GO_Prediction")
+    mlflow.start_run(run_name=f"{ont}_{species_name}_{model_name}")
     
     # 输出输入的参数信息
     logger.info("----------------------------A new test process----------------------------")
@@ -127,7 +131,7 @@ def main(ont, species_name, model_name, model_type, thresh):
             predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order, ds.balanced_go_map_inv)
             pred += predict_matrix.tolist()
             actual += labels.tolist()
-    cal_metrics_all(pred, actual, go_idx_special, go_punish, logger, thresh)
+    cal_metrics_all(pred, actual, go_idx_special, go_punish, logger, "Normal", thresh)
 
     logger.info("-----Global Local Feature Effectivity Study-----")
     glob_pred_list = []
@@ -152,20 +156,26 @@ def main(ont, species_name, model_name, model_type, thresh):
             sum_effect = sum_effect + effect * len(pids)
             sum_pert_effect = sum_pert_effect + pert_effect * len(pids)
     logger.info("Only Global Feature:")
-    cal_metrics_all(glob_pred_list, actual, go_idx_special, go_punish, logger, thresh)
+    cal_metrics_all(glob_pred_list, actual, go_idx_special, go_punish, logger, "Only_Global", thresh)
     
     logger.info("Only Local Feature:")
-    cal_metrics_all(part_pred_list, actual, go_idx_special, go_punish, logger, thresh)
+    cal_metrics_all(part_pred_list, actual, go_idx_special, go_punish, logger, "Only_Local", thresh)
 
     sum_effect /= len(test_dataset)
     logger.info("Static Analysis Results")
     logger.info("Global Effect: {:.6f}, Global Unique Effect: {:.6f}".format(sum_effect[0].item(), sum_effect[1].item()))
     logger.info(" Local Effect: {:.6f},  Local Unique Effect: {:.6f}".format(sum_effect[2].item(), sum_effect[3].item()))
+    mlflow.log_metric("Global_Effect", sum_effect[0].item())
+    mlflow.log_metric("Global_Unique_Effect", sum_effect[1].item())
+    mlflow.log_metric("Local_Effect", sum_effect[2].item())
+    mlflow.log_metric("Local_Unique_Effect", sum_effect[3].item())
 
     sum_pert_effect /= len(test_dataset)
     logger.info("Perturbation Analysis Results")
     logger.info("Global Var: {:.6f}".format(sum_effect[0].item()))
     logger.info(" Local Var: {:.6f}".format(sum_effect[1].item()))
+    mlflow.log_metric("Global_Var", sum_pert_effect[0].item())
+    mlflow.log_metric("Local_Var", sum_pert_effect[1].item())
 
     logger.info("-----Zero Mask Abltion Study-----")
     for abl_feat in [["seq"],["struct"],["domain"]]:
@@ -178,7 +188,9 @@ def main(ont, species_name, model_name, model_type, thresh):
                 # predict_matrix: [batch_size, go_nums]
                 predict_matrix = probablity_propagate(predict_matrix, go_graph_nx, topo_order, ds.balanced_go_map_inv)
                 pred += predict_matrix.tolist()
-        cal_metrics_all(pred, actual, go_idx_special, go_punish, logger, thresh)
+        cal_metrics_all(pred, actual, go_idx_special, go_punish, logger, abl_feat[0], thresh)
+    
+    mlflow.end_run()
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))

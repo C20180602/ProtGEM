@@ -1,3 +1,11 @@
+# 2025.12.21 添加ML-FLOW日志记录
+- 之前设计失误，把GO训练测试分开了，不太好统计到一起，需要手动把train中的ML-FLOW任务名记录一下，然后传给test.py
+
+# 2025.12.18 新增mask_prediction任务，模型结构小优化
+- 对序列和结构进行mask_prediction，由alpha4控制该任务开关状态
+- 在局部特征融合先加入<SOS>，再进行transformer
+- 两个优化都没用
+
 # 2025.12.2 新增功能：PPI迁移学习
 - 在目标物种D上出现PPI较少，孤立点较多的情况，建议采用gen_ppi_transfer.py丰富PPI
 - 将物种A的PPI通过blast比对，将高相似的ppi转移到B上

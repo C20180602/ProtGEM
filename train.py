@@ -27,6 +27,8 @@ from model.go_model import GoContrastLoss
 from model.predictor import ReconstructDecoder, SequenceLoss, GeometricStructureLoss
 from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask, set_seeds
 
+import mlflow
+
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 @click.command()
@@ -61,6 +63,8 @@ def main(ont, species_name, model_name, model_type,
 
     # 初始化日志
     logger = init_logger(Path(log_dir, 'train_{}.log'.format(ont)))
+    mlflow.set_experiment("GO_Prediction")
+    mlflow.start_run(run_name=f"{ont}_{species_name}_{model_name}")
     
     # 初始化随机种子以便复现
     seed = np.random.randint(1e9)
@@ -68,17 +72,21 @@ def main(ont, species_name, model_name, model_type,
     
     # 输出输入的参数信息
     logger.info("----------------------------A new train process----------------------------")
-    logger.info("random seed: {}".format(seed))
-    logger.info("Input args:")
-    logger.info("GO type: {}".format(ont))
-    logger.info("species_name: {}".format(species_name))
-    logger.info("model_name: {}".format(model_name))
-    logger.info("model_type: {}".format(model_type))
-    logger.info("continue_flag: {}".format(continue_flag))
-    logger.info("freeze: {}".format(freeze))
-    logger.info("light_mode: {}".format(light_mode))
-    logger.info("forced_test_pid_list_path: {}".format(forced_test_pid_list_path))
-    logger.info("pretrain_model_path: {}".format(pretrain_model_path))
+    global_param = {
+        "random seed":seed,
+        "GO_type":ont,
+        "species_name":species_name,
+        "model_name":model_name,
+        "model_type":model_type,
+        "continue_flag":continue_flag,
+        "freeze":freeze,
+        "light_mode":light_mode,
+        "forced_test_pid_list_path":forced_test_pid_list_path,
+        "pretrain_model_path":pretrain_model_path
+    }
+    logger.info("Input Parameters:")
+    logger.info(global_param)
+    mlflow.log_params(global_param)
     logger.info("----------------------------")
 
     # 读取模型配置参数
@@ -192,6 +200,11 @@ def main(ont, species_name, model_name, model_type,
     logger.info(pm_param)
     logger.info(gm_param)
     logger.info(pred_param)
+    
+    mlflow.log_params(train_param)
+    mlflow.log_params(pm_param)
+    mlflow.log_params(gm_param)
+    mlflow.log_params(pred_param)
     logger.info("----------------------------")
     logger.info("Start Training!")
     go_idx = torch.tensor(ds.balanced_go_list).to(device)
@@ -268,6 +281,11 @@ def main(ont, species_name, model_name, model_type,
             mean_loss3 += loss3.item()
             if i % log_batch_count == log_batch_count-1:
                 logger.info(f'Epoch: {epoch} / {epoch_num}, Step: {i} / {len(train_loader)}, Loss: {mean_loss/log_batch_count}, Loss1: {mean_loss1/log_batch_count}, Loss2: {mean_loss2/log_batch_count}, Loss3: {mean_loss3/log_batch_count}')
+                mlflow.log_metric("train_loss", mean_loss/log_batch_count, step=epoch*len(train_loader)+i)
+                mlflow.log_metric("train_loss1", mean_loss1/log_batch_count, step=epoch*len(train_loader)+i)
+                mlflow.log_metric("train_loss2", mean_loss2/log_batch_count, step=epoch*len(train_loader)+i)
+                mlflow.log_metric("train_loss3", mean_loss3/log_batch_count, step=epoch*len(train_loader)+i)
+                
                 mean_loss = 0.0
                 mean_loss1 = 0.0
                 mean_loss2 = 0.0
@@ -280,7 +298,10 @@ def main(ont, species_name, model_name, model_type,
         logger.info("train set:")
         auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual)
         logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
-        
+        mlflow.log_metric("train_auc", auc_score, step=epoch)
+        mlflow.log_metric("train_aupr", aupr_score, step=epoch)
+        mlflow.log_metric("train_fmax", fmax, step=epoch)
+
         # validate
         ds.valid_mode()
         pg_model.eval()
@@ -295,6 +316,10 @@ def main(ont, species_name, model_name, model_type,
         logger.info("valid set:")
         auc_score, aupr_score, precision, recall, fmax, tmp_thresh = cal_metrics(pred, actual)
         logger.info("AUC: {:.4f} AUPR: {:.4f} PRC: {:.4f} REC: {:.4f}  Fmax: {:.4f} tmp_thresh: {:.4f}".format(auc_score, aupr_score, precision, recall, fmax, tmp_thresh))
+        mlflow.log_metric("valid_auc", auc_score, step=epoch)
+        mlflow.log_metric("valid_aupr", aupr_score, step=epoch)
+        mlflow.log_metric("valid_fmax", fmax, step=epoch)
+
         if fmax > best_fmax:
             best_fmax = fmax
             best_epoch = epoch
@@ -306,6 +331,8 @@ def main(ont, species_name, model_name, model_type,
     
     logger.info(f"{species_name} {model_name} {ont} dataset training result: Valid")
     logger.info(f"best_epoch:{best_epoch} AUC:{corr_auc} best_Fmax:{best_fmax} AUPR:{corr_aupr} thresh:{corr_thresh}")
+
+    mlflow.end_run()
 
 if __name__ == '__main__':
     main()
