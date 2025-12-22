@@ -172,8 +172,8 @@ def main(ont, species_name, model_name, model_type, thresh):
 
     sum_pert_effect /= len(test_dataset)
     logger.info("Perturbation Analysis Results")
-    logger.info("Global Var: {:.6f}".format(sum_effect[0].item()))
-    logger.info(" Local Var: {:.6f}".format(sum_effect[1].item()))
+    logger.info("Global Var: {:.6f}".format(sum_pert_effect[0].item()))
+    logger.info(" Local Var: {:.6f}".format(sum_pert_effect[1].item()))
     mlflow.log_metric("Global_Var", sum_pert_effect[0].item())
     mlflow.log_metric("Local_Var", sum_pert_effect[1].item())
 
