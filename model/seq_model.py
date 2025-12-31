@@ -9,7 +9,7 @@ import pickle
     
 class SeqEncoder(nn.Module):
     '''
-    将预训练的ESM2模型输出的token级特征,通过多层transformer后取第一个token特征,作为该序列的整体特征
+    将预训练的ESM2模型输出的token级特征,直接取mean作为该序列的整体特征,利用随机投影降低残基级的特征维数
     in_dim: 从ESM2模型中输出的特征维数默认为 1280
     layer_num: 经过的Transformer层数
     '''
