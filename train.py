@@ -175,10 +175,10 @@ def main(ont, species_name, model_name, model_type,
     # 初始化数据集并进行划分
     ds = MyDataset(species_name, ont, cache_dir, target_device=device,
                    go_max_percent=go_max_percent, go_min_count=go_min_count,
-                   use_cache=True, light_mode=light_mode)
+                   use_cache=continue_flag, light_mode=light_mode)
     ds.show_dataset_info(logger)
     train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger, forced_test_pid_list=forced_test_pid_list,
-                                                                   train_p=train_proportion, valid_p=valid_proportion, use_cache=True)
+                                                                   train_p=train_proportion, valid_p=valid_proportion, use_cache=continue_flag)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=local_collate_fn)
     val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)

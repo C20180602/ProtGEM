@@ -679,14 +679,17 @@ class PPIDataset(Dataset):
             if u not in pos_ppi_dict or len(pos_ppi_dict[u])==0:
                 continue
             ppi_dis_dict = bfs_get_dis(u, pos_ppi_dict)
-            max_ppi_dis = max(ppi_dis_dict.values())
+            max_ppi_dis = max(max(ppi_dis_dict.values()),0)
             final_dis_list = []
             for v in pid_list:
-                if v == u:
+                # 剔除已经在正样本集的蛋白质
+                if v in pos_ppi_dict[u]:
                     continue
+                # 不选择没有任何PPI信息的蛋白质作为负样本
                 if v not in pos_ppi_dict or len(pos_ppi_dict[v])==0:
                     continue
-                go_diff_dis = 0
+                # 防止除以0
+                go_sim = 1e-8
                 if not ignore_go:
                     ns_max = {'bp':0, 'cc':0, 'mf':0}
                     ns_max_cnt = {'bp':0, 'cc':0, 'mf':0}
@@ -702,12 +705,12 @@ class PPIDataset(Dataset):
                         elif ns_max[ns] == self.go_term_dis[go]:
                             ns_max_cnt[ns] += 1
                     for ns in ns_max:
-                        go_diff_dis += go_diff_weight[ns]*ns_max[ns]*np.sqrt(1.0*ns_max_cnt[ns]+2)
+                        go_sim += go_diff_weight[ns]*ns_max[ns]*np.sqrt(1.0*ns_max_cnt[ns])
                 ppi_dis = ppi_dis_dict[v]
                 if ppi_dis == -1:
                     ppi_dis = max_ppi_dis + 1
                 if not ignore_go:
-                    final_dis_list.append((-ppi_weight*ppi_dis+go_weight*go_diff_dis, v))
+                    final_dis_list.append((-ppi_weight*(ppi_dis/(max_ppi_dis+1))-go_weight/go_sim, v))
                 else:
                     final_dis_list.append((-ppi_dis, v))
                 

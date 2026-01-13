@@ -65,7 +65,7 @@ class GoEncoder(nn.Module):
     
     def forward(self, indices):
         x = self.emb[indices]
-        x = x / x.norm(p=2, dim=-1, keepdim=True)
+        # x = x / x.norm(p=2, dim=-1, keepdim=True)
         return x
 
     def save_model(self, path):

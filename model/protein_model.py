@@ -133,7 +133,7 @@ class ProteinEncoder(nn.Module):
         emb = torch.cat([glob_emb,part_emb],dim=1)
         emb = self.dropout(emb)
         emb = self.final_out(emb)
-        emb = emb / emb.norm(p=2, dim=1, keepdim=True)
+        # emb = emb / emb.norm(p=2, dim=1, keepdim=True)
         if get_token_feat:
             return emb, part_emb_tmp
         return emb

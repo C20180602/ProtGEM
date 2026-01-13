@@ -35,12 +35,12 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-c', '--continue-flag', type=click.BOOL, default=False) # whether to use the previous param to train
 @click.option('-f', '--freeze', type=click.BOOL, default=False) # freeze the pretrained protein model
 @click.option('-test', '--test_flag', type=click.BOOL, default=False) # only test
-@click.option('-trs', '--transfer-ppi-flag', type=click.BOOL, default=False) # use raw/SPECIES/ppi/transferred_ppi_list.json to build ppi dataset
+@click.option('-pfn', '--ppi-file-name', type=click.STRING, default="ppi_list.json") # use raw/SPECIES/ppi/xxx.json to build ppi dataset
 @click.option('-tpl', '--forced-test-pid-list-path', type=click.STRING, default=None) # set the forced_test_pid_list in dataset, to specify the test set
 @click.option('-prep', '--pretrain-model-path', type=click.STRING, default=None)
 @click.option('-th', '--thresh', type=click.FLOAT, default=None) # only test
 def main(species_name, model_name, model_type,
-         continue_flag, freeze, test_flag, transfer_ppi_flag, forced_test_pid_list_path, pretrain_model_path, thresh):
+         continue_flag, freeze, test_flag, ppi_file_name, forced_test_pid_list_path, pretrain_model_path, thresh):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
     os.makedirs(Path("workspace",species_name),exist_ok=True)
@@ -78,7 +78,7 @@ def main(species_name, model_name, model_type,
         "continue_flag": continue_flag,
         "freeze": freeze,
         "test_flag": test_flag,
-        "transfer_ppi_flag": transfer_ppi_flag,
+        "ppi_file_name": ppi_file_name,
         "forced_test_pid_list_path": forced_test_pid_list_path,
         "pretrain_model_path": pretrain_model_path,
         "thresh": thresh
@@ -157,7 +157,6 @@ def main(species_name, model_name, model_type,
 
     # 初始化数据集并进行划分
     cache_flag = continue_flag or test_flag
-    ppi_file_name = "transferred_ppi_list.json" if transfer_ppi_flag else "ppi_list.json"
     ds = PPIDataset(species_name, cache_dir, target_device=device, specified_ppi_file_name=ppi_file_name,
                     go_diff_weight=go_diff_weight, ppi_weight=ppi_weight, go_weight=go_weight,
                     pick_neg_rate=pick_neg_rate, random_neg_rate=random_neg_rate,
