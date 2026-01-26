@@ -624,7 +624,7 @@ class PPIDataset(Dataset):
                 continue
             struct_path = os.path.join(species_path,pname,"struct_gvp.dgl")
             
-            # 当一个数据在序列, 结构, GO标签都存在时, 将其加入数据集
+            # 当一个数据在序列, 结构都存在时, 将其加入数据集
             if Path.exists(seq_path) and os.path.exists(struct_path) and pname in self.protein_info:
                 struct_graph,_ = dgl.load_graphs(struct_path)
                 struct_graph = struct_graph[0]
@@ -868,7 +868,7 @@ class PPIDataset(Dataset):
         for info in self.pair_info:
             cover_pid_set.add(info[0])
             cover_pid_set.add(info[1])
-            if info[2] == 1:
+            if info[2] >= 0.5:
                 pos_num += 1
             else:
                 neg_num += 1

@@ -137,24 +137,24 @@ def main(ont, species_name, model_name, model_type, thresh):
     glob_pred_list = []
     part_pred_list = []
     sum_effect = torch.zeros(4)
-    sum_pert_effect = torch.zeros(2)
+    # sum_pert_effect = torch.zeros(2)
     with torch.no_grad():
         for idxs, pids, seq_embs, batched_graph, domain_info, labels in tqdm(test_loader):
             
             ori_pred = pg_model(seq_embs, batched_graph, domain_info, go_idx)
             glob_pred = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=["part"])
-            glob_pert = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=["glob"], pert_mode=True)
+            # glob_pert = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=["glob"], pert_mode=True)
             glob_pred_prop = probablity_propagate(glob_pred, go_graph_nx, topo_order, ds.balanced_go_map_inv)
             glob_pred_list += glob_pred_prop.tolist()
 
             part_pred = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=["glob"])
-            part_pert = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=["part"], pert_mode=True)
+            # part_pert = pg_model(seq_embs, batched_graph, domain_info, go_idx, ablation_feat=["part"], pert_mode=True)
             part_pred_prop = probablity_propagate(part_pred, go_graph_nx, topo_order, ds.balanced_go_map_inv)
             part_pred_list += part_pred_prop.tolist()
             effect = cal_effect(ori_pred, glob_pred, part_pred)
-            pert_effect = cal_pert_effect(ori_pred, glob_pert, part_pert)
+            # pert_effect = cal_pert_effect(ori_pred, glob_pert, part_pert)
             sum_effect = sum_effect + effect * len(pids)
-            sum_pert_effect = sum_pert_effect + pert_effect * len(pids)
+            # sum_pert_effect = sum_pert_effect + pert_effect * len(pids)
     logger.info("Only Global Feature:")
     cal_metrics_all(glob_pred_list, actual, go_idx_special, go_punish, logger, "Only_Global", thresh)
     
@@ -170,12 +170,12 @@ def main(ont, species_name, model_name, model_type, thresh):
     mlflow.log_metric("Local_Effect", sum_effect[2].item())
     mlflow.log_metric("Local_Unique_Effect", sum_effect[3].item())
 
-    sum_pert_effect /= len(test_dataset)
-    logger.info("Perturbation Analysis Results")
-    logger.info("Global Var: {:.6f}".format(sum_pert_effect[0].item()))
-    logger.info(" Local Var: {:.6f}".format(sum_pert_effect[1].item()))
-    mlflow.log_metric("Global_Var", sum_pert_effect[0].item())
-    mlflow.log_metric("Local_Var", sum_pert_effect[1].item())
+    # sum_pert_effect /= len(test_dataset)
+    # logger.info("Perturbation Analysis Results")
+    # logger.info("Global Var: {:.6f}".format(sum_pert_effect[0].item()))
+    # logger.info(" Local Var: {:.6f}".format(sum_pert_effect[1].item()))
+    # mlflow.log_metric("Global_Var", sum_pert_effect[0].item())
+    # mlflow.log_metric("Local_Var", sum_pert_effect[1].item())
 
     logger.info("-----Zero Mask Abltion Study-----")
     for abl_feat in [["seq"],["struct"],["domain"]]:
