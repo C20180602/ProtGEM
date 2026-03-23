@@ -1,3 +1,5 @@
+这个enhanced版完全没用不用看了
+
 # Enhanced Model Architecture Migration Guide
 
 ## Overview of Improvements
