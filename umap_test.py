@@ -39,14 +39,14 @@ def main(ont, species_name, model_name, model_type):
     cache_dir = Path(workspace_dir,"cache")
     config_dir = Path(workspace_dir,"config")
     model_param_dir = Path(workspace_dir,"model_param")
-    result_dir = Path(workspace_dir,"result_pca")
+    result_dir = Path(workspace_dir,"result_umap")
     os.makedirs(result_dir,exist_ok=True)
 
     # 设置设备编号(需要使用CUDA_VISIBLE_DEVICES设置)
     device = torch.device("cuda:0")
     
     # 初始化日志
-    logger = init_logger(Path(log_dir, 'draw_pca_{}.log'.format(ont)))
+    logger = init_logger(Path(log_dir, 'draw_umap_{}.log'.format(ont)))
     
     # 输出输入的参数信息
     logger.info("----------------------------A new test process----------------------------")
