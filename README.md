@@ -32,6 +32,8 @@ h5py==3.12.1
 
 torchinfo==1.8.0
 
+umap-learn==0.5.11
+
 mlflow==3.7.0
 
 如果需要使用在线推理，还需安装：
@@ -73,6 +75,8 @@ pip install dgl==2.4.0 -f https://data.dgl.ai/wheels/torch-2.2/cu121/repo.html
 pip install transformers==4.46.3 biopython==1.84 matplotlib==3.9.2 pyyaml==6.0.2 pydantic==2.8.2 fair-esm==2.0.0 h5py==3.12.1 torchinfo==1.8.0
 
 pip install torch-cluster -f https://data.pyg.org/whl/torch-2.2.1+cu121.html
+
+pip install umap-learn==0.5.11
 ```
 ML-Flow环境配置:
 ``` bash 
@@ -86,4 +90,4 @@ mlflow server --host 127.0.0.1 --port 8080
 
 # 复现方法
 
-详见Baseline.md
+详见docs/Baseline.md
