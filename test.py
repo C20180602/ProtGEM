@@ -100,12 +100,14 @@ def main(ont, species_name, model_name, model_type, thresh):
     test_dataset = Subset(ds, test_indices)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)
 
+    # 读取标签深度大于等于5的标签
     go_idx = torch.tensor(ds.balanced_go_list).to(device)
     go_idx_special = []
     for i, go_id in enumerate(ds.balanced_go_list):
         if go_dis[str(go_id)] >= 5:
             go_idx_special.append(i)
 
+    # 预处理go的权重, 如果换成go的IC值则可以计算Smin指标
     go_punish = []
     for go_id in ds.balanced_go_list:
         go_punish.append(go_dis[str(go_id)])

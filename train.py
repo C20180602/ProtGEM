@@ -231,6 +231,7 @@ def main(ont, species_name, model_name, model_type,
             mask = mask.to(device)
             graph_mask = graph_mask.to(device)
 
+            # 处理不同model type的数据格式, 如果有重构损失(alpha4)则导出局部特征
             if model_type == "v1.1" and alpha4 > 0.0:
                 predict_matrix, protein_emb, protein_emb_token = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask,
                                             ablation_feat=dropout_feat_list[epoch], get_protein_feat=True)
@@ -241,6 +242,7 @@ def main(ont, species_name, model_name, model_type,
             loss2 = criterion2(predict_matrix, labels)
             loss3 = torch.tensor(0.0,device=device)
             if go_loss_switch:
+                # 加入GO loss计算开销会很大
                 go_id_set = set()
                 for idx in idxs:
                     for go in ds.data_info[idx][5]:

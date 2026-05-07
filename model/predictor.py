@@ -236,6 +236,7 @@ class ReconstructDecoder(nn.Module):
             nn.Linear(hidden_dim * 2, token_hid_dim)
         )
         
+        # 解码器
         decoder_layer = nn.TransformerDecoderLayer(
             d_model=token_hid_dim,
             nhead=kwargs.get('num_heads', 2),
@@ -248,6 +249,7 @@ class ReconstructDecoder(nn.Module):
             num_layers=kwargs.get('num_layers', 1)  # 较少的层数
         )
         
+        # 预测头
         self.token_head = nn.Linear(token_hid_dim, num_tokens)
         self.coord_head = nn.Sequential(
             nn.Linear(token_hid_dim, token_hid_dim // 2),

@@ -15,8 +15,8 @@ from sklearn.metrics import roc_curve, auc
 
 import mlflow
 
-def init_logger(log_path):
-    logger = logging.getLogger("global")
+def init_logger(log_path, name = "global"):
+    logger = logging.getLogger(name)
     handler1 = logging.StreamHandler()
     handler2 = logging.FileHandler(filename=log_path)
     logger.setLevel(logging.INFO)

@@ -15,7 +15,7 @@ import umap
 from torch import nn
 from torchinfo import summary
 from torch.utils.data import Dataset, DataLoader, Subset
-from sklearn.decomposition import IncrementalPCA
+from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
@@ -117,7 +117,7 @@ def main(ont, species_name, model_name, model_type):
     scaler = StandardScaler()
 
     # 先用PCA降维到50维，再用UMAP降维到2维
-    pca = IncrementalPCA(n_components=50, batch_size=5*batch_size)
+    pca = PCA(n_components=50)
     prot_emb_pca = pca.fit_transform(scaler.fit_transform(prot_emb))
     go_emb_pca = pca.fit_transform(scaler.fit_transform(go_emb))
 
@@ -131,6 +131,15 @@ def main(ont, species_name, model_name, model_type):
         n_jobs=-1            # 并行计算
     )
     prot_emb_umap = reducer.fit_transform(prot_emb_pca)
+    reducer = umap.UMAP(
+        n_neighbors=10,      # 默认值，范围通常 5-50。越大越关注全局结构，越小越关注局部细节
+        min_dist=0.5,        # 默认值，范围 0.0-0.99。越小簇越紧，越大簇内越松散
+        n_components=2,      # 降维到 2 维
+        metric='euclidean',  # 距离度量，嵌入向量通常用欧氏距离或余弦距离 ('cosine')
+        random_state=331,    # 随机种子，确保结果可复现
+        verbose=True,
+        n_jobs=-1            # 并行计算
+    )
     go_emb_umap = reducer.fit_transform(go_emb_pca)
 
     # 绘制UMAP图
