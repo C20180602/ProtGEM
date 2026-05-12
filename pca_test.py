@@ -19,9 +19,8 @@ from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 from register import *
-from model.dataset import MyDataset, probablity_propagate
-from model.predictor import ContrastLoss, ProteinGoModel, ProteinGoModelv2
-from utils import init_logger, cal_metrics, cal_metrics_special, cal_Pmin, cal_metrics_all, cal_effect, cal_pert_effect, load_config_clone
+from model.dataset import MyDataset
+from utils import init_logger, load_config_clone
 
 import mlflow
 

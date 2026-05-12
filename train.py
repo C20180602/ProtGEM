@@ -23,8 +23,8 @@ from tqdm import tqdm
 from register import *
 from model.dataset import MyDataset
 from model.go_dataset import GoDataset
-from model.go_model import GoContrastLoss
-from model.predictor import ReconstructDecoder, SequenceLoss, GeometricStructureLoss
+from model.predictor import ReconstructDecoder
+from model.loss import ContrastLoss, GoContrastLoss, SequenceLoss, GeometricStructureLoss
 from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask, set_seeds
 
 import mlflow
@@ -154,6 +154,7 @@ def main(ont, species_name, model_name, model_type,
                         
     train_go_default_conf_path = Path("config","train_go.conf")
     train_go_param = load_config_clone(train_go_default_conf_path, config_dir)
+    go_batch_size = train_go_param["batch_size"]
     pos_k = train_go_param["pos_k"]
     pos_max = train_go_param["pos_max"]
     neg_k = train_go_param["neg_k"]
@@ -222,11 +223,11 @@ def main(ont, species_name, model_name, model_type,
         for i, (idxs, pids, seq_embs, batched_graph, domain_info, labels) in enumerate(train_loader):
             optimizer.zero_grad()
             
-            batch_size = seq_embs.shape[0]
+            this_batch_size = seq_embs.shape[0]
             max_seq_len = seq_embs.shape[1]
             lens = batched_graph.batch_num_nodes().tolist()
 
-            mask = generate_mask(batch_size, max_seq_len, mask_rate)
+            mask = generate_mask(this_batch_size, max_seq_len, mask_rate)
             graph_mask = generate_graph_mask(batched_graph.num_nodes(), mask_rate)
             mask = mask.to(device)
             graph_mask = graph_mask.to(device)
@@ -242,13 +243,13 @@ def main(ont, species_name, model_name, model_type,
             loss2 = criterion2(predict_matrix, labels)
             loss3 = torch.tensor(0.0,device=device)
             if go_loss_switch:
-                # 加入GO loss计算开销会很大
+                # 加入GO loss计算开销会变大, 只使用当前epoch中覆盖的标签进行对比学习
                 go_id_set = set()
                 for idx in idxs:
                     for go in ds.data_info[idx][5]:
                         go_id_set.add(go)
                 go_subset = Subset(go_ds, list(go_id_set))
-                go_dl = DataLoader(go_subset, batch_size=batch_size, shuffle=True)
+                go_dl = DataLoader(go_subset, batch_size=go_batch_size, shuffle=True)
                 for (idx, pos, neg) in go_dl:
                     x = torch.cat([idx,pos,neg],dim=1)
                     x = x.to(device)

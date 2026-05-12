@@ -1,5 +1,5 @@
 from pathlib import Path
-from model.predictor import ProteinGoModel, ProteinGoModelv2, ProteinGoModelv3, PPIModel, ContrastLoss
+from model.predictor import ProteinGoModel, ProteinGoModelv2, ProteinGoModelv3, PPIModel
 from model.enhanced_predictor import EnhancedProteinGoModel, EnhancedProteinGoModelv2
 from ablation.seq_ablation import ProteinGoModel_seq_abl
 from ablation.struct_ablation import ProteinGoModel_struct_abl

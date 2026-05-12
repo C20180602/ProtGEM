@@ -6,43 +6,6 @@ from dgl.nn.pytorch.conv import GATv2Conv
 from torch import nn
 
 import pickle
-
-class GoContrastLoss(nn.Module):
-    '''
-    预训练任务的损失函数
-    '''
-    def __init__(self, pos_k, neg_k):
-        super(GoContrastLoss, self).__init__()
-        self.pos_k = pos_k
-        self.neg_k = neg_k
-    
-    def forward(self, x, t = 0.07):
-        # x: [batch_size, ( 1 + pos_k + neg_k ), hid_dim]
-        idx = x[:,:1,:]
-        # idx: [batch_size, 1, hid_dim]
-        idx = torch.transpose(idx, 1, 2)
-        # idx: [batch_size, hid_dim, 1]
-        obj = x[:,1:,:]
-        # obj: [batch_size, pos_k + neg_k, hid_dim]
-        sim = torch.bmm(obj , idx)
-        # sim: [batch_size, pos_k + neg_k, 1]
-        sim = sim.squeeze(-1)
-        # sim: [batch_size, pos_k + neg_k]
-        pos = sim[:,:self.pos_k]
-        # pos: [batch_size, pos_k]
-        neg = sim[:,self.pos_k:]
-        # neg: [batch_size, neg_k]
-        # print("--------------------")
-        # print(torch.mean(pos.max(dim=-1)[0]).item(),torch.mean(neg.max(dim=-1)[0]).item())
-        # print(torch.mean(pos.min(dim=-1)[0]).item(),torch.mean(neg.min(dim=-1)[0]).item())
-        # print(torch.mean(torch.mean(pos,dim=-1)).item(),torch.mean(torch.mean(neg,dim=-1)).item())
-        pos = torch.exp(pos/t)
-        neg = torch.exp(neg/t)
-        
-        # return torch.mean(torch.sum(neg, dim=-1)) / torch.mean(torch.sum(pos, dim=-1))
-        frac = torch.sum(pos, dim=-1) / (torch.sum(pos, dim=-1) + torch.sum(neg, dim=-1))
-        # frac: [batch_size]
-        return torch.mean(-torch.log(frac))
          
 class GoEncoder(nn.Module):
     '''

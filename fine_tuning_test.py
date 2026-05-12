@@ -23,7 +23,8 @@ from torch.utils.data import Dataset, DataLoader, Subset
 from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
 from model.dataset import MyDataset, my_collate_fn, my_collate_fn_v2, probablity_propagate
-from model.predictor import ContrastLoss, ProteinGoModel, ProteinGoModelv2
+from model.predictor import ProteinGoModel, ProteinGoModelv2
+from model.loss import ContrastLoss
 
 from register import *
 from utils import init_logger, cal_metrics, load_config_clone, generate_mask, generate_graph_mask

@@ -24,8 +24,8 @@ from tqdm import tqdm
 from register import *
 from model.dataset import MyDataset, probablity_propagate
 from model.go_dataset import GoDataset
-from model.go_model import GoContrastLoss
-from model.predictor import ReconstructDecoder, SequenceLoss, GeometricStructureLoss
+from model.loss import ContrastLoss, GoContrastLoss, SequenceLoss, GeometricStructureLoss
+from model.predictor import ReconstructDecoder
 from utils import init_logger, cal_metrics, cal_metrics_all, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask, set_seeds
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -92,31 +92,8 @@ def main(ont, species_name, model_name, model_type,
     pm_param = load_config_clone(default_pm_conf[model_type], config_dir)
     gm_param = load_config_clone(default_gm_conf[model_type], config_dir)
     pred_param = load_config_clone(default_pred_conf[model_type], config_dir)
-    # 初始化模型
-    pg_model, local_collate_fn = model_init(model_type, pm_param, gm_param, pred_param)
-    if pg_model is None or local_collate_fn is None:
-        logger.error("Model type not supported!")
-        return
-    if model_type not in ["enhanced_v1","enhanced_v2"]:
-        if pretrain_model_path is not None:
-            if not os.path.exists(pretrain_model_path):
-                logger.error("Pretrained protein model path doesn't exist! "+pretrain_model_path)
-            else:
-                pg_model.gm.load_model(pretrain_model_path)
     # 在原模型基础上继续训练（用于欠拟合的情况）
     continue_flag = False # 该模式下不需要该参数
-    if continue_flag:
-        if os.path.exists(Path(model_param_dir,"{}_model.pt".format(ont))):
-            pg_model.load_model(Path(model_param_dir,"{}_model.pt".format(ont)))
-            logger.info("Continue training with previous model parameters!")
-        else:
-            # 如果不存在, 则使用新模型训练, 不改变原有数据集cache
-            logger.warning("Previous model parameters not found!")
-    # 冻结GO模型
-    if freeze:
-        for param in pg_model.gm.parameters():
-            param.requires_grad = False
-    pg_model.to(device)
 
     # 读取要求的test蛋白质列表
     forced_test_pid_list = []
@@ -165,16 +142,16 @@ def main(ont, species_name, model_name, model_type,
     if model_type == "v1.1" and alpha4 > 0.0:
         rd_model = ReconstructDecoder(pg_model.pm.final_out_dim, pg_model.pm.part_dims)
         rd_model.to(device)
-    # 各项评估指标初始化
-    best_fmax = 0.0
-    best_epoch = -1
-    corr_auc = 0.0
-    corr_aupr = 0.0
-    corr_thresh = 0.0
 
-    # 初始化数据集并进行划分
-    for go_min_count in [1, range(5,101,5)]:
+    for go_min_count in [1]+list(range(5,101,5)):
         logger.critical(f"--------go_min_count={go_min_count}--------")
+
+        # 各项评估指标初始化
+        best_fmax = 0.0
+        best_epoch = -1
+        corr_auc = 0.0
+        corr_aupr = 0.0
+        corr_thresh = 0.0
         # 重新初始化模型
         pg_model, local_collate_fn = model_init(model_type, pm_param, gm_param, pred_param)
         pg_model.to(device)
@@ -184,9 +161,10 @@ def main(ont, species_name, model_name, model_type,
                     go_max_percent=go_max_percent, go_min_count=go_min_count,
                     use_cache=continue_flag, light_mode=light_mode)
         ds.show_dataset_info(logger)
+        logger.info(f"ds_len:{len(ds)}")
         train_dataset, valid_dataset, test_dataset = get_split_dataset(idx_dir,ont,ds,logger, forced_test_pid_list=forced_test_pid_list,
                                                                     train_p=train_proportion, valid_p=valid_proportion, use_cache=continue_flag)
-
+        logger.info(f"train_dataset_len:{len(train_dataset)}")
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=local_collate_fn)
         val_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=local_collate_fn)
@@ -232,6 +210,7 @@ def main(ont, species_name, model_name, model_type,
         logger.info(pred_param)
         logger.info("----------------------------")
         logger.info("Start Training!")
+        logger.info(f"train_dataloader_len:{len(train_loader)}")
         go_idx = torch.tensor(ds.balanced_go_list).to(device)
         for epoch in range(epoch_num):
             # train
@@ -248,11 +227,12 @@ def main(ont, species_name, model_name, model_type,
             for i, (idxs, pids, seq_embs, batched_graph, domain_info, labels) in enumerate(train_loader):
                 optimizer.zero_grad()
                 
-                batch_size = seq_embs.shape[0]
+                # tmd我再也不写局部变量了, batch_size跑完之后被改变了, 重新构建dataloader因为batch_size变小而巨慢
+                this_batch_size = seq_embs.shape[0]
                 max_seq_len = seq_embs.shape[1]
                 lens = batched_graph.batch_num_nodes().tolist()
 
-                mask = generate_mask(batch_size, max_seq_len, mask_rate)
+                mask = generate_mask(this_batch_size, max_seq_len, mask_rate)
                 graph_mask = generate_graph_mask(batched_graph.num_nodes(), mask_rate)
                 mask = mask.to(device)
                 graph_mask = graph_mask.to(device)
@@ -267,6 +247,7 @@ def main(ont, species_name, model_name, model_type,
                 loss1 = criterion1(predict_matrix, labels, contrast_temp)
                 loss2 = criterion2(predict_matrix, labels)
                 loss3 = torch.tensor(0.0,device=device)
+                loss4 = torch.tensor(0.0,device=device)
                 if go_loss_switch:
                     # 加入GO loss计算开销会很大
                     go_id_set = set()
@@ -281,8 +262,6 @@ def main(ont, species_name, model_name, model_type,
                         x = pg_model.gm(x)
                         loss3 += criterion3(x, contrast_temp_go)
                     loss3 /= len(go_id_set)
-                
-                loss = alpha1*loss1 + alpha2*loss2 + alpha3*loss3
 
                 if model_type == "v1.1" and alpha4 > 0.0:
                     # 重构任务的目标生成
@@ -298,8 +277,9 @@ def main(ont, species_name, model_name, model_type,
                         re_loss_struct += criterion5(coords_logit, coords_real)
                     
                     loss4 = re_loss_seq + re_loss_struct
-                    loss += alpha4 * loss4
                 
+                loss = alpha1*loss1 + alpha2*loss2 + alpha3*loss3 + alpha4*loss4
+
                 loss.backward()
                 optimizer.step()
                 lr_scheduler.step()
@@ -343,14 +323,17 @@ def main(ont, species_name, model_name, model_type,
                 corr_auc = auc_score
                 corr_aupr = aupr_score
                 corr_thresh = tmp_thresh
-                pg_model.save_model(Path(model_param_dir,"{}_model.pt".format(ont)))
+                pg_model.save_model(Path(model_param_dir,"{}_ps_test_model.pt".format(ont)))
         
         logger.info(f"{species_name} {model_name} {ont} dataset training result: Valid")
         logger.info(f"best_epoch:{best_epoch} AUC:{corr_auc} best_Fmax:{best_fmax} AUPR:{corr_aupr} thresh:{corr_thresh}")
 
+        # 读取最好的模型进行测试
+        pg_model.load_model(Path(model_param_dir,"{}_ps_test_model.pt".format(ont)))
         ds.valid_mode()
         pg_model.eval()
-
+        actual = []
+        pred = []
         with torch.no_grad():
             for idxs, pids, seq_embs, batched_graph, domain_info, labels in tqdm(test_loader):
                 

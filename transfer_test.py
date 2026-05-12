@@ -20,7 +20,6 @@ from torchinfo import summary
 from torch.utils.data import Dataset, DataLoader, Subset
 from tqdm import tqdm
 from model.dataset import MyDataset, my_collate_fn, my_collate_fn_v2, probablity_propagate
-from model.predictor import ContrastLoss, ProteinGoModel, ProteinGoModelv2
 
 from register import *
 from utils import init_logger, cal_metrics, load_config_clone, set_seeds

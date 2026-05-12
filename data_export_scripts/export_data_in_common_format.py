@@ -16,7 +16,6 @@ from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model.dataset import MyDataset, my_collate_fn, my_collate_fn_v2
-from model.predictor import ProteinGoModel, ProteinGoModelv2, ContrastLoss
 from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
