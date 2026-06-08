@@ -19,6 +19,8 @@ one2num = {
     'S' : 15,'T' : 16,'W' : 17,'Y' : 18,'V' : 19,
 }
 
+ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_function":"mf"}
+
 # use BFS to propagate goterms O(n)
 def propagate(go_list, go_graph:nx.DiGraph):
     vis={}
@@ -119,6 +121,26 @@ def probablity_propagate(prob_vector, go_graph:nx.DiGraph, topo_order, balanced_
             prob_vector[b_u] = torch.max(prob_vector[b_u],prob_vector[b_v])
     return prob_vector.transpose(1,0)
 
+def SimGO(go_set1, go_set2, go_terms, go_term_dis, go_diff_weight = {'bp':0.4, 'cc':0.4, 'mf':0.2}):
+    # 防止除以0
+    go_sim = 1e-8
+    ns_max = {'bp':0, 'cc':0, 'mf':0}
+    ns_max_cnt = {'bp':0, 'cc':0, 'mf':0}
+    # 求两个GO集合交集
+    # 将三大类的GO标签中，分别统计出GO交集中所在的最大标签深度，以及处于该深度的标签个数
+    intersection = go_set1 & go_set2
+    for go in intersection:
+        ns = ns_map[go_terms[go]["namespace"]]
+        go = str(go)
+        if ns_max[ns] < go_term_dis[go]:
+            ns_max[ns] = go_term_dis[go]
+            ns_max_cnt[ns] = 1
+        elif ns_max[ns] == go_term_dis[go]:
+            ns_max_cnt[ns] += 1
+    for ns in ns_max:
+        go_sim += go_diff_weight[ns]*ns_max[ns]*np.sqrt(1.0*ns_max_cnt[ns])
+    return go_sim
+
 class UpstreamDataset(Dataset):
     def __init__(self, species_name, cache_dir=Path("dataset"), target_device=torch.device("cuda:0"),
                  inference_flag = False, exclude_pid_list = [], use_cache = False):
@@ -136,7 +158,6 @@ class UpstreamDataset(Dataset):
         
         # 读取各类文件
         print("loading all kinds of files...")
-        ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_function":"mf"}
         with open(Path("processed_data",species_name+"_protein_info.json"), 'r') as f:
             self.protein_info = json.load(f)
         with open(Path("processed_data","interpro_id.json"), 'r') as f:
@@ -306,7 +327,6 @@ class MyDataset(Dataset):
         
         # 读取各类文件
         print("loading all kinds of files...")
-        ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_function":"mf"}
         with open(Path("processed_data",species_name+"_protein_info.json"), 'r') as f:
             self.protein_info = json.load(f)
         with open(os.path.join("processed_data",species_name+"_protein_coords.pkl"), 'rb') as f:
@@ -577,7 +597,6 @@ class PPIDataset(Dataset):
         
         # 读取各类文件
         print("loading all kinds of files...")
-        ns_map = {"biological_process":"bp","cellular_component":"cc","molecular_function":"mf"}
         with open(Path("processed_data",species_name+"_protein_info.json"), 'r') as f:
             self.protein_info = json.load(f)
         with open(Path("raw_data",species_name,"ppi",specified_ppi_file_name), 'r') as f:
@@ -691,21 +710,7 @@ class PPIDataset(Dataset):
                 # 防止除以0
                 go_sim = 1e-8
                 if not ignore_go:
-                    ns_max = {'bp':0, 'cc':0, 'mf':0}
-                    ns_max_cnt = {'bp':0, 'cc':0, 'mf':0}
-                    # 求两个GO集合交集
-                    # 将三大类的GO标签中，分别统计出GO交集中所在的最大标签深度，以及处于该深度的标签个数
-                    intersection = pid2go_est[u] & pid2go_est[v]
-                    for go in intersection:
-                        ns = ns_map[self.go_terms[go]["namespace"]]
-                        go = str(go)
-                        if ns_max[ns] < self.go_term_dis[go]:
-                            ns_max[ns] = self.go_term_dis[go]
-                            ns_max_cnt[ns] = 1
-                        elif ns_max[ns] == self.go_term_dis[go]:
-                            ns_max_cnt[ns] += 1
-                    for ns in ns_max:
-                        go_sim += go_diff_weight[ns]*ns_max[ns]*np.sqrt(1.0*ns_max_cnt[ns])
+                    go_sim = SimGO(pid2go_est[u], pid2go_est[v], self.go_terms, self.go_term_dis, go_diff_weight)
                 ppi_dis = ppi_dis_dict[v]
                 if ppi_dis == -1:
                     ppi_dis = max_ppi_dis + 1

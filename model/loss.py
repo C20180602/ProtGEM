@@ -31,11 +31,9 @@ class GoContrastLoss(nn.Module):
         # x: [batch_size, ( 1 + pos_k + neg_k ), hid_dim]
         idx = x[:,:1,:]
         # idx: [batch_size, 1, hid_dim]
-        idx = torch.transpose(idx, 1, 2)
-        # idx: [batch_size, hid_dim, 1]
         obj = x[:,1:,:]
         # obj: [batch_size, pos_k + neg_k, hid_dim]
-        sim = torch.bmm(obj , idx)
+        sim = torch.norm(obj-idx,dim=-1)
         # sim: [batch_size, pos_k + neg_k, 1]
         sim = sim.squeeze(-1)
         # sim: [batch_size, pos_k + neg_k]
@@ -47,8 +45,8 @@ class GoContrastLoss(nn.Module):
         # print(torch.mean(pos.max(dim=-1)[0]).item(),torch.mean(neg.max(dim=-1)[0]).item())
         # print(torch.mean(pos.min(dim=-1)[0]).item(),torch.mean(neg.min(dim=-1)[0]).item())
         # print(torch.mean(torch.mean(pos,dim=-1)).item(),torch.mean(torch.mean(neg,dim=-1)).item())
-        pos = torch.exp(pos/t)
-        neg = torch.exp(neg/t)
+        # pos = torch.exp(pos/t)
+        # neg = torch.exp(neg/t)
         
         # return torch.mean(torch.sum(neg, dim=-1)) / torch.mean(torch.sum(pos, dim=-1))
         frac = torch.sum(pos, dim=-1) / (torch.sum(pos, dim=-1) + torch.sum(neg, dim=-1))
