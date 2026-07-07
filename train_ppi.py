@@ -22,6 +22,7 @@ from tqdm import tqdm
 
 from register import *
 from model.dataset import PPIDataset
+from model.loss import ContrastLoss
 from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask, set_seeds
 
 import mlflow
@@ -156,7 +157,7 @@ def main(species_name, model_name, model_type,
     corr_thresh = 0.0
 
     # 初始化数据集并进行划分
-    cache_flag = continue_flag or test_flag
+    cache_flag = test_flag
     ds = PPIDataset(species_name, cache_dir, target_device=device, specified_ppi_file_name=ppi_file_name,
                     go_diff_weight=go_diff_weight, ppi_weight=ppi_weight, go_weight=go_weight,
                     pick_neg_rate=pick_neg_rate, random_neg_rate=random_neg_rate,

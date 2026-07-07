@@ -204,13 +204,27 @@ Real Average precision: 0.244985 , Real Average recall: 0.495170 , Average New G
 
 PPI:
 7120上直接预测：这个结果其实是调大了阈值，在Recall不降太多的情况下，让precision升高一点的，但是没啥用，大部分预测都是趋近1的
-AUC: 0.9786 AUPR: 0.9583 PRC: 0.9255 REC: 0.8944  Fmax: 0.9097 tmp_thresh: 0.6000
-Real Average recall: 0.840337 , Real Average precision: 0.018758 , Average New PPI: 1929.545315
+2025-11-21 14:58:30,612 global INFO AUC: 0.9786 AUPR: 0.9583 PRC: 0.9255 REC: 0.8944  Fmax: 0.9097 tmp_thresh: 0.6000
+2025-11-21 15:00:15,482 global INFO Real Average recall: 0.840337 , Real Average precision: 0.018758 , Average New PPI: 1929.545315
+重新测试了一下（上面是之前网页使用的数据，后续更新了, 但不跑全PPI预测了
+2026-01-12 21:15:25,806 global INFO test set:
+2026-01-12 21:15:25,822 global INFO AUC: 0.9757 AUPR: 0.9482 PRC: 0.8788 REC: 0.9078  Fmax: 0.8930 tmp_thresh: 0.3889
 
 29413转移ppi后7120上预测（最好）
-AUC: 0.9774 AUPR: 0.9521 PRC: 0.8729 REC: 0.9212  Fmax: 0.8964 tmp_thresh: 0.2780
-Real Average recall: 0.858499 , Real Average precision: 0.010990 , Average New PPI: 3138.267812
+重新测试了一下
+2026-01-03 04:33:00,852 global INFO test set:
+2026-01-03 04:33:00,867 global INFO AUC: 0.9787 AUPR: 0.9548 PRC: 0.8947 REC: 0.9080  Fmax: 0.9013 tmp_thresh: 0.3720
+用0.5的为阈值，上传到网页
+2026-01-05 14:18:29,546 global INFO AUC: 0.9802 AUPR: 0.9575 PRC: 0.9108 REC: 0.9007  Fmax: 0.9057 tmp_thresh: 0.5000
+2026-01-05 14:20:16,665 global INFO Real Average recall: 0.798739 , Real Average precision: 0.014945 , Average New PPI: 1891.966424
 
 29413上训练+7120微调2轮：
 AUC: 0.9412 AUPR: 0.8932 PRC: 0.7880 REC: 0.8852  Fmax: 0.8338 tmp_thresh: 0.2500
 Real Average recall: 0.822284 , Real Average precision: 0.009344 , Average New PPI: 2961.675055
+
+7120实验PPI：
+2026-01-16 12:38:11,361 global INFO test set:
+2026-01-16 12:38:11,371 global INFO AUC: 0.9640 AUPR: 0.9235 PRC: 0.8571 REC: 0.9068  Fmax: 0.8812 tmp_thresh: 0.2615
+阈值设为0.3，预测结果上传到网页
+2026-01-16 16:23:59,578 global INFO AUC: 0.9677 AUPR: 0.9298 PRC: 0.8711 REC: 0.9107  Fmax: 0.8905 tmp_thresh: 0.3000
+2026-01-16 16:27:01,323 global INFO Real Average recall: 0.704123 , Real Average precision: 0.011737 , Average New PPI: 3043.764796
