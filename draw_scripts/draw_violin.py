@@ -144,6 +144,24 @@ def compute_similarity_distribution(
     return scores, missing_pairs
 
 
+def compute_jaccard_distribution(
+    pid2go: dict[str, set[int]],
+    ppi_pairs: list[tuple[str, str]],
+) -> tuple[list[float], int]:
+    """Calculate GO-set Jaccard similarity for each known PPI pair."""
+    scores = []
+    missing_pairs = 0
+    for protein1, protein2 in ppi_pairs:
+        if protein1 not in pid2go or protein2 not in pid2go:
+            missing_pairs += 1
+            continue
+        go_set1 = pid2go[protein1]
+        go_set2 = pid2go[protein2]
+        union = go_set1 | go_set2
+        scores.append(len(go_set1 & go_set2) / len(union) if union else 0.0)
+    return scores, missing_pairs
+
+
 def draw_violin(
     distributions: dict[str, list[float]],
     output_path: Path,
@@ -354,9 +372,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--score-mode",
-        choices=("confidence", "raw"),
-        default="confidence",
-        help="Plot confidence-reduced SimGO scores or raw SimGO values.",
+        choices=("jaccard", "confidence", "raw"),
+        default="jaccard",
+        help="Plot GO-set Jaccard scores, confidence-reduced SimGO scores, or raw SimGO values.",
     )
     parser.add_argument(
         "--confidence-scale",
@@ -385,22 +403,29 @@ def main() -> None:
     ppi_pairs = list(iter_ppi_pairs(load_json(args.ppi_path)))
 
     distributions: dict[str, list[float]] = {}
-    score_label = "Confidence" if args.score_mode == "confidence" else "SimGO similarity"
+    score_label = {
+        "jaccard": "Jaccard similarity",
+        "confidence": "Confidence",
+        "raw": "SimGO similarity",
+    }[args.score_mode]
     is_confidence = args.score_mode == "confidence"
     for task in TASKS:
         result_path = args.result_dir / f"{task}_all_result.json"
         predicted_go = load_json(result_path)
         pid2go = convert_predicted_go(predicted_go, go_id, task, go_terms, args.go_id_path)
-        scores, missing_pairs = compute_similarity_distribution(
-            pid2go,
-            ppi_pairs,
-            go_terms,
-            go_term_dis,
-            task,
-            args.score_mode,
-            args.confidence_scale,
-            args.confidence_baseline,
-        )
+        if args.score_mode == "jaccard":
+            scores, missing_pairs = compute_jaccard_distribution(pid2go, ppi_pairs)
+        else:
+            scores, missing_pairs = compute_similarity_distribution(
+                pid2go,
+                ppi_pairs,
+                go_terms,
+                go_term_dis,
+                task,
+                args.score_mode,
+                args.confidence_scale,
+                args.confidence_baseline,
+            )
         distributions[task] = scores
         print(
             f"{TASK_NAMES[task]}: {len(scores)} PPI pairs plotted, "

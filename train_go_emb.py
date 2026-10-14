@@ -10,7 +10,8 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
 from model.go_dataset import GoDataset
-from model.go_model import GoEncoder,GoContrastLoss
+from model.go_model import GoEncoder
+from model.loss import GoContrastLoss
 from model.protein_model import ProteinEncoder
 from utils import init_logger
 

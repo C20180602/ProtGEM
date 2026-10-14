@@ -218,6 +218,10 @@ PPI:
 2026-01-05 14:18:29,546 global INFO AUC: 0.9802 AUPR: 0.9575 PRC: 0.9108 REC: 0.9007  Fmax: 0.9057 tmp_thresh: 0.5000
 2026-01-05 14:20:16,665 global INFO Real Average recall: 0.798739 , Real Average precision: 0.014945 , Average New PPI: 1891.966424
 
+对比纯随机的数据集
+2026-07-08 01:38:41,501 global INFO test set:
+2026-07-08 01:38:41,514 global INFO AUC: 0.8757 AUPR: 0.8222 PRC: 0.7672 REC: 0.7034  Fmax: 0.7339 tmp_thresh: 0.1578
+
 29413上训练+7120微调2轮：
 AUC: 0.9412 AUPR: 0.8932 PRC: 0.7880 REC: 0.8852  Fmax: 0.8338 tmp_thresh: 0.2500
 Real Average recall: 0.822284 , Real Average precision: 0.009344 , Average New PPI: 2961.675055
