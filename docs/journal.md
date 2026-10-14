@@ -1,3 +1,8 @@
+# 2026.10.14 重新测试GO预训练
+CUDA_VISIBLE_DEVICES=0 python train.py -o bp -n right_go_loss -s AF2DB -preg model_params/go_pretrain_model.pth
+CUDA_VISIBLE_DEVICES=1 python train.py -o cc -n right_go_loss -s AF2DB -preg model_params/go_pretrain_model.pth
+CUDA_VISIBLE_DEVICES=2 python train.py -o mf -n right_go_loss -s AF2DB -preg model_params/go_pretrain_model.pth
+
 # 2026.3~6 添加各类绘图
 - PCA、UMAP绘图
 - 参数敏感性分析绘图

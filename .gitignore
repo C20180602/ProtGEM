@@ -1,4 +1,7 @@
 .vscode
+.codex
+.agents
+.codegraph
 /raw_data
 /processed_data
 /dataset

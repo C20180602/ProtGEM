@@ -29,29 +29,19 @@ class GoContrastLoss(nn.Module):
     
     def forward(self, x, t = 0.07):
         # x: [batch_size, ( 1 + pos_k + neg_k ), hid_dim]
-        idx = x[:,:1,:]
-        # idx: [batch_size, 1, hid_dim]
-        obj = x[:,1:,:]
-        # obj: [batch_size, pos_k + neg_k, hid_dim]
-        sim = torch.norm(obj-idx,dim=-1)
-        # sim: [batch_size, pos_k + neg_k, 1]
-        sim = sim.squeeze(-1)
-        # sim: [batch_size, pos_k + neg_k]
-        pos = sim[:,:self.pos_k]
-        # pos: [batch_size, pos_k]
-        neg = sim[:,self.pos_k:]
-        # neg: [batch_size, neg_k]
-        # print("--------------------")
-        # print(torch.mean(pos.max(dim=-1)[0]).item(),torch.mean(neg.max(dim=-1)[0]).item())
-        # print(torch.mean(pos.min(dim=-1)[0]).item(),torch.mean(neg.min(dim=-1)[0]).item())
-        # print(torch.mean(torch.mean(pos,dim=-1)).item(),torch.mean(torch.mean(neg,dim=-1)).item())
-        # pos = torch.exp(pos/t)
-        # neg = torch.exp(neg/t)
-        
-        # return torch.mean(torch.sum(neg, dim=-1)) / torch.mean(torch.sum(pos, dim=-1))
-        frac = torch.sum(pos, dim=-1) / (torch.sum(pos, dim=-1) + torch.sum(neg, dim=-1))
-        # frac: [batch_size]
-        return torch.mean(-torch.log(frac))
+        if t <= 0:
+            raise ValueError("Contrastive temperature must be positive")
+        if self.pos_k <= 0 or self.neg_k <= 0:
+            raise ValueError("GO contrastive loss requires positive and negative samples")
+        if x.ndim != 3 or x.shape[1] != 1 + self.pos_k + self.neg_k:
+            raise ValueError("GO embeddings must have shape [batch, 1 + pos_k + neg_k, dim]")
+        # 余弦相似度只在损失内部计算，不改变 GoEncoder 的原始输出。
+        logits = F.cosine_similarity(x[:, :1, :], x[:, 1:, :], dim=-1) / t
+        # 保留正样本概率求和的目标，通过 logsumexp 避免指数溢出/下溢。
+        return torch.mean(
+            torch.logsumexp(logits, dim=-1)
+            - torch.logsumexp(logits[:, :self.pos_k], dim=-1)
+        )
 
 class DPOLoss(nn.Module):
     '''

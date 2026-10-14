@@ -32,10 +32,17 @@ class GoEncoder(nn.Module):
         return x
 
     def save_model(self, path):
-        torch.save(self.state_dict(), path)
+        device = self.emb.device
+        self.to("cpu")
+        try:
+            torch.save(self.state_dict(), path)
+        finally:
+            # 保存完成（或失败）后恢复原设备，供下一轮训练继续使用。
+            self.to(device)
     
     def load_model(self, path):
-        self.load_state_dict(torch.load(path))
+        # 兼容旧 CUDA 权重；调用方后续通过 to(device) 选择训练设备。
+        self.load_state_dict(torch.load(path, map_location="cpu"))
 
 # DEBUG
 if __name__ == "__main__":
