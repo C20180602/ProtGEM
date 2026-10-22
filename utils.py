@@ -228,3 +228,9 @@ def get_split_dataset(idx_dir, ont, ds, logger, forced_test_pid_list=[], train_p
         valid_dataset = Subset(ds, valid_indices)
         test_dataset = Subset(ds, test_indices)
     return train_dataset, valid_dataset, test_dataset
+
+def create_optimizer(pg_model, rd_model, lr):
+    param_groups = [{"params": pg_model.parameters()}]
+    if rd_model is not None:
+        param_groups.append({"params": rd_model.parameters()})
+    return torch.optim.Adam(param_groups, lr=lr)

@@ -313,7 +313,6 @@ class MyDataset(Dataset):
         self.dataset_path = Path(self.cache_dir,f"{self.ont}_dataset.pkl")
         self.balanced_go_list_path = Path(self.cache_dir,f"{self.ont}_balanced_go_list.json")
         self.propagated_go_path = Path(self.cache_dir,f"{self.ont}_propagated_go.json")
-        self.re_seq_path = Path(self.cache_dir,"re_seq.pkl")
         
         # 磁盘存储节省模式，需要在线ESM推理
         if light_mode:
@@ -329,8 +328,8 @@ class MyDataset(Dataset):
         print("loading all kinds of files...")
         with open(Path("processed_data",species_name+"_protein_info.json"), 'r') as f:
             self.protein_info = json.load(f)
-        with open(os.path.join("processed_data",species_name+"_protein_coords.pkl"), 'rb') as f:
-            self.protein_coords = pickle.load(f)
+        # 仅在实际计算结构重构目标时读取坐标。
+        self.protein_coords = None
         with open(Path("processed_data","go_id.json"), 'r') as f:
             self.vocab_go = json.load(f)
         with open(Path("processed_data","go_terms.json"), 'r') as f:
@@ -356,17 +355,6 @@ class MyDataset(Dataset):
             self.balanced_go_map_inv = {go:b_go for b_go,go in enumerate(self.balanced_go_list)}
             return
         
-        print("Reading Reconstruct targets...")
-        self.re_seq = {}
-        for pid in self.protein_info:
-            info = self.protein_info[pid]
-            seq_tensor_list = []
-            for aa in info['seq']:
-                tmp = [0]*21
-                tmp[one2num[aa]] = 1.0
-                seq_tensor_list.append(tmp)
-            self.re_seq[pid] = np.array(seq_tensor_list)
-
         print("processing dataset...")
         species_path = Path("dataset",species_name)
         protein_list = list(self.protein_info.keys())
@@ -509,18 +497,21 @@ class MyDataset(Dataset):
         return idx, pname,plen, seq_emb,struct_graph, domain_list, domain_id_list, label
 
     def generate_re_seq(self, pids, padded_len, device):
-        re_seq_tgt = []
-        for pid in pids:
-            if padded_len - len(self.re_seq[pid]) > 0:
-                pad_vec = [0.0]*20 + [1.0]
-                pad_mat = np.array([pad_vec] * (padded_len - len(self.re_seq[pid])))
-                padded_seq = np.vstack([self.re_seq[pid], pad_mat])
-                re_seq_tgt.append(padded_seq)
-            else:
-                re_seq_tgt.append(self.re_seq[pid])
-        return torch.tensor(np.array(re_seq_tgt), device=device)
+        # 只生成当前 batch 的目标，类别 20 表示 padding。
+        target_ids = torch.full((len(pids), padded_len), 20, dtype=torch.long, device=device)
+        for i, pid in enumerate(pids):
+            seq = self.protein_info[pid]["seq"]
+            if len(seq) > padded_len:
+                raise ValueError(f"Protein {pid} exceeds padded length {padded_len}")
+            target_ids[i, :len(seq)] = torch.tensor(
+                [one2num[aa] for aa in seq], dtype=torch.long, device=device
+            )
+        return torch.nn.functional.one_hot(target_ids, num_classes=21).float()
 
     def generate_re_struct(self, pids, padded_len, device):
+        if self.protein_coords is None:
+            with open(Path("processed_data", self.species_name + "_protein_coords.pkl"), "rb") as f:
+                self.protein_coords = pickle.load(f)
         re_struct_tgt = []
         for pid in pids:
             tmp_tensor = torch.tensor(self.protein_coords[pid], device=device)
@@ -534,19 +525,15 @@ class MyDataset(Dataset):
             json.dump(self.balanced_go_list,f,indent=4)
         with open(self.propagated_go_path,"w") as f:
             json.dump(self.propagated_go,f,indent=4)
-        with open(self.re_seq_path,"wb") as f:
-            pickle.dump(self.re_seq,f)
     
     def load_dataset(self):
         with open(self.dataset_path,"rb") as f:
             self.data_info = pickle.load(f)
         with open(self.balanced_go_list_path,"r") as f:
             self.balanced_go_list = json.load(f)
-        with open(self.re_seq_path,"rb") as f:
-            self.re_seq = pickle.load(f)
     
     def has_cache(self):
-        if Path.exists(self.dataset_path) and Path.exists(self.balanced_go_list_path) and Path.exists(self.re_seq_path):
+        if Path.exists(self.dataset_path) and Path.exists(self.balanced_go_list_path):
             return True
         return False
     

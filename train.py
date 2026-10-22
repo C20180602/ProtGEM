@@ -25,7 +25,7 @@ from model.dataset import MyDataset
 from model.go_dataset import GoDataset
 from model.predictor import ReconstructDecoder
 from model.loss import ContrastLoss, GoContrastLoss, SequenceLoss, GeometricStructureLoss
-from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask, set_seeds
+from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask, set_seeds, create_optimizer
 
 import mlflow
 
@@ -163,6 +163,7 @@ def main(ont, species_name, model_name, model_type,
     contrast_temp_go = train_go_param["contrast_temp"]
     
     # 初始化重构损失计算模型（解码器+损失计算）
+    rd_model = None
     if model_type == "v1.1" and alpha4 > 0.0:
         rd_model = ReconstructDecoder(pg_model.pm.final_out_dim, pg_model.pm.part_dims)
         rd_model.to(device)
@@ -187,7 +188,7 @@ def main(ont, species_name, model_name, model_type,
     go_ds = GoDataset(pos_k, pos_max, neg_k, neg_max, pos_rate)
 
     # 设置优化器、学习率规划器以及损失函数
-    optimizer = torch.optim.Adam(pg_model.parameters(), lr=init_lr)
+    optimizer = create_optimizer(pg_model, rd_model, init_lr)
     lr_scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
 
     criterion1 = ContrastLoss()

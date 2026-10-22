@@ -109,7 +109,7 @@ class ReconstructDecoder(nn.Module):
         pos_embeds = self.position_embeddings(positions)  # [batch, seq, hidden]
         
         # 3、生成查询（融合全局特征和位置信息）
-        global_expanded = global_proj.expand(-1, seq_len, -1)
+        global_expanded = global_proj.unsqueeze(1).expand(-1, seq_len, -1)
         query_input = torch.cat([global_expanded, pos_embeds], dim=-1)
         tgt_queries = self.query_generator(query_input)
         tgt_queries = self.dropout(tgt_queries)

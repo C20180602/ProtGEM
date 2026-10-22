@@ -11,7 +11,7 @@ from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
 from model.go_dataset import GoDataset
 from model.go_model import GoEncoder
-from model.loss import GoContrastLoss
+from model.loss import GoContrastLoss, GoContrastLoss2
 from model.protein_model import ProteinEncoder
 from utils import init_logger
 
@@ -71,7 +71,8 @@ train_loader = DataLoader(ds, batch_size=batch_size, shuffle=True)
 optimizer_go = torch.optim.Adam(model_go.parameters(), lr=init_lr)
 lr_scheduler_go = get_cosine_schedule_with_warmup(optimizer_go, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
 
-criterion = GoContrastLoss(pos_k, neg_k)
+criterion = GoContrastLoss(pos_k, neg_k) # cosine similarity
+# criterion = GoContrastLoss2(pos_k, neg_k) # negative euclidean distance similarity
 
 print("Start Training!")
 save_path = os.path.join("model_params","go_pretrain_model.pth")

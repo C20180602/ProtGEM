@@ -43,6 +43,30 @@ class GoContrastLoss(nn.Module):
             - torch.logsumexp(logits[:, :self.pos_k], dim=-1)
         )
 
+class GoContrastLoss2(nn.Module):
+    '''使用负欧氏距离作为相似度的 GO 嵌入对比损失。'''
+    '''实际表现效果更好'''
+    def __init__(self, pos_k, neg_k):
+        super().__init__()
+        self.pos_k = pos_k
+        self.neg_k = neg_k
+
+    def forward(self, x, t=0.07):
+        # x: [batch_size, 1 + pos_k + neg_k, hid_dim]，依次为锚点、正样本、负样本。
+        if t <= 0:
+            raise ValueError("Contrastive temperature must be positive")
+        if self.pos_k <= 0 or self.neg_k <= 0:
+            raise ValueError("GO contrastive loss requires positive and negative samples")
+        if x.ndim != 3 or x.shape[1] != 1 + self.pos_k + self.neg_k:
+            raise ValueError("GO embeddings must have shape [batch, 1 + pos_k + neg_k, dim]")
+        # 保留原始嵌入的尺度，距离越小，相似度越高。
+        logits = -torch.linalg.vector_norm(x[:, :1, :] - x[:, 1:, :], dim=-1) / t
+        # 对所有正样本的概率求和，并使用 logsumexp 保持数值稳定。
+        return torch.mean(
+            torch.logsumexp(logits, dim=-1)
+            - torch.logsumexp(logits[:, :self.pos_k], dim=-1)
+        )
+
 class DPOLoss(nn.Module):
     '''
     后训练DPO直接偏好优化损失
@@ -77,20 +101,26 @@ class SequenceLoss(nn.Module):
     def forward(self, seq_pred, seq_target, mask=None):
         """
         seq_pred: [batch_size, seq_len, 21] 预测的logits或概率
-        seq_target: [batch_size, seq_len] 真实的氨基酸类别(0-19)
+        seq_target: [batch_size, seq_len] 类别索引，或 [batch_size, seq_len, 21] one-hot 目标
         mask: [batch_size, seq_len] 需要计算损失的位置(True表示需要计算)
         """
-        batch_size, seq_len, _ = seq_pred.shape
+        num_classes = seq_pred.shape[-1]
         
         # 如果提供了mask，只计算mask位置的损失
         if mask is not None:
-            # 展平
-            mask = mask.long()
-            seq_pred_flat = seq_pred[mask].view(-1, 21)
-            seq_target_flat = seq_target[mask].view(-1, 21)
+            mask = mask.bool()
+            seq_pred_flat = seq_pred[mask]
+            seq_target_flat = seq_target[mask]
         else:
-            seq_pred_flat = seq_pred.view(-1, 21)
-            seq_target_flat = seq_target.view(-1, 21)
+            seq_pred_flat = seq_pred.reshape(-1, num_classes)
+            if seq_target.ndim == seq_pred.ndim:
+                seq_target_flat = seq_target.reshape(-1, num_classes)
+            else:
+                seq_target_flat = seq_target.reshape(-1)
+
+        if seq_pred_flat.shape[0] == 0:
+            # 没有被 mask 的位置时保持可反向传播的零损失。
+            return seq_pred.sum() * 0.0
         
         # 使用交叉熵损失，可加入标签平滑
         if self.label_smoothing > 0:
