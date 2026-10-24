@@ -29,3 +29,7 @@
 ## Other changes included in this checkpoint
 
 The checkpoint also preserves the user's existing model/pipeline figures, updated GO-pretraining ablation values and figure, and ProtGEM naming edits. README restructuring follows this checkpoint as a separate documentation change. No datasets, experiment caches or model weights are included in this commit.
+
+## Follow-up found during README command verification
+
+The shared `ContrastLoss` is also called by `train_ppi.py` with a one-dimensional batch of pair scores. The new two-dimensional-only validation would reject that input. A separate compatibility fix restores support for `[batch]` inputs while preserving the original reduction over the entire pair batch. A regression test verifies loss and gradient equivalence through the import used by `train_ppi.py`.

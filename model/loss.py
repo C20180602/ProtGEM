@@ -12,12 +12,13 @@ class ContrastLoss(nn.Module):
         super(ContrastLoss, self).__init__()
     
     def forward(self, pred, labels, t = 0.05):
-        # pred: [batch_size, go_nums]
-        # labels: [batch_size, go_nums]
+        # GO: [batch_size, go_nums]; PPI: [batch_size]，在末维上对比。
         if not math.isfinite(t) or t <= 0:
             raise ValueError("Contrastive temperature must be finite and positive")
-        if pred.ndim != 2 or pred.shape != labels.shape:
-            raise ValueError("Predictions and labels must have matching [batch, GO] shapes")
+        if pred.ndim not in (1, 2) or pred.shape != labels.shape:
+            raise ValueError("Predictions and labels must have matching [batch] or [batch, GO] shapes")
+        if pred.ndim == 1:
+            pred, labels = pred.unsqueeze(0), labels.unsqueeze(0)
         if not torch.all((labels >= 0) & (labels <= 1)):
             raise ValueError("Contrastive labels must be finite and in [0, 1]")
         positive = labels > 0

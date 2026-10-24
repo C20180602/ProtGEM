@@ -11,6 +11,18 @@ from model.training_stability import backward_and_step, numerical_error_context,
 
 
 class ContrastStabilityTests(unittest.TestCase):
+    def test_ppi_vector_matches_original_value_and_gradient(self):
+        from train_ppi import ContrastLoss as PPIContrastLoss
+        pred = torch.tensor([.1, .6, .9], dtype=torch.float64, requires_grad=True)
+        labels = torch.tensor([1., 0., 1.], dtype=torch.float64)
+        exp = torch.exp(pred / .2)
+        original = -((exp * labels).sum() / exp.sum()).log()
+        stable = PPIContrastLoss()(pred, labels, .2)
+        torch.testing.assert_close(stable, original)
+        old_grad, = torch.autograd.grad(original, pred, retain_graph=True)
+        new_grad, = torch.autograd.grad(stable, pred)
+        torch.testing.assert_close(new_grad, old_grad)
+
     def test_matches_original_value_and_gradient(self):
         torch.manual_seed(7)
         for labels in [torch.tensor([[1., 0., 1.], [0., 1., 0.]]),
