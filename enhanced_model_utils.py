@@ -176,7 +176,7 @@ def benchmark_models(original_model, enhanced_model, test_loader, device='cuda:0
 if __name__ == "__main__":
     # Set working directory
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    if not os.path.basename(os.getcwd()) == "dag-classify":
+    if not os.path.basename(os.getcwd()) == "ProtGEM":
         os.chdir("..")
 
     print("Loading enhanced model...")

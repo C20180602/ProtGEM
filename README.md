@@ -1,4 +1,4 @@
-# dag-classify
+# ProtGEM
 Multi-tag classification task in which the tags has DAG-like dependencies
 
 **master branch is the newest test version.**

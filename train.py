@@ -6,6 +6,7 @@ python train.py -o bp -s xxx
 
 import os
 import json
+import math
 import pickle
 import click
 from pathlib import Path
@@ -25,6 +26,7 @@ from model.dataset import MyDataset
 from model.go_dataset import GoDataset
 from model.predictor import ReconstructDecoder
 from model.loss import ContrastLoss, GoContrastLoss, SequenceLoss, GeometricStructureLoss
+from model.training_stability import backward_and_step, numerical_error_context, require_finite
 from utils import init_logger, cal_metrics, load_config_clone, get_split_dataset, generate_mask, generate_graph_mask, set_seeds, create_optimizer
 
 import mlflow
@@ -41,8 +43,11 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 @click.option('-li', '--light-mode', type=click.BOOL, default=False) # ESM preprocess free, but costs longer time and larger dedicated memory
 @click.option('-tpl', '--forced-test-pid-list-path', type=click.STRING, default=None) # set the forced_test_pid_list in dataset, to specify the test set
 @click.option('-preg', '--pretrain-model-path', type=click.STRING, default=None) # model_params/go_pretrain_model_1024.pth
+@click.option('--max-grad-norm', type=float, default=None, help='Gradient clipping threshold; config value or 1.0 by default.')
+@click.option('--detect-anomaly', is_flag=True, help='Trace the forward operator responsible for an invalid backward result (slower).')
 def main(ont, species_name, model_name, model_type,
-         continue_flag, freeze, light_mode, forced_test_pid_list_path, pretrain_model_path):
+         continue_flag, freeze, light_mode, forced_test_pid_list_path, pretrain_model_path,
+         max_grad_norm, detect_anomaly):
     os.makedirs(Path("workspace"),exist_ok=True)
     workspace_dir = Path("workspace",species_name,model_name)
     os.makedirs(Path("workspace",species_name),exist_ok=True)
@@ -82,7 +87,8 @@ def main(ont, species_name, model_name, model_type,
         "freeze":freeze,
         "light_mode":light_mode,
         "forced_test_pid_list_path":forced_test_pid_list_path,
-        "pretrain_model_path":pretrain_model_path
+        "pretrain_model_path":pretrain_model_path,
+        "detect_anomaly":detect_anomaly
     }
     logger.info("Input Parameters:")
     logger.info(global_param)
@@ -127,6 +133,11 @@ def main(ont, species_name, model_name, model_type,
     # 读取训练参数
     train_default_conf_path = Path("config","train.conf")
     train_param = load_config_clone(train_default_conf_path, config_dir)
+    if max_grad_norm is None:
+        max_grad_norm = train_param.get("max_grad_norm", 1.0)
+    if not math.isfinite(max_grad_norm) or max_grad_norm <= 0:
+        raise ValueError("max_grad_norm must be finite and positive")
+    train_param["max_grad_norm"] = max_grad_norm
     train_proportion = train_param["train_proportion"]
     valid_proportion = train_param["valid_proportion"]
     batch_size = train_param["batch_size"]
@@ -189,6 +200,9 @@ def main(ont, species_name, model_name, model_type,
 
     # 设置优化器、学习率规划器以及损失函数
     optimizer = create_optimizer(pg_model, rd_model, init_lr)
+    named_train_parameters = [(f"pg_model.{name}", param) for name, param in pg_model.named_parameters()]
+    if rd_model is not None:
+        named_train_parameters += [(f"rd_model.{name}", param) for name, param in rd_model.named_parameters()]
     lr_scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=100, num_training_steps=epoch_num*len(train_loader))
 
     criterion1 = ContrastLoss()
@@ -219,6 +233,7 @@ def main(ont, species_name, model_name, model_type,
         mean_loss1 = 0.0
         mean_loss2 = 0.0
         mean_loss3 = 0.0
+        max_observed_grad_norm = 0.0
         pred = []
         actual = []
         for i, (idxs, pids, seq_embs, batched_graph, domain_info, labels) in enumerate(train_loader):
@@ -233,52 +248,56 @@ def main(ont, species_name, model_name, model_type,
             mask = mask.to(device)
             graph_mask = graph_mask.to(device)
 
-            # 处理不同model type的数据格式, 如果有重构损失(alpha4)则导出局部特征
-            if model_type == "v1.1" and alpha4 > 0.0:
-                predict_matrix, protein_emb, protein_emb_token = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask,
-                                            ablation_feat=dropout_feat_list[epoch], get_protein_feat=True)
-            else:
-                predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask, ablation_feat=dropout_feat_list[epoch])
+            with numerical_error_context(logger, f"train epoch={epoch} batch={i} pids={list(pids)}"), \
+                    torch.autograd.set_detect_anomaly(detect_anomaly):
+                # 处理不同model type的数据格式, 如果有重构损失(alpha4)则导出局部特征
+                if model_type == "v1.1" and alpha4 > 0.0:
+                    predict_matrix, protein_emb, protein_emb_token = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask,
+                                                ablation_feat=dropout_feat_list[epoch], get_protein_feat=True)
+                else:
+                    predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx, mask, graph_mask, ablation_feat=dropout_feat_list[epoch])
             
-            loss1 = criterion1(predict_matrix, labels, contrast_temp)
-            loss2 = criterion2(predict_matrix, labels)
-            loss3 = torch.tensor(0.0,device=device)
-            if go_loss_switch:
-                # 加入GO loss计算开销会变大, 只使用当前epoch中覆盖的标签进行对比学习
-                go_id_set = set()
-                for idx in idxs:
-                    for go in ds.data_info[idx][5]:
-                        go_id_set.add(go)
-                go_subset = Subset(go_ds, list(go_id_set))
-                go_dl = DataLoader(go_subset, batch_size=go_batch_size, shuffle=True)
-                for (idx, pos, neg) in go_dl:
-                    x = torch.cat([idx,pos,neg],dim=1)
-                    x = x.to(device)
-                    x = pg_model.gm(x)
-                    loss3 += criterion3(x, contrast_temp_go)
-                loss3 /= len(go_id_set)
+                require_finite({"predictions": predict_matrix})
+                loss1 = criterion1(predict_matrix, labels, contrast_temp)
+                loss2 = criterion2(predict_matrix, labels)
+                loss3 = torch.tensor(0.0,device=device)
+                if go_loss_switch and alpha3 > 0:
+                    # 加入GO loss计算开销会变大, 只使用当前epoch中覆盖的标签进行对比学习
+                    go_id_set = set()
+                    for idx in idxs:
+                        for go in ds.data_info[idx][5]:
+                            go_id_set.add(go)
+                    go_subset = Subset(go_ds, list(go_id_set))
+                    go_dl = DataLoader(go_subset, batch_size=go_batch_size, shuffle=True)
+                    for (idx, pos, neg) in go_dl:
+                        x = torch.cat([idx,pos,neg],dim=1)
+                        x = x.to(device)
+                        x = pg_model.gm(x)
+                        loss3 += criterion3(x, contrast_temp_go)
+                    loss3 /= len(go_id_set)
             
-            loss = alpha1*loss1 + alpha2*loss2 + alpha3*loss3
+                loss = alpha1*loss1 + alpha2*loss2 + alpha3*loss3
 
-            if model_type == "v1.1" and alpha4 > 0.0:
-                # 重构任务的目标生成
-                re_seq_tgt = ds.generate_re_seq(pids, max_seq_len, device)
-                re_struct_tgt = ds.generate_re_struct(pids, max_seq_len, device)
+                if model_type == "v1.1" and alpha4 > 0.0:
+                    # 重构任务的目标生成
+                    re_seq_tgt = ds.generate_re_seq(pids, max_seq_len, device)
+                    re_struct_tgt = ds.generate_re_struct(pids, max_seq_len, device)
                 
-                seq_logits, coords_logits = rd_model(protein_emb, protein_emb_token, lens)
-                # 计算序列重构损失
-                re_loss_seq = criterion4(seq_logits, re_seq_tgt, mask)
-                # 计算结构重构损失
-                re_loss_struct = torch.tensor(0.0, device=device)
-                for coords_logit, coords_real in zip(coords_logits, re_struct_tgt):
-                    re_loss_struct += criterion5(coords_logit, coords_real)
+                    seq_logits, coords_logits = rd_model(protein_emb, protein_emb_token, lens)
+                    # 计算序列重构损失
+                    re_loss_seq = criterion4(seq_logits, re_seq_tgt, mask)
+                    # 计算结构重构损失
+                    re_loss_struct = torch.tensor(0.0, device=device)
+                    for coords_logit, coords_real in zip(coords_logits, re_struct_tgt):
+                        re_loss_struct += criterion5(coords_logit, coords_real)
                 
-                loss4 = re_loss_seq + re_loss_struct
-                loss += alpha4 * loss4
+                    loss4 = re_loss_seq + re_loss_struct
+                    loss += alpha4 * loss4
             
-            loss.backward()
-            optimizer.step()
-            lr_scheduler.step()
+                require_finite({"contrastive loss": loss1, "BCE loss": loss2, "GO loss": loss3})
+                grad_norm = backward_and_step(loss, optimizer, named_train_parameters, max_grad_norm)
+                lr_scheduler.step()
+                max_observed_grad_norm = max(max_observed_grad_norm, grad_norm.item())
             mean_loss += loss.item()
             mean_loss1 += loss1.item()
             mean_loss2 += loss2.item()
@@ -289,11 +308,14 @@ def main(ont, species_name, model_name, model_type,
                 mlflow.log_metric("train_loss1", mean_loss1/log_batch_count, step=epoch*len(train_loader)+i)
                 mlflow.log_metric("train_loss2", mean_loss2/log_batch_count, step=epoch*len(train_loader)+i)
                 mlflow.log_metric("train_loss3", mean_loss3/log_batch_count, step=epoch*len(train_loader)+i)
+                logger.info(f'Max gradient norm before clipping: {max_observed_grad_norm}, clip threshold: {max_grad_norm}')
+                mlflow.log_metric("train_grad_norm_max", max_observed_grad_norm, step=epoch*len(train_loader)+i)
                 
                 mean_loss = 0.0
                 mean_loss1 = 0.0
                 mean_loss2 = 0.0
                 mean_loss3 = 0.0
+                max_observed_grad_norm = 0.0
             
             # 对于训练集预测结果，采样进行指标计算，节省时间
             if i % 30 == 29:
@@ -313,7 +335,9 @@ def main(ont, species_name, model_name, model_type,
         pred = []
         with torch.no_grad():
             for idxs, pids, seq_embs, batched_graph, domain_info, labels in tqdm(val_loader):
-                predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx)
+                with numerical_error_context(logger, f"valid epoch={epoch} pids={list(pids)}"):
+                    predict_matrix = pg_model(seq_embs, batched_graph, domain_info, go_idx)
+                    require_finite({"validation predictions": predict_matrix})
                 # predict_matrix = (predict_matrix + 1)/2
                 pred += predict_matrix.tolist()
                 actual += labels.tolist()

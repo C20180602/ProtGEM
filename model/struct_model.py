@@ -46,7 +46,7 @@ class VectorLayerNorm(nn.Module):
         # vn: [..., node_num, vector_num, 1]
         vn = torch.sqrt(torch.mean(vn, dim=-2, keepdim=True))
         # vn: [..., node_num, 1, 1]
-        return v / vn
+        return v / (vn+1e-6)
 
 class GVP(nn.Module):
     '''

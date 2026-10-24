@@ -1,3 +1,5 @@
+import math
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -12,11 +14,24 @@ class ContrastLoss(nn.Module):
     def forward(self, pred, labels, t = 0.05):
         # pred: [batch_size, go_nums]
         # labels: [batch_size, go_nums]
-        pred = torch.exp(pred/t)
-        pos = torch.sum(pred * labels, dim=-1)
-        neg = torch.sum(pred * (1-labels), dim=-1)
-        frac = pos / (pos + neg)
-        return torch.mean(-torch.log(frac))
+        if not math.isfinite(t) or t <= 0:
+            raise ValueError("Contrastive temperature must be finite and positive")
+        if pred.ndim != 2 or pred.shape != labels.shape:
+            raise ValueError("Predictions and labels must have matching [batch, GO] shapes")
+        if not torch.all((labels >= 0) & (labels <= 1)):
+            raise ValueError("Contrastive labels must be finite and in [0, 1]")
+        positive = labels > 0
+        if not positive.any(dim=-1).all():
+            rows = (~positive.any(dim=-1)).nonzero().flatten().tolist()
+            raise ValueError(f"Contrastive loss requires positive labels in every row; empty rows: {rows}")
+        # -log(sum(y * exp(pred/t)) / sum(exp(pred/t)))，保持原目标。
+        # 低精度输入在 float32 中归约，避免 exp 溢出及概率下溢。
+        scores = pred.float() if pred.dtype in (torch.float16, torch.bfloat16) else pred
+        logits = (scores - scores.amax(dim=-1, keepdim=True)) / t
+        weights = labels.to(logits.dtype)
+        log_weights = weights.masked_fill(~positive, 1).log().masked_fill(~positive, -torch.inf)
+        return (torch.logsumexp(logits, dim=-1)
+                - torch.logsumexp(logits + log_weights, dim=-1)).mean()
 
 class GoContrastLoss(nn.Module):
     '''
