@@ -103,3 +103,40 @@ CUDA_VISIBLE_DEVICES=2 python test.py -o mf -s HUMAN
 
 ### PPI模型训练与测试
 
+#### PPI训练
+- 可以不添加-prep参数
+'''
+python train_ppi.py -s xxx -prep workspace/Pretrain_dataset/xxx_model/model_param/all_pm_model.pt
+'''
+
+#### PPI预测
+- 运行data_export_scripts/export_pm_model.py，导出任意一个模型的protein model部分
+```
+python data_export_scripts/export_pm_model.py -o all -s AF2DB -n model_v1.1_back -t v1.1
+```
+- 运行train_ppi.py，可选择以刚才导出的protein model模型为基础进行训练+测试
+```
+python train_ppi.py -s TARGET_DATASET -prep workspace/AF2DB/model_v1.1/model_param/all_pm_model.pt
+```
+
+#### - PPI迁移学习
+- 在目标物种D上出现PPI较少，孤立点较多的情况，建议采用gen_ppi_transfer.py丰富PPI
+- 将物种A的PPI通过blast比对，将高相似的ppi转移到B上
+```
+python gen_ppi_transfer.py -s A_species -d B_species
+```
+- 使用train_ppi.py训练时添加 -trs True选项，使用转移后的ppi数据进行训练
+
+
+
+### GO、PPI批量预测
+- python batch_inference_go.py -o bp -s AF2DB -n model_v1.1 -t v1.1 -thresh 0.75 -ds TARGET_DATASET
+- python batch_inference_ppi.py -s DATASET -n model_ppi_v1 -t ppi_v1 -thresh 0.9
+
+### GO训练磁盘空间节省模式
+- 使用ESM在线推理获取ESM embedding，但训练时间会更长，显存占用更高
+- 由于PPI训练规模远大于GO训练，最好还是提前预处理ESM嵌入，故不支持磁盘节省模式。
+- 使用"-li True"参数开启该模式
+```
+CUDA_VISIBLE_DEVICES=0 python train.py -o bp -t v1.1 -n model_v1.1 -s 7120 -li True
+```
