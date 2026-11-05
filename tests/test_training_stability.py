@@ -114,11 +114,55 @@ class GuardedUpdateTests(unittest.TestCase):
         torch.testing.assert_close(guarded, reference)
         torch.testing.assert_close(opt.state[guarded]['exp_avg'], ref_opt.state[reference]['exp_avg'])
 
-    def test_overflowing_norm_is_rejected_before_update(self):
+    def test_finite_gradients_with_overflowing_norm_match_float64_clipping(self):
+        # 1e19 overflows the combined norm; larger values overflow each tensor norm.
+        for magnitude in (1e19, 1e30, 3e38):
+            with self.subTest(magnitude=magnitude):
+                params = [torch.nn.Parameter(torch.zeros(2)) for _ in range(2)]
+                reference = [torch.nn.Parameter(torch.zeros(2, dtype=torch.float64)) for _ in range(2)]
+                gradients = [torch.tensor([magnitude, -magnitude]),
+                             torch.tensor([-magnitude, magnitude])]
+                optimizer = torch.optim.Adam([{'params': [p]} for p in params], lr=.001)
+                ref_optimizer = torch.optim.Adam(reference, lr=.001)
+                for param, grad in zip(reference, gradients):
+                    param.grad = grad.double()
+                expected_norm = torch.nn.utils.clip_grad_norm_(reference, .5, error_if_nonfinite=True)
+                ref_optimizer.step()
+                loss = sum((param * grad).sum() for param, grad in zip(params, gradients))
+                logger = logging.getLogger('test.training_stability')
+                with self.assertLogs(logger, 'WARNING') as logs:
+                    norm = backward_and_step(loss, optimizer, [('encoder', params[0]), ('decoder', params[1])], .5,
+                                             logger=logger, context='train epoch=6 batch=4683')
+                self.assertIn('train epoch=6 batch=4683', '\n'.join(logs.output))
+                self.assertIn('encoder', '\n'.join(logs.output))
+                self.assertIn('decoder', '\n'.join(logs.output))
+                torch.testing.assert_close(norm, expected_norm)
+                self.assertLessEqual(torch.cat([p.grad.double() for p in params]).norm().item(), .500001)
+                for actual, expected in zip(params, reference):
+                    torch.testing.assert_close(actual.grad, expected.grad.float())
+                    torch.testing.assert_close(actual, expected.float())
+                    self.assertTrue(optimizer.state[actual]['exp_avg_sq'].isfinite().all())
+                    self.assertGreater(optimizer.state[actual]['exp_avg_sq'].sum().item(), 0.)
+
+    def test_nan_gradients_are_rejected_without_clipping_other_parameters(self):
+        invalid = torch.nn.Parameter(torch.zeros(2))
+        finite = torch.nn.Parameter(torch.zeros(2))
+        optimizer = torch.optim.Adam([invalid, finite])
+        # sqrt(0) multiplied by zero has a finite forward value and NaN backward.
+        loss = (invalid.sqrt() * 0).sum() + (finite * 1e30).sum()
+        with patch.object(optimizer, 'step', wraps=optimizer.step) as step:
+            with self.assertRaisesRegex(FloatingPointError, 'invalid'):
+                backward_and_step(loss, optimizer, [('invalid', invalid), ('finite', finite)])
+            step.assert_not_called()
+        torch.testing.assert_close(finite.grad, torch.full_like(finite, 1e30))
+        self.assertFalse(optimizer.state)
+
+    def test_unrelated_clipping_errors_are_not_treated_as_norm_overflow(self):
         param = torch.nn.Parameter(torch.zeros(2))
         optimizer = torch.optim.Adam([param])
-        with self.assertRaisesRegex(FloatingPointError, 'total norm overflowed'):
-            backward_and_step((param * 1e30).sum(), optimizer, [('weight', param)])
+        with patch('torch.nn.utils.clip_grad_norm_', side_effect=RuntimeError('unsupported operation')):
+            with self.assertRaisesRegex(RuntimeError, 'unsupported operation'):
+                backward_and_step(param.sum(), optimizer, [('weight', param)])
         self.assertFalse(optimizer.state)
 
     def test_predictions_are_checked_and_batch_context_is_logged(self):

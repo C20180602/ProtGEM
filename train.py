@@ -233,6 +233,8 @@ def main(ont, species_name, model_name, model_type,
         mean_loss1 = 0.0
         mean_loss2 = 0.0
         mean_loss3 = 0.0
+        mean_re_loss_seq = 0.0
+        mean_re_loss_struct = 0.0
         max_observed_grad_norm = 0.0
         pred = []
         actual = []
@@ -248,7 +250,8 @@ def main(ont, species_name, model_name, model_type,
             mask = mask.to(device)
             graph_mask = graph_mask.to(device)
 
-            with numerical_error_context(logger, f"train epoch={epoch} batch={i} pids={list(pids)}"), \
+            batch_context = f"train epoch={epoch} batch={i} pids={list(pids)}"
+            with numerical_error_context(logger, batch_context), \
                     torch.autograd.set_detect_anomaly(detect_anomaly):
                 # 处理不同model type的数据格式, 如果有重构损失(alpha4)则导出局部特征
                 if model_type == "v1.1" and alpha4 > 0.0:
@@ -290,12 +293,17 @@ def main(ont, species_name, model_name, model_type,
                     re_loss_struct = torch.tensor(0.0, device=device)
                     for coords_logit, coords_real in zip(coords_logits, re_struct_tgt):
                         re_loss_struct += criterion5(coords_logit, coords_real)
+                    require_finite({"sequence reconstruction loss": re_loss_seq,
+                                    "structure reconstruction loss": re_loss_struct})
+                    mean_re_loss_seq += re_loss_seq.item()
+                    mean_re_loss_struct += re_loss_struct.item()
                 
                     loss4 = re_loss_seq + re_loss_struct
                     loss += alpha4 * loss4
             
                 require_finite({"contrastive loss": loss1, "BCE loss": loss2, "GO loss": loss3})
-                grad_norm = backward_and_step(loss, optimizer, named_train_parameters, max_grad_norm)
+                grad_norm = backward_and_step(loss, optimizer, named_train_parameters, max_grad_norm,
+                                              logger=logger, context=batch_context)
                 lr_scheduler.step()
                 max_observed_grad_norm = max(max_observed_grad_norm, grad_norm.item())
             mean_loss += loss.item()
@@ -308,6 +316,10 @@ def main(ont, species_name, model_name, model_type,
                 mlflow.log_metric("train_loss1", mean_loss1/log_batch_count, step=epoch*len(train_loader)+i)
                 mlflow.log_metric("train_loss2", mean_loss2/log_batch_count, step=epoch*len(train_loader)+i)
                 mlflow.log_metric("train_loss3", mean_loss3/log_batch_count, step=epoch*len(train_loader)+i)
+                if rd_model is not None:
+                    logger.info(f'Reconstruction losses: sequence={mean_re_loss_seq/log_batch_count}, structure={mean_re_loss_struct/log_batch_count}')
+                    mlflow.log_metric("train_re_loss_seq", mean_re_loss_seq/log_batch_count, step=epoch*len(train_loader)+i)
+                    mlflow.log_metric("train_re_loss_struct", mean_re_loss_struct/log_batch_count, step=epoch*len(train_loader)+i)
                 logger.info(f'Max gradient norm before clipping: {max_observed_grad_norm}, clip threshold: {max_grad_norm}')
                 mlflow.log_metric("train_grad_norm_max", max_observed_grad_norm, step=epoch*len(train_loader)+i)
                 
@@ -315,6 +327,8 @@ def main(ont, species_name, model_name, model_type,
                 mean_loss1 = 0.0
                 mean_loss2 = 0.0
                 mean_loss3 = 0.0
+                mean_re_loss_seq = 0.0
+                mean_re_loss_struct = 0.0
                 max_observed_grad_norm = 0.0
             
             # 对于训练集预测结果，采样进行指标计算，节省时间

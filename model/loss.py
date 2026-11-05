@@ -218,6 +218,12 @@ class GeometricStructureLoss(nn.Module):
         # 计算二面角
         cos_phi = torch.sum(n1_norm * n2_norm, dim=-1)
         sin_phi = torch.sum(torch.cross(n1_norm, n2_norm, dim=-1) * b2_norm, dim=-1)
+        # 重合/共线坐标的二面角未定义；atan2(0, 0) 前向有限但反向为 NaN。
+        # 在 atan2 之前替换退化输入，约定角度为 0、梯度为 0；也避开近零分母。
+        # 不能在 atan2 之后 mask，否则反向仍会经过奇点。
+        degenerate = sin_phi.square() + cos_phi.square() < 1e-8
+        sin_phi = torch.where(degenerate, torch.zeros_like(sin_phi), sin_phi)
+        cos_phi = torch.where(degenerate, torch.ones_like(cos_phi), cos_phi)
         dihedrals = torch.atan2(sin_phi, cos_phi)
         
         return dihedrals  # [B, L-3]

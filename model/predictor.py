@@ -35,9 +35,8 @@ class ProteinGoModel(nn.Module):
         go_emb = self.gm(go_idx)
         # protein_emb: [batch_size, hid_dim]
         # go_emb: [go_nums, hid_dim]
-        protein_emb = protein_emb.unsqueeze(1)
-        go_emb = go_emb.unsqueeze(0)
-        predict_matrix = go_emb * protein_emb
+        # 仅在分类计算时广播，保留用于重构的全局特征 [batch_size, hid_dim]。
+        predict_matrix = go_emb.unsqueeze(0) * protein_emb.unsqueeze(1)
         # predict_matrix: [batch_size, go_nums, hid_dim]
         predict_matrix = self.MLP(predict_matrix)
         predict_matrix = predict_matrix.squeeze(-1)
@@ -119,12 +118,16 @@ class ReconstructDecoder(nn.Module):
             torch.ones(seq_len, seq_len, device=device, dtype=torch.bool),
             diagonal=1
         )
-        decoder_output = self.transformer_decoder(
-            tgt=tgt_queries,
-            memory=encoder_hidden,
-            tgt_mask=causal_mask,
-            memory_key_padding_mask=src_mask
-        )
+        # PyTorch 2.2 的 CUDA memory-efficient SDPA 可能在反向传播中产生 NaN。
+        # 仅在重构解码器内使用 math 后端；前向构建的计算图也决定反向实现。
+        with torch.backends.cuda.sdp_kernel(enable_flash=False, enable_math=True,
+                                           enable_mem_efficient=False):
+            decoder_output = self.transformer_decoder(
+                tgt=tgt_queries,
+                memory=encoder_hidden,
+                tgt_mask=causal_mask,
+                memory_key_padding_mask=src_mask
+            )
         
         # 5、输出
         token_logits = self.token_head(decoder_output)

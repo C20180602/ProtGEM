@@ -17,7 +17,7 @@ ProtGEM integrates protein sequence, three-dimensional structure, and InterPro a
 - **Ontology-aware annotation:** protein representations are combined with GO embeddings to predict biological process (BP), cellular component (CC), and molecular function (MF) annotations. The code also supports GO embedding pretraining.
 - **PPI inference and transfer:** the protein encoder supports pairwise interaction prediction and a workflow for transferring interaction evidence between datasets.
 
-The final structural encoder uses **3 GVP convolution blocks** (`model_args.StructEncoder.num_layers = 3`). Reconstruction and auxiliary GO losses are optional components; their presence in the diagram does not mean they are enabled in every experiment. Use the configuration saved with each checkpoint to reproduce its evaluation.
+Reconstruction and auxiliary GO losses are optional components; their presence in the diagram does not mean they are enabled in every experiment. Use the configuration saved with each checkpoint to reproduce its evaluation.
 
 ## 🛠️ Installation
 
