@@ -1,3 +1,12 @@
+# 2026.11.04 重新测试重构训练
+bp:
+2026-11-04 19:18:51,272 global INFO AUC: 0.9815 AUPR: 0.5190 PRC: 0.6186 REC: 0.4323  Fmax: 0.5089 tmp_thresh: 0.7442
+cc:
+2026-11-05 14:34:13,261 global INFO AUC: 0.9926 AUPR: 0.8278 PRC: 0.8225 REC: 0.7015  Fmax: 0.7572 tmp_thresh: 0.8127
+mf:
+2026-11-05 14:35:26,871 global INFO AUC: 0.9920 AUPR: 0.8719 PRC: 0.9062 REC: 0.7552  Fmax: 0.8238 tmp_thresh: 0.7805
+
+
 # 2026.10.14 重新测试GO预训练
 CUDA_VISIBLE_DEVICES=0 python train.py -o bp -n right_go_loss -s AF2DB -preg model_params/go_pretrain_model.pth
 CUDA_VISIBLE_DEVICES=1 python train.py -o cc -n right_go_loss -s AF2DB -preg model_params/go_pretrain_model.pth
