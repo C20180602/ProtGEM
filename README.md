@@ -24,7 +24,7 @@ Reconstruction and auxiliary GO losses are optional components; their presence i
 Use Linux and an NVIDIA GPU for the training and feature-extraction commands below. The project environment uses Python 3.11.7, PyTorch 2.2.1 with CUDA 12.1, and DGL 2.4.0 with CUDA 12.1.
 
 ```bash
-git clone https://github.com/C20180602/dag-classify.git ProtGEM
+git clone https://github.com/C20180602/ProtGEM.git
 cd ProtGEM
 
 conda create -n protgem python=3.11.7 -y
