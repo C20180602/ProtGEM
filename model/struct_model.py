@@ -144,7 +144,6 @@ class GVPConvLayer(nn.Module):
         self.ins, self.inv = in_dims
         self.outs,self.outv= out_dims
         self.edge_s,self.edge_v= edge_dims
-        # TODO: edge没有向量特征，可以考虑后期添加
         
         self.num_layers = conv_gvp_layers
         tmp_gvp = functools.partial(GVP, activations=activations, cross_gate=cross_gate)
@@ -168,7 +167,6 @@ class GVPConvLayer(nn.Module):
         根据GVP论文, 这里把三层GVP放到消息函数上运算
         '''
         # input: edges.src/dst: 'res': [batch_size(dgl), 46], 'pos': [batch_size(dgl), 6, 3]
-        # TODO : GVP论文原文只拼接了源节点特征和边特征输入GVP, 可以比较拼入目标节点特征之后性能差异
         s = torch.cat((edges.src["s"], edges.dst["s"], edges.data["s"]), dim=1)
         # s: [batch_size, 46 * 2 + 6]
         v = torch.cat((edges.src["v"], edges.dst["v"], edges.data["v"]), dim=1)

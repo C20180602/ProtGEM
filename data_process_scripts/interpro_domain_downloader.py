@@ -125,7 +125,7 @@ def main(species_name):
     download_tasks = []
     for pid in tqdm(pid_list):
         if pid not in exist_file_list:
-            url = f"https://www.ebi.ac.uk:443/interpro/api/entry/InterPro/protein/reviewed/{pid}/?page_size=200"
+            url = f"https://www.ebi.ac.uk:443/interpro/api/entry/InterPro/protein/uniprot/{pid}/?page_size=200"
             file_path = os.path.join("raw_data",species_name,"domain", pid+'.tsv')
             download_tasks.append((url, file_path))
 

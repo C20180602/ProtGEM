@@ -89,7 +89,8 @@ def main(species_name, max_length):
     else:
         with open(os.path.join("go","go.tsv"),'r') as f:
             line = f.readline()
-            line = f.readline()
+            if line.startswith("Entry"):
+                line = f.readline()
             while line:
                 pid = line.split('\t')[0]
                 if pid not in protein_info:
